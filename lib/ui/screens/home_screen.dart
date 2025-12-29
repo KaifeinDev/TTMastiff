@@ -69,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                       // 使用 go_router 跳轉
-                      context.go('/course/${course.id}');
+                      context.go('/home/course/${course.id}');
                     },
                   );
                 },

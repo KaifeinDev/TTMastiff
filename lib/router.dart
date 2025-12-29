@@ -17,6 +17,10 @@ final appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: '/login', // 暫時先設為登入頁，方便測試流程
   routes: [
+    GoRoute(
+      path: '/',
+      redirect: (context, state) => '/login',
+    ),
     // --- 1. Auth 區域 (沒有底部導航) ---
     GoRoute(
       path: '/login',
