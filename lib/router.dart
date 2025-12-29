@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:ttmastiff/data/services/session_repository.dart';
 // 引入所有頁面
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/register_screen.dart';
@@ -8,7 +9,7 @@ import 'ui/screens/home_screen.dart';
 import 'ui/screens/course_detail_screen.dart';
 import 'ui/screens/my_bookings_screen.dart';
 import 'ui/screens/profile_screen.dart';
-import 'ui/screens/scaffold_with_nav_bar.dart'; // 引入剛剛建立的殼
+import 'ui/screens/scaffold_with_nav_bar.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -44,12 +45,15 @@ final appRouter = GoRouter(
               path: '/home',
               builder: (context, state) => const HomeScreen(),
               routes: [
-                // 課程詳情頁 (屬於首頁的子路由，這樣返回時會有底部導航，或者你可以選擇把它拉出去)
+                // 課程詳情頁 (屬於首頁的子路由)
+                // 🔴 修改點：路徑改成簡單的標識，並從 extra 讀取物件
                 GoRoute(
-                  path: 'course/:id',
+                  path: 'course_detail', // 完整路徑變成 /home/course_detail
                   builder: (context, state) {
-                    final id = state.pathParameters['id']!;
-                    return CourseDetailScreen(courseId: id);
+                    // 從 extra 拿出 SessionModel
+                    // 注意：如果直接輸入網址進入，extra 會是 null，這裡假設都是從點擊進入
+                    final session = state.extra as SessionModel;
+                    return CourseDetailScreen(session: session);
                   },
                 ),
               ],
