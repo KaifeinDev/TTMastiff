@@ -50,6 +50,7 @@ class CourseRepository {
   Future<void> bookCourse({
     required String courseId, 
     required String userId, 
+    required String studentId,
     required int maxCapacity
   }) async {
     try {
@@ -73,15 +74,17 @@ class CourseRepository {
           .select()
           .eq('course_id', courseId)
           .eq('user_id', userId)
+          .eq('student_id', studentId)
           .maybeSingle(); // 如果沒資料回傳 null，不會報錯
 
       if (existingBooking != null) {
-        throw Exception('您已經報名過此課程');
+        throw Exception('該學員已經報名過此課程');
       }
 
       // 4. 寫入報名資料
       await _supabase.from('bookings').insert({
         'user_id': userId,
+        'student_id': studentId,
         'course_id': courseId,
         'status': 'confirmed',
         'created_at': DateTime.now().toIso8601String(),
