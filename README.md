@@ -1,4 +1,4 @@
-# 🏸 Court Manager (球館課程管理系# 🏸 Court Manager (球館課程管理系統)
+#  球館管理系統
 
 這是一個基於 **Flutter** 與 **Supabase** 開發的跨平台球館管理系統。支援 iOS 與 Android 雙平台。
 系統旨在解決球館的課程預覽、學員報名、現場 QR Code 簽到以及管理員的後台排課需求。
@@ -46,6 +46,7 @@ lib/
 └── ui/                  # 表現層 (UI 邏輯)
     ├── screens/         # 完整的頁面 (Page)
     └── widgets/         # 可重用的元件 (Component)
+```
 
 ## 🚀 快速開始 (Getting Started)
 請依照以下步驟在本地端執行專案。
@@ -58,21 +59,21 @@ lib/
 2. 安裝依賴
 複製專案後，在終端機執行：
 
-```Bash
-flutter pub get
-```
+    ```Bash
+    flutter pub get
+    ```
 
 3. 設定環境變數 (Environment Variables) ⚠️ 重要
 本專案使用 `.env` 檔案管理敏感資訊 (Supabase URL & Key)。 此檔案被列在 `.gitignore` 中，不會隨程式碼下載。
 
 請在專案根目錄建立一個名為 `.env` 的檔案，並填入以下內容：
 
-```
-# .env
-SUPABASE_URL=[https://你的專案ID.supabase.co](https://你的專案ID.supabase.co)
-SUPABASE_ANON_KEY=你的SupabaseAnonKey
-(請向專案管理員索取這些 Key，或至 Supabase Dashboard 查看)
-```
+    ```
+    # .env
+    SUPABASE_URL=[https://你的專案ID.supabase.co](https://你的專案ID.supabase.co)
+    SUPABASE_ANON_KEY=你的SupabaseAnonKey
+    (請向專案管理員索取這些 Key，或至 Supabase Dashboard 查看)
+    ```
 
 4. 資料庫設定 (Database Setup)
 若你是第一次建立此專案的後端，請參考專案目錄下的 `docs/db_schema.sql`，將其內容複製到 Supabase SQL Editor 執行，以建立必要的資料表。
@@ -80,9 +81,9 @@ SUPABASE_ANON_KEY=你的SupabaseAnonKey
 5. 執行專案
 確認模擬器已開啟：
 
-```Bash
-flutter run
-```
+    ```Bash
+    flutter run
+    ```
 
 ## 🗄 資料庫設計 (Database Schema)
 主要包含三張核心資料表：
@@ -94,13 +95,12 @@ flutter run
 詳細欄位定義請參閱 `docs/db_schema.sql`。
 
 ## 📝 開發規範 (Development Guideline)
-分支管理 (Branching):
-
-- main: 穩定版本，隨時可部署。
-- feature/功能名稱: 開發新功能使用 (例: feature/login-screen)。
+- 分支管理 (Branching):
+  - `main`: 穩定版本，隨時可部署。
+  - `feature`/功能名稱: 開發新功能使用 (例: `feature/login-screen`)。
 - Commit 訊息: 請使用 Conventional Commits 格式。
-- feat: 新功能
-- fix: 修復 Bug
-- docs: 修改文件
-- style: 格式修改 (不影響程式邏輯)
-- refactor: 重構
+  - `feat`: 新功能
+  - `fix`: 修復 Bug
+  - `docs`: 修改文件
+  - `style`: 格式修改 (不影響程式邏輯)
+  - `refactor`: 重構
