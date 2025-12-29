@@ -1,7 +1,7 @@
 class Course {
   final String id;
   final String title;
-  final String? description; // 可能為空
+  final String description;  
   final DateTime startTime;
   final DateTime endTime;
   final String? location;
@@ -13,7 +13,7 @@ class Course {
   Course({
     required this.id,
     required this.title,
-    this.description,
+    required this.description,
     required this.startTime,
     required this.endTime,
     this.location,
@@ -29,7 +29,7 @@ class Course {
     return Course(
       id: json['id'] as String,
       title: json['title'] as String,
-      description: json['description'] as String?,
+      description: json['description'] as String? ?? '',
       // DateTime 需要 parse
       startTime: DateTime.parse(json['start_time'] as String),
       endTime: DateTime.parse(json['end_time'] as String),
