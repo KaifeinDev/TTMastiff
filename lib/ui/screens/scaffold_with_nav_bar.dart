@@ -28,7 +28,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.calendar_month), label: '課程'),
-          NavigationDestination(icon: Icon(Icons.bookmark), label: '我的'),
+          NavigationDestination(icon: Icon(Icons.bookmark), label: '我的課程'),
           NavigationDestination(icon: Icon(Icons.person), label: '檔案'),
         ],
       ),
