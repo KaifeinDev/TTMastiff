@@ -5,7 +5,7 @@ class BookingModel {
   final String id;
   final String status;          // 'confirmed', 'cancelled'
   final String attendanceStatus; // 'pending', 'attended', 'absent' (對應 SQL)
-  final int priceSnapshot;      // 對應 SQL
+  final int price_snapshot;      // 對應 SQL
   final String studentId;
   final String sessionId;
   
@@ -17,7 +17,7 @@ class BookingModel {
     required this.id,
     required this.status,
     required this.attendanceStatus,
-    required this.priceSnapshot,
+    required this.price_snapshot,
     required this.studentId,
     required this.sessionId,
     required this.session,
@@ -31,7 +31,7 @@ class BookingModel {
       // 讀取 DB 中的 attendance_status，若無則預設 pending
       attendanceStatus: json['attendance_status'] ?? 'pending',
       // 讀取價格快照，若 null 則補 0
-      priceSnapshot: json['price_snapshot'] ?? 0,
+      price_snapshot: json['price_snapshot'] ?? 0,
       
       studentId: json['student_id'],
       sessionId: json['session_id'],
