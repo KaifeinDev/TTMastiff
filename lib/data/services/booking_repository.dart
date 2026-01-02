@@ -95,4 +95,47 @@ class BookingRepository {
       throw Exception('取消預約失敗: $e');
     }
   }
+
+  /// 批量建立預約
+  /// 解決痛點：一次幫多個小孩報名多個日期的課程
+  Future<void> createBatchBooking({
+    required List<String> sessionIds, // 選了哪幾天
+    required List<String> studentIds, // 選了哪幾個小孩
+    required int priceSnapshot,
+  }) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('用戶未登入');
+
+    if (sessionIds.isEmpty || studentIds.isEmpty) {
+      throw Exception('請至少選擇一位學員與一個場次');
+    }
+
+    // 準備要寫入的資料列表
+    List<Map<String, dynamic>> bookingsToInsert = [];
+
+    for (var sessionId in sessionIds) {
+      for (var studentId in studentIds) {
+        bookingsToInsert.add({
+          'user_id': userId,
+          'student_id': studentId,
+          'session_id': sessionId,
+          'status': 'confirmed',
+          'attendance_status': 'pending',
+          'price_snapshot': priceSnapshot,
+          // created_at 會由資料庫自動產生
+        });
+      }
+    }
+
+    try {
+      // Supabase 支援一次 insert 多筆資料
+      await _supabase.from('bookings').insert(bookingsToInsert);
+    } catch (e) {
+      // 處理重複報名錯誤 (Unique Constraint)
+      if (e.toString().contains('unique_student_session')) {
+        throw Exception('部分課程該學員已報名過，請檢查是否重複勾選。');
+      }
+      throw Exception('批量報名失敗: $e');
+    }
+  }
 }
