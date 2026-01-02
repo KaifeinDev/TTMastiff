@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/services/session_repository.dart';
+import '../../data/models/session_model.dart';
 // 記得引入你的 Detail Screen
 import 'course_detail_screen.dart'; 
 import 'package:go_router/go_router.dart';

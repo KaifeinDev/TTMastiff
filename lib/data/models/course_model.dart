@@ -35,8 +35,7 @@ class Course {
       endTime: DateTime.parse(json['end_time'] as String),
       location: json['location'] as String?,
       instructor: json['instructor'] as String?,
-      maxCapacity: json['max_capacity'] as int? ?? 10, // 預設值保護
-      price: json['price'] as int? ?? 0,
+      maxCapacity: json['max_capacity'] as int? ?? 10, // 預設值保護 price: json['price'] as int? ?? 0,
       isPublished: json['is_published'] as bool? ?? false,
     );
   }

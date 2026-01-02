@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:ttmastiff/data/services/session_repository.dart';
+import 'package:ttmastiff/data/models/session_model.dart';
 // 引入所有頁面
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/register_screen.dart';

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // 記得引入你的 Repository 和 Model
 import '../../data/services/session_repository.dart';
+import '../../data/models/session_model.dart';
 import '../../data/services/student_repository.dart';
 
 class CourseDetailScreen extends StatefulWidget {
