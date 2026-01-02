@@ -57,7 +57,7 @@ class CourseRepository {
         // 二次查詢：根據 ID 列表去 profiles 表抓取名字
         final coachesData = await _supabase
             .from('profiles')
-            .select('id, full_name, avatar_url') // 只抓需要的欄位
+            .select('id, full_name') // 只抓需要的欄位
             .filter('id', 'in', session.coachIds); 
         
         // 轉換為 Coach 物件列表
@@ -75,6 +75,37 @@ class CourseRepository {
     } catch (e) {
       // 建議在實際專案中記錄詳細 Log
       throw Exception('載入課程詳情失敗: $e');
+    }
+  }
+
+  Future<List<SessionModel>> fetchSessionsByDate(DateTime date) async {
+    // 設定當天的起始與結束時間 (例如 2024-01-01 00:00:00 ~ 23:59:59)
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+
+    try {
+      final response = await _supabase
+          .from('sessions')
+          .select('*, courses(*)') // Join 課程資料
+          .gte('start_time', startOfDay.toIso8601String())
+          .lte('start_time', endOfDay.toIso8601String())
+          .order('start_time', ascending: true);
+
+      // 轉換資料 (注意：這裡暫時沒包含 fetchSessionDetail 裡的教練二次查詢邏輯以保持列表讀取速度)
+      // 如果需要在列表顯示教練名字，建議在此處加上類似 fetchSessionDetail 的二次查詢邏輯
+      // 或者依賴 Supabase Function 簡化查詢。
+      // 這裡先回傳基本資料：
+      
+      var sessions = (response as List)
+          .map((data) => SessionModel.fromJson(data))
+          .toList();
+
+      // (選擇性) 如果列表一定要顯示教練名字，需在此處補上教練查詢邏輯
+      // 若無此需求，上述程式碼即可運作
+      return sessions;
+
+    } catch (e) {
+      throw Exception('載入當日課程失敗: $e');
     }
   }
 }

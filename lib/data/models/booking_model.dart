@@ -1,45 +1,51 @@
+import 'session_model.dart';
+import 'student_model.dart';
+
 class BookingModel {
   final String id;
-  final String status;
-  final String studentName;
-  final String courseTitle;
-  final String category;     // 🆕 新增分類
-  final DateTime startTime;
-  final DateTime endTime;
-  final List<String> coaches; // 🆕 改為教練列表
+  final String status;          // 'confirmed', 'cancelled'
+  final String attendanceStatus; // 'pending', 'attended', 'absent' (對應 SQL)
+  final int priceSnapshot;      // 對應 SQL
+  final String studentId;
+  final String sessionId;
+  
+  // 關聯物件
+  final SessionModel session;
+  final StudentModel? student; 
 
   BookingModel({
     required this.id,
     required this.status,
-    required this.studentName,
-    required this.courseTitle,
-    required this.category,
-    required this.startTime,
-    required this.endTime,
-    required this.coaches,
+    required this.attendanceStatus,
+    required this.priceSnapshot,
+    required this.studentId,
+    required this.sessionId,
+    required this.session,
+    this.student,
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
-    final session = json['session'] ?? {};
-    final course = session['course'] ?? {};
-    final student = json['student'] ?? {};
-
     return BookingModel(
       id: json['id'],
       status: json['status'] ?? 'confirmed',
-      studentName: student['name'] ?? '未知學員',
+      // 讀取 DB 中的 attendance_status，若無則預設 pending
+      attendanceStatus: json['attendance_status'] ?? 'pending',
+      // 讀取價格快照，若 null 則補 0
+      priceSnapshot: json['price_snapshot'] ?? 0,
       
-      courseTitle: course['title'] ?? '未命名課程',
-      category: course['category'] ?? 'group',
+      studentId: json['student_id'],
+      sessionId: json['session_id'],
       
-      startTime: DateTime.parse(session['start_time']).toLocal(),
-      endTime: DateTime.parse(session['end_time']).toLocal(),
-      
-      // 處理 Postgres 的陣列轉 Dart List
-      coaches: List<String>.from(session['coaches'] ?? []), 
+      // 處理關聯資料
+      session: SessionModel.fromJson(json['sessions']),
+      student: json['students'] != null 
+          ? StudentModel.fromJson(json['students']) 
+          : null,
     );
   }
-  
-  // 方便 UI 顯示分類中文名
-  String get categoryText => category == 'personal' ? '個人課' : '團體課';
+
+  // 🔥 Helper Getters (讓 UI 寫法更簡潔)
+  DateTime get endTime => session.endTime;
+  DateTime get startTime => session.startTime;
+  String get courseTitle => session.courseTitle;
 }
