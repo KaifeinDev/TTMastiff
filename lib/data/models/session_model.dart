@@ -1,46 +1,92 @@
+import 'course_model.dart';
+
+/// 定義教練模型
+class CoachModel {
+  final String id;
+  final String name;
+  final String? avatarUrl;
+
+  CoachModel({
+    required this.id, 
+    required this.name, 
+    this.avatarUrl,
+  });
+
+  factory CoachModel.fromJson(Map<String, dynamic> json) {
+    return CoachModel(
+      id: json['id'],
+      name: json['full_name'] ?? '教練',
+      avatarUrl: json['avatar_url'], 
+    );
+  }
+}
+
 class SessionModel {
   final String id;
+  final String courseId;
   final DateTime startTime;
   final DateTime endTime;
-  final List<String> coaches;
+  final String? location;
   final int maxCapacity;
+  final CourseModel? course;
   
-  // 來自 Course 的資訊
-  final String courseTitle;
-  final String category; // 'group' or 'personal'
-  final int price;
-  final String? imageUrl;
+  // 1. 統一使用複數命名，對應資料庫欄位
+  final List<String> coachIds; 
+  final List<CoachModel> coaches;   
+  final int bookingsCount;
 
   SessionModel({
     required this.id,
+    required this.courseId,
     required this.startTime,
     required this.endTime,
-    required this.coaches,
+    this.location,
     required this.maxCapacity,
-    required this.courseTitle,
-    required this.category,
-    required this.price,
-    this.imageUrl,
+    this.course,
+    // 2. 設定預設值 (注意這裡的語法)
+    this.coachIds = const [], 
+    this.coaches = const [],  
+    this.bookingsCount = 0,   
   });
 
   factory SessionModel.fromJson(Map<String, dynamic> json) {
-    final course = json['course'] ?? {};
-    
     return SessionModel(
       id: json['id'],
+      courseId: json['course_id'],
       startTime: DateTime.parse(json['start_time']).toLocal(),
       endTime: DateTime.parse(json['end_time']).toLocal(),
-      coaches: List<String>.from(json['coaches'] ?? []),
+      location: json['location'],
       maxCapacity: json['max_capacity'] ?? 10,
+      course: json['courses'] != null ? CourseModel.fromJson(json['courses']) : null,
       
-      courseTitle: course['title'] ?? '未命名課程',
-      category: course['category'] ?? 'group',
-      price: course['price'] ?? 0,
-      imageUrl: course['image_url'],
+      // 3. 確保這裡的參數名稱是 coachIds (複數)，且從 'coach_ids' 讀取
+      coachIds: List<String>.from(json['coach_ids'] ?? []),
+      
+      // 預設為空，等待 Repository 填入
+      coaches: const [], 
+      
+      bookingsCount: json['bookings_count'] ?? 0,
     );
   }
 
-  // 方便 UI 顯示
-  String get categoryText => category == 'personal' ? '1對1' : '團體班';
-  String get coachesText => coaches.isEmpty ? '教練待定' : coaches.join('、');
+  // copyWith 方法
+  SessionModel copyWith({
+    List<CoachModel>? coaches, 
+    int? bookingsCount,
+    List<String>? coachIds,
+  }) {
+    return SessionModel(
+      id: id,
+      courseId: courseId,
+      startTime: startTime,
+      endTime: endTime,
+      location: location,
+      maxCapacity: maxCapacity,
+      course: course,
+      // 4. 這裡也要確保名稱對應正確
+      coachIds: coachIds ?? this.coachIds,
+      coaches: coaches ?? this.coaches, 
+      bookingsCount: bookingsCount ?? this.bookingsCount,
+    );
+  }
 }

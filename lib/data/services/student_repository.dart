@@ -9,7 +9,7 @@ class StudentRepository {
   // 取得當前帳號底下的所有學員
   Future<List<StudentModel>> getMyStudents() async {
     final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return [];
+    if (userId == null) throw Exception('尚未登入');
 
     final response = await _supabase
         .from('students')

@@ -1,98 +1,80 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/course_model.dart';
+import '../models/session_model.dart';
 
 class CourseRepository {
   final SupabaseClient _supabase;
 
-  // 建構子注入 SupabaseClient，方便之後測試
   CourseRepository(this._supabase);
 
-  // 取得所有已發布的課程
-  Future<List<Course>> getPublishedCourses() async {
+  /// 取得所有未來即將開始的課程場次
+  ///
+  /// 會關聯查詢 (Join) 取得對應的 Course 資訊
+  Future<List<SessionModel>> fetchUpcomingSessions() async {
     try {
-      // 1. 向 Supabase 請求資料
-      // select() 代表 SELECT *
-      // order() 做排序，這裡依照開始時間排序
       final response = await _supabase
-          .from('courses')
-          .select()
-          .eq('is_published', true) // 只抓已上架的
-          .order('start_time', ascending: true);
+          .from('sessions')
+          .select('*, courses(*)') // Join courses 表格
+          .gte('start_time', DateTime.now().toIso8601String()) // 只抓未來的
+          .order('start_time', ascending: true); // 依照時間排序
 
-      // 2. 將 List<Map> 轉換成 List<Course>
-      // response 本身就是 List<dynamic> (Maps)
-      final List<dynamic> data = response as List<dynamic>;
-      
-      return data.map((json) => Course.fromJson(json)).toList();
-      
+      return (response as List)
+          .map((data) => SessionModel.fromJson(data))
+          .toList();
     } catch (e) {
-      // 實際開發建議用 Logger 記錄錯誤
-      print('Error fetching courses: $e');
-      rethrow; // 把錯誤丟出去讓 UI 決定怎麼顯示 (例如跳 Alert)
+      throw Exception('載入課程列表失敗: $e');
     }
   }
 
-  Future<Course?> getCourseById(String courseId) async {
+  /// 取得單一場次詳情
+  ///
+  /// 包含：
+  /// 1. Session 本體資料
+  /// 2. 關聯的 Course 資料
+  /// 3. 即時計算的已報名人數 (bookings count)
+  /// 4. 解析 coach_ids 並查詢對應的教練姓名 (Profiles)
+  Future<SessionModel> fetchSessionDetail(String sessionId) async {
     try {
-      final response = await _supabase
-          .from('courses')
-          .select()
-          .eq('id', courseId)
-          .single(); // .single() 確保只回傳一筆物件
+      // 步驟 1: 抓取 Session 本體與 Course 資料
+      final sessionResponse = await _supabase
+          .from('sessions')
+          .select('*, courses(*)')
+          .eq('id', sessionId)
+          .single();
 
-      return Course.fromJson(response);
-    } catch (e) {
-      print('Error fetching course details: $e');
-      return null;
-    }
-  }
-
-  Future<void> bookCourse({
-    required String courseId, 
-    required String userId, 
-    required String studentId,
-    required int maxCapacity
-  }) async {
-    try {
-      // 1. 檢查目前的報名人數 (status = 'confirmed')
-      // 使用 count() 來只抓取數量，節省流量
-      final currentCount = await _supabase
+      // 步驟 2: 抓取目前已確認的報名人數
+      // 使用 count(CountOption.exact) 避免拉取所有資料，節省流量
+      final bookingsCount = await _supabase
           .from('bookings')
-          .count(CountOption.exact) // 取得精確數量
-          .eq('course_id', courseId)
+          .count(CountOption.exact)
+          .eq('session_id', sessionId)
           .eq('status', 'confirmed');
-      
-      // 2. 判斷是否額滿
-      if (currentCount >= maxCapacity) {
-        throw Exception('名額已滿');
+
+      // 先將資料轉換為基本的 Model
+      var session = SessionModel.fromJson(sessionResponse);
+
+      // 步驟 3: 處理教練資訊 (若 coach_ids 不為空)
+      if (session.coachIds.isNotEmpty) {
+        // 二次查詢：根據 ID 列表去 profiles 表抓取名字
+        final coachesData = await _supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url') // 只抓需要的欄位
+            .filter('id', 'in', session.coachIds); 
+        
+        // 轉換為 Coach 物件列表
+        final coachesList = (coachesData as List)
+            .map((c) => CoachModel.fromJson(c)) 
+            .toList();
+
+        // 將教練資料填入 session 物件
+        session = session.copyWith(coaches: coachesList);
       }
 
-      // 3. 檢查是否已經報名過 (防止重複報名)
-      // 這是一個選擇性的檢查，看你的商業邏輯是否允許重複報名
-      final existingBooking = await _supabase
-          .from('bookings')
-          .select()
-          .eq('course_id', courseId)
-          .eq('user_id', userId)
-          .eq('student_id', studentId)
-          .maybeSingle(); // 如果沒資料回傳 null，不會報錯
-
-      if (existingBooking != null) {
-        throw Exception('該學員已經報名過此課程');
-      }
-
-      // 4. 寫入報名資料
-      await _supabase.from('bookings').insert({
-        'user_id': userId,
-        'student_id': studentId,
-        'course_id': courseId,
-        'status': 'confirmed',
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      // 步驟 4: 將人數與最終結果回傳
+      return session.copyWith(bookingsCount: bookingsCount);
 
     } catch (e) {
-      print('Booking error: $e');
-      rethrow; // 把錯誤丟回 UI 層處理
+      // 建議在實際專案中記錄詳細 Log
+      throw Exception('載入課程詳情失敗: $e');
     }
   }
 }
