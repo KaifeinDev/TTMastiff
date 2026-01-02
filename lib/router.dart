@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:ttmastiff/data/services/session_repository.dart';
+import 'package:ttmastiff/data/models/session_model.dart';
 // 引入所有頁面
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/register_screen.dart';
@@ -48,12 +49,12 @@ final appRouter = GoRouter(
                 // 課程詳情頁 (屬於首頁的子路由)
                 // 🔴 修改點：路徑改成簡單的標識，並從 extra 讀取物件
                 GoRoute(
-                  path: 'course_detail', // 完整路徑變成 /home/course_detail
+                  path: 'course_detail/:courseId', // 完整路徑變成 /home/course_detail
                   builder: (context, state) {
                     // 從 extra 拿出 SessionModel
                     // 注意：如果直接輸入網址進入，extra 會是 null，這裡假設都是從點擊進入
-                    final session = state.extra as SessionModel;
-                    return CourseDetailScreen(session: session);
+                    final courseId = state.pathParameters['courseId']!;
+                    return CourseDetailScreen(courseId: courseId);
                   },
                 ),
               ],
