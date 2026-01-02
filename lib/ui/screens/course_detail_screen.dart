@@ -97,7 +97,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       await _bookingRepo.createBatchBooking(
         sessionIds: _selectedSessionIds.toList(),
         studentIds: _selectedStudentIds.toList(),
-        priceSnapshot: _course!.price,
+        price_snapshot: _course!.price,
       );
 
       if (mounted) {
