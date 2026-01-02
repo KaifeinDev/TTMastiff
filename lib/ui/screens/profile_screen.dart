@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // 假設您的 Model 和 Repository 路徑如下，請根據實際專案結構調整
 import '../../data/services/auth_repository.dart';
 import '../../data/services/student_repository.dart';
+import '../../data/models/student_model.dart';
+import '../../core/utils/util.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -428,7 +430,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   displayName,
                                   style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                                 ),
-                                Text(_userEmail ?? '', style: Theme.of(context).textTheme.bodyMedium),
+                                if (_userEmail != null && _userEmail!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.email, size: 14, color: Colors.grey),
+                                        const SizedBox(width: 4),
+                                        Text(_userEmail!, style: Theme.of(context).textTheme.bodyMedium),
+                                      ],
+                                    ),
+                                  ),
                                 if (_userPhone != null && _userPhone!.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
@@ -441,14 +453,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   ),
                                 const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text('主帳號 (家長)', style: TextStyle(fontSize: 12)),
-                                )
+                                // Container(
+                                //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                //   decoration: BoxDecoration(
+                                //     color: Colors.white.withOpacity(0.5),
+                                //     borderRadius: BorderRadius.circular(12),
+                                //   ),
+                                //   child: const Text('主帳號 (家長)', style: TextStyle(fontSize: 12)),
+                                // )
                               ],
                             ),
                           ),
@@ -598,7 +610,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${student.birthDate.year}/${student.birthDate.month}/${student.birthDate.day}',
+                                        // '${student.birthDate.year}/${student.birthDate.month}/${student.birthDate.day}',
+                                        student.birthDate.toDateWithAge(),
                                         style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                                       ),
                                     ],

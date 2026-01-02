@@ -63,10 +63,10 @@ class AuthRepository {
       
       // 3. 建立 Primary Student (實體層：包含頭像、生日、備註)
       // 生成頭像 URL
-      String avatarName = fullName;
+      String avatarName = fullName.trim();
       if (fullName.length > 2) avatarName = fullName.substring(fullName.length - 2);
       final encodedName = Uri.encodeComponent(avatarName);
-      final avatarUrl = 'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128';
+      final avatarUrl = 'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
 
       await _supabase.from('students').insert({
         'parent_id': user.id,
