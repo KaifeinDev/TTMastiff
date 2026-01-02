@@ -1,280 +1,225 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// 記得引入你的 Repository 和 Model
-import '../../data/services/session_repository.dart';
+
+import '../../data/services/booking_repository.dart';
 import '../../data/services/student_repository.dart';
+import '../../data/services/course_repository.dart'; // 需擴充 fetchSessionsByCourseId
+import '../../data/models/session_model.dart';
+import '../../data/models/student_model.dart';
+import '../../data/models/course_model.dart'; // 需引入 CourseModel
 
 class CourseDetailScreen extends StatefulWidget {
-  // 1. 修改這裡：改成接收 SessionModel
-  final SessionModel session;
+  // 🔥 改動 1: 這裡接收 courseId，而不是 sessionId
+  // 因為我們要顯示這個課程的"所有"未來場次
+  final String courseId;
 
-  const CourseDetailScreen({
-    super.key, 
-    required this.session,
-  });
+  const CourseDetailScreen({super.key, required this.courseId});
 
   @override
   State<CourseDetailScreen> createState() => _CourseDetailScreenState();
 }
 
 class _CourseDetailScreenState extends State<CourseDetailScreen> {
-  final _studentRepo = StudentRepository(Supabase.instance.client);
-  final _sessionRepo = SessionRepository(Supabase.instance.client);
+  // ... Repositories (同前) ...
+  late final StudentRepository _studentRepo;
+  late final BookingRepository _bookingRepo;
+  late final CourseRepository _courseRepo; // 假設您已在 Repo 加入 fetchSessionsByCourseId
 
-  // 🛍️ 搬過來的預約邏輯
-  void _onBookPressed() async {
-    // 使用 widget.session 來獲取傳入的資料
-    final session = widget.session; 
+  CourseModel? _course;
+  List<SessionModel> _upcomingSessions = []; // 未來的場次列表
+  List<StudentModel> _myStudents = [];
 
+  bool _isLoading = true;
+  bool _isBooking = false;
+
+  // 🔥 狀態管理：使用者勾選了哪些？
+  final Set<String> _selectedStudentIds = {};
+  final Set<String> _selectedSessionIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // 初始化 Repo ...
+    final client = Supabase.instance.client;
+    _studentRepo = StudentRepository(client);
+    _bookingRepo = BookingRepository(client);
+    _courseRepo = CourseRepository(client); // 需實作相關方法
+
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
     try {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      final students = await _studentRepo.getMyStudents();
-      
-      if (!mounted) return;
+      // 1. 平行讀取：課程資訊、未來場次、我的學員
+      final results = await Future.wait([
+        _courseRepo.fetchCourseById(widget.courseId), // 需實作
+        _courseRepo.fetchUpcomingSessionsByCourseId(widget.courseId), // 需實作
+        _studentRepo.getMyStudents(),
+      ]);
 
-      if (students.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('請先至「我的 -> 學員管理」新增學員')),
-        );
-        return;
-      }
-
-      showModalBottomSheet(
-        context: context,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        builder: (context) {
-          return Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '要幫誰報名 ${session.courseTitle}？',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                ...students.map((student) => ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.person)),
-                      title: Text(student.name),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () async {
-                        Navigator.pop(context);
-                        await Future.delayed(const Duration(milliseconds: 200));
-                        if (mounted) {
-                          _confirmBooking(session, student.id, student.name);
-                        }
-                      },
-                    )),
-                const SizedBox(height: 24),
-              ],
-            ),
-          );
-        },
-      );
-    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('讀取學員失敗: $e')),
-        );
+        setState(() {
+          _course = results[0] as CourseModel;
+          _upcomingSessions = results[1] as List<SessionModel>;
+          _myStudents = results[2] as List<StudentModel>;
+          
+          // 預設全選未來 4 週的場次 (提升體驗)
+          // _selectedSessionIds.addAll(_upcomingSessions.take(4).map((e) => e.id));
+          
+          // 預設選取主要學員
+          final primaryStudent = _myStudents.firstWhere((s) => s.isPrimary, orElse: () => _myStudents.first);
+          _selectedStudentIds.add(primaryStudent.id);
+
+          _isLoading = false;
+        });
       }
+    } catch (e) {
+      if(mounted) setState(() => _isLoading = false);
+      debugPrint("Error: $e");
     }
   }
 
-  // 📝 確認預約邏輯
-  Future<void> _confirmBooking(SessionModel session, String studentId, String studentName) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      useRootNavigator: true,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+  // 執行批量報名
+  Future<void> _onBatchBookPressed() async {
+    if (_selectedStudentIds.isEmpty || _selectedSessionIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請至少選擇一位學員和一堂課程')));
+      return;
+    }
+
+    setState(() => _isBooking = true);
 
     try {
-      await _sessionRepo.createBooking(sessionId: session.id, studentId: studentId);
+      // 計算總金額 (給用戶確認用，或是顯示在 Log)
+      final totalCost = _selectedStudentIds.length * _selectedSessionIds.length * _course!.price;
+      print("預計扣款/花費: $totalCost");
 
-      if (!mounted) return;
+      await _bookingRepo.createBatchBooking(
+        sessionIds: _selectedSessionIds.toList(),
+        studentIds: _selectedStudentIds.toList(),
+        priceSnapshot: _course!.price,
+      );
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          if (Navigator.of(context, rootNavigator: true).canPop()) {
-            Navigator.of(context, rootNavigator: true).pop();
-          }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ 報名成功！已幫 $studentName 預約'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          
-          // 預約成功後，可以選擇 pop 回上一頁，或是留在這頁並更新狀態
-           Navigator.pop(context);
-        }
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('成功報名 ${_selectedSessionIds.length} 堂課 x ${_selectedStudentIds.length} 位學員！'),
+            backgroundColor: Colors.green,
+          )
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
-      if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          if (Navigator.of(context, rootNavigator: true).canPop()) {
-            Navigator.of(context, rootNavigator: true).pop();
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('報名失敗: $e'), backgroundColor: Colors.red),
-          );
-        }
-      });
+      if(mounted) {
+        setState(() => _isBooking = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('報名失敗: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 取得傳入的資料
-    final session = widget.session;
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_course == null) return const Scaffold(body: Center(child: Text('課程不存在')));
+
+    final dateFormat = DateFormat('MM/dd (E)', 'zh_TW');
     final timeFormat = DateFormat('HH:mm');
-    final dateStr = DateFormat('yyyy/MM/dd (E)', 'zh_TW').format(session.startTime);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('課程詳情'),
-      ),
+      appBar: AppBar(title: Text(_course!.title)),
       body: Column(
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 課程標題
-                  Text(
-                    session.courseTitle,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  
-                  // 價格標籤
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Text(
-                      '\$${session.price}',
-                      style: TextStyle(
-                        fontSize: 18, 
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade800
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // 1. 課程資訊區塊 (略，可參考之前的設計)
+                Text("選擇上課學員", style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                
+                // 2. 多選學員區塊
+                Wrap(
+                  spacing: 8,
+                  children: _myStudents.map((student) {
+                    final isSelected = _selectedStudentIds.contains(student.id);
+                    return FilterChip(
+                      label: Text(student.name),
+                      selected: isSelected,
+                      avatar: CircleAvatar(child: Text(student.name[0])),
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedStudentIds.add(student.id);
+                          } else {
+                            _selectedStudentIds.remove(student.id);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
 
-                  // 資訊卡片
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        _DetailRow(icon: Icons.calendar_today, label: '日期', value: dateStr),
-                        const Divider(height: 24),
-                        _DetailRow(
-                          icon: Icons.access_time, 
-                          label: '時間', 
-                          value: '${timeFormat.format(session.startTime)} - ${timeFormat.format(session.endTime)}'
-                        ),
-                        const Divider(height: 24),
-                        _DetailRow(icon: Icons.person, label: '教練', value: session.coachesText),
-                        const Divider(height: 24),
-                        _DetailRow(
-                          icon: Icons.category, 
-                          label: '類型', 
-                          value: session.category == 'personal' ? '個人班' : '團體班'
-                        ),
-                      ],
-                    ),
-                  ),
+                const Divider(height: 32),
+                
+                Text("選擇上課日期", style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+
+                // 3. 多選場次列表
+                if (_upcomingSessions.isEmpty) 
+                  const Text("目前沒有排定未來場次", style: TextStyle(color: Colors.grey)),
                   
-                  const SizedBox(height: 24),
-                  const Text(
-                    "課程說明",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "這裡可以顯示更多關於此課程的描述、注意事項或是場地資訊。目前暫無詳細說明。",
-                    style: TextStyle(color: Colors.grey.shade600, height: 1.5),
-                  ),
-                ],
-              ),
+                ..._upcomingSessions.map((session) {
+                  final isSelected = _selectedSessionIds.contains(session.id);
+                  return CheckboxListTile(
+                    title: Text(dateFormat.format(session.startTime)),
+                    subtitle: Text("${timeFormat.format(session.startTime)} - ${timeFormat.format(session.endTime)}"),
+                    secondary: Text("\$${_course!.price}"),
+                    value: isSelected,
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) {
+                          _selectedSessionIds.add(session.id);
+                        } else {
+                          _selectedSessionIds.remove(session.id);
+                        }
+                      });
+                    },
+                  );
+                }),
+              ],
             ),
           ),
-
-          // 底部固定按鈕
+          
+          // 底部按鈕
           SafeArea(
             child: Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
+              decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(blurRadius: 5, color: Colors.black12)]),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text("已選: ${_selectedStudentIds.length} 人 x ${_selectedSessionIds.length} 堂"),
+                        Text("總計: \$${_selectedStudentIds.length * _selectedSessionIds.length * _course!.price}", 
+                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)),
+                      ],
+                    ),
                   ),
+                  ElevatedButton(
+                    onPressed: _isBooking ? null : _onBatchBookPressed,
+                    child: _isBooking 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
+                      : const Text("批量報名"),
+                  )
                 ],
               ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _onBookPressed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    "立即預約",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
             ),
-          ),
+          )
         ],
       ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _DetailRow({required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey),
-        const SizedBox(width: 12),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 15)),
-        const Spacer(),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15)),
-      ],
     );
   }
 }
