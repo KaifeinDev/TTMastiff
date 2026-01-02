@@ -1,10 +1,44 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/session_model.dart';
+import '../models/course_model.dart';
 
 class CourseRepository {
   final SupabaseClient _supabase;
 
   CourseRepository(this._supabase);
+
+  // 取得特定星期幾有開課的「課程列表」
+  // weekday: 1 (Mon) - 7 (Sun)
+  Future<List<CourseModel>> fetchCoursesByWeekday(int weekday) async {
+    // 這裡的邏輯比較複雜，有兩種做法：
+    // 方法 A (簡單但效能稍差): 抓出未來一個月所有 Session，然後在 Dart 過濾出星期幾，再取出不重複的 Course。
+    // 方法 B (SQL): 使用 Supabase RPC (需寫後端函數)。
+    
+    // 這裡示範 方法 A (純前端 Dart 處理)
+    final start = DateTime.now();
+    final end = start.add(const Duration(days: 45)); // 抓未來45天
+
+    final response = await _supabase
+        .from('sessions')
+        .select('*, courses(*)') // 關聯抓出 Course
+        .gte('start_time', start.toIso8601String())
+        .lte('start_time', end.toIso8601String());
+
+    final sessions = (response as List).map((e) => SessionModel.fromJson(e)).toList();
+
+    // 1. 過濾出指定星期幾的 Session
+    final filteredSessions = sessions.where((s) => s.startTime.weekday == weekday);
+
+    // 2. 取出 Course 並去重 (Distinct)
+    final Map<String, CourseModel> uniqueCourses = {};
+    for (var s in filteredSessions) {
+      if (s.course != null) {
+        uniqueCourses[s.course!.id] = s.course!;
+      }
+    }
+
+    return uniqueCourses.values.toList();
+  }
 
   /// 取得所有未來即將開始的課程場次
   ///
@@ -76,6 +110,30 @@ class CourseRepository {
       // 建議在實際專案中記錄詳細 Log
       throw Exception('載入課程詳情失敗: $e');
     }
+  }
+
+  Future<CourseModel> fetchCourseById(String courseId) async {
+    final response = await _supabase
+        .from('courses')
+        .select()
+        .eq('id', courseId)
+        .single();
+    
+    return CourseModel.fromJson(response);
+  }
+
+  Future<List<SessionModel>> fetchUpcomingSessionsByCourseId(String courseId) async {
+    final now = DateTime.now().toIso8601String();
+    
+    // 找出該 course_id 且時間在現在之後的場次，並依照時間排序
+    final response = await _supabase
+        .from('sessions')
+        .select('*, courses(*)') // 記得關聯 courses 以防 Model 解析錯誤
+        .eq('course_id', courseId)
+        .gte('start_time', now)
+        .order('start_time', ascending: true);
+
+    return (response as List).map((e) => SessionModel.fromJson(e)).toList();
   }
 
   Future<List<SessionModel>> fetchSessionsByDate(DateTime date) async {

@@ -3,7 +3,7 @@ class CourseModel {
   final String title;
   final String? description;  
   final int price;
-  final int durationMintues;
+  final int durationMinutes;
   final String? imageUrl;
   final String category; // group or personal
 
@@ -13,7 +13,7 @@ class CourseModel {
     required this.title,
     this.description,
     required this.price,
-    required this.durationMintues,
+    required this.durationMinutes,
     this.imageUrl,
     required this.category,
   });
@@ -26,7 +26,7 @@ class CourseModel {
       title: json['title'] ?? '未命名課程',
       description: json['description'],
       price: json['price'] ?? 0,
-      durationMintues: json['duration_minutes'] ?? 60,
+      durationMinutes: json['duration_minutes'] ?? 60,
       imageUrl: json['image_url'],
       category: json['category'] ?? 'group',
     );

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/services/session_repository.dart';
-import '../../data/models/session_model.dart';
-// 記得引入你的 Detail Screen
-import 'course_detail_screen.dart'; 
-import 'package:go_router/go_router.dart';
+
+// Screens
+import 'course_detail_screen.dart'; // 記得引入剛剛改好的 Detail Screen
+
+// Repositories & Models
+import '../../data/services/course_repository.dart';
+import '../../data/models/course_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,251 +16,293 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _sessionRepo = SessionRepository(Supabase.instance.client);
+  late final CourseRepository _courseRepo;
+  
+  // 狀態變數
+  int _selectedDayIndex = 0; // 0=週一, 1=週二 ... 6=週日
+  List<CourseModel> _courses = [];
+  bool _isLoading = true;
+  String? _errorMsg;
 
-  DateTime _selectedDate = DateTime.now();
-  bool _isLoading = false;
-  List<SessionModel> _sessions = [];
+  // 定義星期的標籤
+  final List<String> _weekDays = ['一', '二', '三', '四', '五', '六', '日'];
 
   @override
   void initState() {
     super.initState();
-    _fetchSessions(_selectedDate);
+    _courseRepo = CourseRepository(Supabase.instance.client);
+    
+    // 初始化時，自動選擇「今天」是星期幾
+    // DateTime.weekday 回傳 1(Mon)~7(Sun)，我們轉成 0~6 的 index
+    _selectedDayIndex = DateTime.now().weekday - 1;
+    
+    _fetchCourses();
   }
 
-  Future<void> _fetchSessions(DateTime date) async {
+  // 根據目前選中的星期，重新撈取資料
+  Future<void> _fetchCourses() async {
     setState(() {
-      _selectedDate = date;
       _isLoading = true;
+      _errorMsg = null;
     });
+
     try {
-      final sessions = await _sessionRepo.fetchSessionsByDate(date);
+      // API 需要 1~7，但 index 是 0~6，所以 +1
+      final courses = await _courseRepo.fetchCoursesByWeekday(_selectedDayIndex + 1);
+      
       if (mounted) {
         setState(() {
-          _sessions = sessions;
+          _courses = courses;
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-      debugPrint('Error: $e');
+      if (mounted) {
+        setState(() {
+          _errorMsg = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  // 🔄 改動: 使用 GoRouter 進行頁面跳轉
-  void _onSessionTap(SessionModel session) {
-    // 使用 context.push 配合我们在 router.dart 設定的路徑
-    // extra: session 將整包資料傳遞給 CourseDetailScreen
-    context.push('/home/course_detail/${session.id}').then((_) {
-      // 當使用者從詳情頁返回時，重新整理列表 (例如名額可能變動)
-      _fetchSessions(_selectedDate);
+  // 切換星期標籤
+  void _onDaySelected(int index) {
+    if (_selectedDayIndex == index) return;
+    setState(() {
+      _selectedDayIndex = index;
     });
+    _fetchCourses();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('桌球課程預約'),
-        centerTitle: false,
+        title: const Text('課程總覽'),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
+      backgroundColor: Colors.grey.shade100,
       body: Column(
         children: [
-          // 📅 星期選擇器
-          _WeekDaySelector(
-            selectedDate: _selectedDate,
-            onDateSelected: _fetchSessions,
-          ),
-          
-          const Divider(height: 1),
+          // 1. 星期選擇器
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(_weekDays.length, (index) {
+                final isSelected = _selectedDayIndex == index;
+                final isToday = DateTime.now().weekday - 1 == index;
 
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _sessions.isEmpty
-                    ? _EmptyState(date: _selectedDate)
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _sessions.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          return _SessionCard(
-                            session: _sessions[index],
-                            onTap: () => _onSessionTap(_sessions[index]),
-                          );
-                        },
+                return GestureDetector(
+                  onTap: () => _onDaySelected(index),
+                  child:  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 圓形按鈕
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 40, // 固定寬度確保塞得下
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: isSelected 
+                              ? Theme.of(context).primaryColor 
+                              : (isToday ? Colors.blue.shade50 : Colors.transparent),
+                          shape: BoxShape.circle,
+                          border: isSelected 
+                              ? null 
+                              : Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Center(
+                          child: Text(
+                            _weekDays[index],
+                            style: TextStyle(
+                              color: isSelected 
+                                  ? Colors.white 
+                                  : (isToday ? Theme.of(context).primaryColor : Colors.grey.shade600),
+                              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                       ),
+                      // const SizedBox(height: 4),
+                      // Text(
+                      //   "週${_weekDays[index]}",
+                      //   style: TextStyle(fontSize: 10, color: isSelected ? Colors.black : Colors.grey),
+                      // )
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ),
+
+          // 2. 課程列表內容
+          Expanded(
+            child: _buildBody(),
           ),
         ],
       ),
     );
   }
-}
 
-// 📅 元件：優化後的星期選擇器 (強調星期幾)
-class _WeekDaySelector extends StatelessWidget {
-  final DateTime selectedDate;
-  final Function(DateTime) onDateSelected;
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  const _WeekDaySelector({required this.selectedDate, required this.onDateSelected});
+    if (_errorMsg != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(_errorMsg!),
+            TextButton(onPressed: _fetchCourses, child: const Text("重試"))
+          ],
+        ),
+      );
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    // 顯示未來 7 天 (一週)
-    final dates = List.generate(7, (index) => DateTime.now().add(Duration(days: index)));
-
-    return Container(
-      height: 100, 
-      color: Colors.white,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        itemCount: dates.length,
-        itemBuilder: (context, index) {
-          final date = dates[index];
-          final isSelected = DateUtils.isSameDay(date, selectedDate);
-          
-          // 格式化星期幾 (例如：週一, Mon)
-          final weekDay = DateFormat('E', 'zh_TW').format(date);
-          final dayStr = DateFormat('M/d').format(date); 
-
-          return GestureDetector(
-            onTap: () => onDateSelected(date),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 64,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade200,
-                  width: 1.5,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: Theme.of(context).primaryColor.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        )
-                      ]
-                    : [],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    weekDay,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    dayStr,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isSelected ? Colors.white.withOpacity(0.9) : Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
+    if (_courses.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calendar_today_outlined, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              "週${_weekDays[_selectedDayIndex]} 目前沒有安排課程",
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
             ),
-          );
+          ],
+        ),
+      );
+    }
+
+    // 顯示課程卡片列表
+    return RefreshIndicator(
+      onRefresh: _fetchCourses,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _courses.length,
+        itemBuilder: (context, index) {
+          final course = _courses[index];
+          return _CourseCard(course: course);
         },
       ),
     );
   }
 }
 
-// 🏓 元件：課程卡片
-class _SessionCard extends StatelessWidget {
-  final SessionModel session;
-  final VoidCallback onTap;
+// 抽離出來的卡片 Widget，讓程式碼比較乾淨
+class _CourseCard extends StatelessWidget {
+  final CourseModel course;
 
-  const _SessionCard({required this.session, required this.onTap});
+  const _CourseCard({required this.course});
 
   @override
   Widget build(BuildContext context) {
-    final timeFormat = DateFormat('HH:mm');
-    final isPersonal = session.category == 'personal';
-
     return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      clipBehavior: Clip.hardEdge,
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          // 點擊後跳轉到「課程詳情頁 (CourseDetailScreen)」
+          // 這裡傳入 courseId，支援批量報名
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CourseDetailScreen(courseId: course.id),
+            ),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 左側：大時間顯示
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    Text(timeFormat.format(session.startTime),
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-                    Text('至', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-                    Text(timeFormat.format(session.endTime),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // 中間：課程資訊
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _Tag(
-                          text: session.categoryText,
-                          color: isPersonal ? Colors.orange : Colors.blue,
-                        ),
-                        const SizedBox(width: 8),
-                        if (session.coachesText.isNotEmpty)
-                          Text(
-                             session.coachesText,
-                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                          ),
-                      ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. 左側：類型標籤 (團體/個人)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: course.category == 'personal' ? Colors.purple.shade50 : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      session.courseTitle,
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '\$${session.price}',
+                    child: Text(
+                      course.category == 'personal' ? '一對一' : '團體班',
                       style: TextStyle(
+                        fontSize: 12,
+                        color: course.category == 'personal' ? Colors.purple : Colors.blue,
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Theme.of(context).primaryColor,
                       ),
                     ),
-                  ],
+                  ),
+                  const Spacer(),
+                  // 2. 右側：價格
+                  Text(
+                    '\$${course.price}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              
+              // 3. 課程標題
+              Text(
+                course.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-
-              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade300),
+              const SizedBox(height: 8),
+              
+              // 4. 課程說明 (簡短版)
+              if (course.description != null)
+                Text(
+                  course.description!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                ),
+              
+              const SizedBox(height: 16),
+              
+              // 5. 底部行動呼籲
+              Row(
+                children: [
+                  Icon(Icons.access_time, size: 16, color: Colors.grey.shade500),
+                  const SizedBox(width: 4),
+                  Text(
+                    "${course.durationMinutes} 分鐘",
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  const Spacer(),
+                  const Text(
+                    "查看時段",
+                    style: TextStyle(
+                      color: Colors.blue, 
+                      fontWeight: FontWeight.bold
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.blue),
+                ],
+              )
             ],
           ),
         ),
@@ -267,49 +310,3 @@ class _SessionCard extends StatelessWidget {
     );
   }
 }
-
-class _Tag extends StatelessWidget {
-  final String text;
-  final MaterialColor color;
-  const _Tag({required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.shade50,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.shade100),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color.shade700),
-      ),
-    );
-  }
-}
-
-// 🥶 元件：空狀態
-class _EmptyState extends StatelessWidget {
-  final DateTime date;
-  const _EmptyState({required this.date});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.event_busy, size: 64, color: Colors.grey.shade200),
-          const SizedBox(height: 16),
-          Text(
-            '本週 ${DateFormat('E', 'zh_TW').format(date)} 沒有安排課程',
-            style: const TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
-}
-

@@ -49,12 +49,12 @@ final appRouter = GoRouter(
                 // 課程詳情頁 (屬於首頁的子路由)
                 // 🔴 修改點：路徑改成簡單的標識，並從 extra 讀取物件
                 GoRoute(
-                  path: 'course_detail/:sessionId', // 完整路徑變成 /home/course_detail
+                  path: 'course_detail/:courseId', // 完整路徑變成 /home/course_detail
                   builder: (context, state) {
                     // 從 extra 拿出 SessionModel
                     // 注意：如果直接輸入網址進入，extra 會是 null，這裡假設都是從點擊進入
-                    final sessionId = state.pathParameters['sessionId']!;
-                    return CourseDetailScreen(sessionId: sessionId);
+                    final courseId = state.pathParameters['courseId']!;
+                    return CourseDetailScreen(courseId: courseId);
                   },
                 ),
               ],
