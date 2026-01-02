@@ -89,4 +89,23 @@ class SessionModel {
       bookingsCount: bookingsCount ?? this.bookingsCount,
     );
   }
+
+  String get courseTitle => course?.title ?? '未命名課程';
+
+  // 2. 取得價格
+  int get price => course?.price ?? 0;
+
+  // 3. 取得分類 (group/personal)
+  String get category => course?.category ?? 'group';
+
+  // 4. 取得分類顯示文字 (UI 用的 Tag)
+  String get categoryText => category == 'personal' ? '一對一' : '團體課';
+
+  // 5. 取得教練名單字串
+  String get coachesText {
+    if (coaches.isEmpty) return '教練待定';
+    return coaches.map((c) => c.name).join(', ');
+  }
+
+  String? get description => course?.description;
 }
