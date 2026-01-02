@@ -26,16 +26,4 @@ class SessionRepository {
     return data.map((e) => SessionModel.fromJson(e)).toList();
   }
 
-  // 📝 執行預約
-  Future<void> createBooking({required String sessionId, required String studentId}) async {
-    final user = _client.auth.currentUser;
-    if (user == null) throw Exception('未登入');
-
-    await _client.from('bookings').insert({
-      'user_id': user.id,
-      'student_id': studentId,
-      'session_id': sessionId,
-      'status': 'confirmed',
-    });
-  }
 }
