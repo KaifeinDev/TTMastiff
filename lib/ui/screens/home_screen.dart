@@ -17,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final CourseRepository _courseRepo;
-  
+
   // 狀態變數
   int _selectedDayIndex = 0; // 0=週一, 1=週二 ... 6=週日
   List<CourseModel> _courses = [];
@@ -31,11 +31,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _courseRepo = CourseRepository(Supabase.instance.client);
-    
+
     // 初始化時，自動選擇「今天」是星期幾
     // DateTime.weekday 回傳 1(Mon)~7(Sun)，我們轉成 0~6 的 index
     _selectedDayIndex = DateTime.now().weekday - 1;
-    
+
     _fetchCourses();
   }
 
@@ -48,8 +48,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       // API 需要 1~7，但 index 是 0~6，所以 +1
-      final courses = await _courseRepo.fetchCoursesByWeekday(_selectedDayIndex + 1);
-      
+      final courses = await _courseRepo.fetchCoursesByWeekday(
+        _selectedDayIndex + 1,
+      );
+
       if (mounted) {
         setState(() {
           _courses = courses;
@@ -99,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 return GestureDetector(
                   onTap: () => _onDaySelected(index),
-                  child:  Column(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // 圓形按鈕
@@ -108,22 +110,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: 40, // 固定寬度確保塞得下
                         height: 40,
                         decoration: BoxDecoration(
-                          color: isSelected 
-                              ? Theme.of(context).primaryColor 
-                              : (isToday ? Colors.blue.shade50 : Colors.transparent),
+                          color: isSelected
+                              ? Theme.of(context).primaryColor
+                              : (isToday
+                                    ? Colors.blue.shade50
+                                    : Colors.transparent),
                           shape: BoxShape.circle,
-                          border: isSelected 
-                              ? null 
+                          border: isSelected
+                              ? null
                               : Border.all(color: Colors.grey.shade300),
                         ),
                         child: Center(
                           child: Text(
                             _weekDays[index],
                             style: TextStyle(
-                              color: isSelected 
-                                  ? Colors.white 
-                                  : (isToday ? Theme.of(context).primaryColor : Colors.grey.shade600),
-                              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isToday
+                                        ? Theme.of(context).primaryColor
+                                        : Colors.grey.shade600),
+                              fontWeight: isSelected || isToday
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                               fontSize: 16,
                             ),
                           ),
@@ -142,9 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           // 2. 課程列表內容
-          Expanded(
-            child: _buildBody(),
-          ),
+          Expanded(child: _buildBody()),
         ],
       ),
     );
@@ -163,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 16),
             Text(_errorMsg!),
-            TextButton(onPressed: _fetchCourses, child: const Text("重試"))
+            TextButton(onPressed: _fetchCourses, child: const Text("重試")),
           ],
         ),
       );
@@ -174,7 +180,11 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.calendar_today_outlined, size: 64, color: Colors.grey.shade300),
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 64,
+              color: Colors.grey.shade300,
+            ),
             const SizedBox(height: 16),
             Text(
               "週${_weekDays[_selectedDayIndex]} 目前沒有安排課程",
@@ -234,16 +244,23 @@ class _CourseCard extends StatelessWidget {
                 children: [
                   // 1. 左側：類型標籤 (團體/個人)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: course.category == 'personal' ? Colors.purple.shade50 : Colors.blue.shade50,
+                      color: course.category == 'personal'
+                          ? Colors.purple.shade50
+                          : Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       course.category == 'personal' ? '一對一' : '團體班',
                       style: TextStyle(
                         fontSize: 12,
-                        color: course.category == 'personal' ? Colors.purple : Colors.blue,
+                        color: course.category == 'personal'
+                            ? Colors.purple
+                            : Colors.blue,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -261,7 +278,7 @@ class _CourseCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              
+
               // 3. 課程標題
               Text(
                 course.title,
@@ -271,7 +288,7 @@ class _CourseCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              
+
               // 4. 課程說明 (簡短版)
               if (course.description != null)
                 Text(
@@ -280,13 +297,17 @@ class _CourseCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
-              
+
               const SizedBox(height: 16),
-              
+
               // 5. 底部行動呼籲
               Row(
                 children: [
-                  Icon(Icons.access_time, size: 16, color: Colors.grey.shade500),
+                  Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: Colors.grey.shade500,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     "${course.durationMinutes} 分鐘",
@@ -296,13 +317,17 @@ class _CourseCard extends StatelessWidget {
                   const Text(
                     "查看時段",
                     style: TextStyle(
-                      color: Colors.blue, 
-                      fontWeight: FontWeight.bold
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.blue),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.blue,
+                  ),
                 ],
-              )
+              ),
             ],
           ),
         ),

@@ -50,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .select()
             .eq('id', user.id)
             .single(),
-        
+
         // Task B: 抓 Students
         _studentRepository.getMyStudents(),
       ]);
@@ -155,9 +155,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('請輸入資料以建立學員檔案', style: TextStyle(color: Colors.grey)),
+                    const Text(
+                      '請輸入資料以建立學員檔案',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                     const SizedBox(height: 16),
-                    
+
                     // 1. 姓名輸入
                     TextField(
                       controller: nameController,
@@ -196,7 +199,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ? '點擊選擇'
                               : '${tempSelectedDate!.year}/${tempSelectedDate!.month}/${tempSelectedDate!.day}',
                           style: TextStyle(
-                            color: tempSelectedDate == null ? Colors.grey : Colors.black,
+                            color: tempSelectedDate == null
+                                ? Colors.grey
+                                : Colors.black,
                           ),
                         ),
                       ),
@@ -224,23 +229,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 FilledButton(
                   onPressed: () async {
                     final name = nameController.text.trim();
-                    
+
                     if (name.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請輸入姓名')));
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(const SnackBar(content: Text('請輸入姓名')));
                       return;
                     }
                     if (tempSelectedDate == null) {
-                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請選擇生日')));
-                       return;
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(const SnackBar(content: Text('請選擇生日')));
+                      return;
                     }
 
                     Navigator.pop(context);
-                    
+
                     // 呼叫新增方法
                     await _performAddStudent(
                       name,
                       tempSelectedDate!, // 👈 確保不為 null
-                      noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+                      noteController.text.trim().isEmpty
+                          ? null
+                          : noteController.text.trim(),
                     );
                   },
                   child: const Text('新增'),
@@ -253,9 +264,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _performAddStudent(String name, DateTime birthDate, String? note) async {
+  Future<void> _performAddStudent(
+    String name,
+    DateTime birthDate,
+    String? note,
+  ) async {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('正在建立學員資料...'), duration: Duration(seconds: 1)),
+      const SnackBar(
+        content: Text('正在建立學員資料...'),
+        duration: Duration(seconds: 1),
+      ),
     );
 
     try {
@@ -266,7 +284,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       await _loadData(); // 重新整理全部資料
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🎉 新增成功！')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('🎉 新增成功！')));
       }
     } catch (e) {
       if (mounted) {
@@ -280,8 +300,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showEditDialog(StudentModel student) {
     final bool isPrimary = student.isPrimary;
     final nameController = TextEditingController(text: student.name);
-    final noteController = TextEditingController(text: student.medical_note ?? '');
-    
+    final noteController = TextEditingController(
+      text: student.medical_note ?? '',
+    );
+
     showDialog(
       context: context,
       builder: (context) {
@@ -293,7 +315,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  
                   // Name
                   TextField(
                     controller: nameController,
@@ -304,7 +325,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       border: const OutlineInputBorder(),
                       filled: isPrimary,
                       fillColor: isPrimary ? Colors.grey.shade100 : null,
-                      suffixIcon: isPrimary ? const Icon(Icons.lock, size: 16, color: Colors.grey) : null,
+                      suffixIcon: isPrimary
+                          ? const Icon(Icons.lock, size: 16, color: Colors.grey)
+                          : null,
                     ),
                   ),
                   if (isPrimary)
@@ -312,12 +335,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: EdgeInsets.only(top: 4, left: 4, bottom: 16),
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: Text('※ 實名制帳號無法自行修改姓名', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                        child: Text(
+                          '※ 實名制帳號無法自行修改姓名',
+                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
                       ),
                     )
                   else
                     const SizedBox(height: 16),
-                  
+
                   // Note
                   TextField(
                     controller: noteController,
@@ -343,7 +369,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     await _performUpdateStudent(
                       student.id,
                       nameController.text.trim(),
-                      noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+                      noteController.text.trim().isEmpty
+                          ? null
+                          : noteController.text.trim(),
                     );
                   },
                   child: const Text('儲存'),
@@ -356,7 +384,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _performUpdateStudent(String id, String newName, String? note) async {
+  Future<void> _performUpdateStudent(
+    String id,
+    String newName,
+    String? note,
+  ) async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('更新資料中...'), duration: Duration(seconds: 1)),
     );
@@ -365,7 +397,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _studentRepository.updateStudent(id, newName, note);
       await _loadData(); // 重新載入以更新 UI
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ 更新成功！')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('✅ 更新成功！')));
       }
     } catch (e) {
       if (mounted) {
@@ -408,7 +442,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -416,9 +452,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           CircleAvatar(
                             radius: 30,
                             backgroundColor: Colors.white,
-                            backgroundImage: displayAvatar != null ? NetworkImage(displayAvatar) : null,
+                            backgroundImage: displayAvatar != null
+                                ? NetworkImage(displayAvatar)
+                                : null,
                             child: displayAvatar == null
-                                ? Text(displayName.isNotEmpty ? displayName[0] : '?', style: const TextStyle(fontSize: 24))
+                                ? Text(
+                                    displayName.isNotEmpty
+                                        ? displayName[0]
+                                        : '?',
+                                    style: const TextStyle(fontSize: 24),
+                                  )
                                 : null,
                           ),
                           const SizedBox(width: 16),
@@ -428,27 +471,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Text(
                                   displayName,
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
-                                if (_userEmail != null && _userEmail!.isNotEmpty)
+                                if (_userEmail != null &&
+                                    _userEmail!.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.email, size: 14, color: Colors.grey),
+                                        const Icon(
+                                          Icons.email,
+                                          size: 14,
+                                          color: Colors.grey,
+                                        ),
                                         const SizedBox(width: 4),
-                                        Text(_userEmail!, style: Theme.of(context).textTheme.bodyMedium),
+                                        Text(
+                                          _userEmail!,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium,
+                                        ),
                                       ],
                                     ),
                                   ),
-                                if (_userPhone != null && _userPhone!.isNotEmpty)
+                                if (_userPhone != null &&
+                                    _userPhone!.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.phone_iphone, size: 14, color: Colors.grey),
+                                        const Icon(
+                                          Icons.phone_iphone,
+                                          size: 14,
+                                          color: Colors.grey,
+                                        ),
                                         const SizedBox(width: 4),
-                                        Text(_userPhone!, style: Theme.of(context).textTheme.bodyMedium),
+                                        Text(
+                                          _userPhone!,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium,
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -470,36 +534,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               '資料已鎖定',
                               '為了確保會員權益與實名制安全，主帳號資料無法自行修改。\n\n如需變更，請洽櫃檯人員。',
                             ),
-                            icon: const Icon(Icons.lock_outline, color: Colors.grey),
+                            icon: const Icon(
+                              Icons.lock_outline,
+                              color: Colors.grey,
+                            ),
                             tooltip: '資料鎖定',
                           ),
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 16),
 
                     // 2. 錢包/點數區塊
                     Card(
                       elevation: 2,
                       color: Theme.of(context).primaryColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 20,
+                          horizontal: 24,
+                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('剩餘點數', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                                Text(
+                                  '剩餘點數',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
                                 SizedBox(height: 4),
-                                Text('Credits', style: TextStyle(color: Colors.white30, fontSize: 12)),
+                                Text(
+                                  'Credits',
+                                  style: TextStyle(
+                                    color: Colors.white30,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ],
                             ),
                             Row(
                               children: [
-                                const Icon(Icons.monetization_on, color: Colors.amber, size: 32),
+                                const Icon(
+                                  Icons.monetization_on,
+                                  color: Colors.amber,
+                                  size: 32,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   '$_credits',
@@ -517,7 +605,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
 
                     const SizedBox(height: 32),
-                    
+
                     // 3. 學員管理標題
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -528,7 +616,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             const SizedBox(width: 8),
                             Text(
                               '家庭成員 / 學員',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -536,27 +625,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onPressed: _showAddStudentDialog,
                           icon: const Icon(Icons.add),
                           label: const Text('新增'),
-                        )
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
 
                     // 4. 學員列表
                     if (_students.isEmpty)
-                      const Center(child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: Text('載入中...'),
-                      ))
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: Text('載入中...'),
+                        ),
+                      )
                     else
                       ListView.separated(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: _students.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 8),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final student = _students[index];
                           final isSelf = student.isPrimary;
-                          final hasNote = student.medical_note != null && student.medical_note!.isNotEmpty;
+                          final hasNote =
+                              student.medical_note != null &&
+                              student.medical_note!.isNotEmpty;
 
                           return Card(
                             elevation: 0,
@@ -568,51 +662,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               borderRadius: BorderRadius.circular(12),
                               onTap: () => _showEditDialog(student),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                                 child: ListTile(
                                   leading: Hero(
                                     tag: 'avatar_${student.id}',
                                     child: Container(
-                                      width: 50, height: 50,
+                                      width: 50,
+                                      height: 50,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: Colors.grey.shade200,
                                         image: student.avatarUrl != null
                                             ? DecorationImage(
-                                                image: NetworkImage(student.avatarUrl!),
+                                                image: NetworkImage(
+                                                  student.avatarUrl!,
+                                                ),
                                                 fit: BoxFit.cover,
                                               )
                                             : null,
                                       ),
                                       child: student.avatarUrl == null
-                                          ? Center(child: Text(student.name.isNotEmpty ? student.name[0] : '?', style: const TextStyle(fontSize: 20)))
+                                          ? Center(
+                                              child: Text(
+                                                student.name.isNotEmpty
+                                                    ? student.name[0]
+                                                    : '?',
+                                                style: const TextStyle(
+                                                  fontSize: 20,
+                                                ),
+                                              ),
+                                            )
                                           : null,
                                     ),
                                   ),
                                   title: Row(
                                     children: [
-                                      Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      Text(
+                                        student.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                       // 🌟 修正了原本的 itSelf 錯誤
                                       if (isSelf) ...[
                                         const SizedBox(width: 8),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blueGrey.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(12),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
                                           ),
-                                          child: const Text('本人', style: TextStyle(color: Colors.blueGrey, fontSize: 12)),
-                                        )
-                                      ]
+                                          decoration: BoxDecoration(
+                                            color: Colors.blueGrey.withOpacity(
+                                              0.1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            '本人',
+                                            style: TextStyle(
+                                              color: Colors.blueGrey,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                   subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         // '${student.birthDate.year}/${student.birthDate.month}/${student.birthDate.day}',
                                         student.birthDate.toDateWithAge(),
-                                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -622,10 +752,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       if (hasNote)
                                         Tooltip(
                                           message: student.medical_note,
-                                          child: Icon(Icons.medical_information, size: 20, color: Colors.red.shade300),
+                                          child: Icon(
+                                            Icons.medical_information,
+                                            size: 20,
+                                            color: Colors.red.shade300,
+                                          ),
                                         ),
                                       const SizedBox(width: 8),
-                                      const Icon(Icons.chevron_right, color: Colors.grey),
+                                      const Icon(
+                                        Icons.chevron_right,
+                                        color: Colors.grey,
+                                      ),
                                     ],
                                   ),
                                 ),

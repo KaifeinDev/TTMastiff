@@ -13,7 +13,7 @@ class CourseRepository {
     // 這裡的邏輯比較複雜，有兩種做法：
     // 方法 A (簡單但效能稍差): 抓出未來一個月所有 Session，然後在 Dart 過濾出星期幾，再取出不重複的 Course。
     // 方法 B (SQL): 使用 Supabase RPC (需寫後端函數)。
-    
+
     // 這裡示範 方法 A (純前端 Dart 處理)
     final start = DateTime.now();
     final end = start.add(const Duration(days: 45)); // 抓未來45天
@@ -24,10 +24,14 @@ class CourseRepository {
         .gte('start_time', start.toIso8601String())
         .lte('start_time', end.toIso8601String());
 
-    final sessions = (response as List).map((e) => SessionModel.fromJson(e)).toList();
+    final sessions = (response as List)
+        .map((e) => SessionModel.fromJson(e))
+        .toList();
 
     // 1. 過濾出指定星期幾的 Session
-    final filteredSessions = sessions.where((s) => s.startTime.weekday == weekday);
+    final filteredSessions = sessions.where(
+      (s) => s.startTime.weekday == weekday,
+    );
 
     // 2. 取出 Course 並去重 (Distinct)
     final Map<String, CourseModel> uniqueCourses = {};
@@ -92,11 +96,11 @@ class CourseRepository {
         final coachesData = await _supabase
             .from('profiles')
             .select('id, full_name') // 只抓需要的欄位
-            .filter('id', 'in', session.coachIds); 
-        
+            .filter('id', 'in', session.coachIds);
+
         // 轉換為 Coach 物件列表
         final coachesList = (coachesData as List)
-            .map((c) => CoachModel.fromJson(c)) 
+            .map((c) => CoachModel.fromJson(c))
             .toList();
 
         // 將教練資料填入 session 物件
@@ -105,7 +109,6 @@ class CourseRepository {
 
       // 步驟 4: 將人數與最終結果回傳
       return session.copyWith(bookingsCount: bookingsCount);
-
     } catch (e) {
       // 建議在實際專案中記錄詳細 Log
       throw Exception('載入課程詳情失敗: $e');
@@ -118,13 +121,15 @@ class CourseRepository {
         .select()
         .eq('id', courseId)
         .single();
-    
+
     return CourseModel.fromJson(response);
   }
 
-  Future<List<SessionModel>> fetchUpcomingSessionsByCourseId(String courseId) async {
+  Future<List<SessionModel>> fetchUpcomingSessionsByCourseId(
+    String courseId,
+  ) async {
     final now = DateTime.now().toIso8601String();
-    
+
     // 找出該 course_id 且時間在現在之後的場次，並依照時間排序
     final response = await _supabase
         .from('sessions')
@@ -139,7 +144,9 @@ class CourseRepository {
   Future<List<SessionModel>> fetchSessionsByDate(DateTime date) async {
     // 設定當天的起始與結束時間 (例如 2024-01-01 00:00:00 ~ 23:59:59)
     final startOfDay = DateTime(date.year, date.month, date.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+    final endOfDay = startOfDay
+        .add(const Duration(days: 1))
+        .subtract(const Duration(milliseconds: 1));
 
     try {
       final response = await _supabase
@@ -153,7 +160,7 @@ class CourseRepository {
       // 如果需要在列表顯示教練名字，建議在此處加上類似 fetchSessionDetail 的二次查詢邏輯
       // 或者依賴 Supabase Function 簡化查詢。
       // 這裡先回傳基本資料：
-      
+
       var sessions = (response as List)
           .map((data) => SessionModel.fromJson(data))
           .toList();
@@ -161,7 +168,6 @@ class CourseRepository {
       // (選擇性) 如果列表一定要顯示教練名字，需在此處補上教練查詢邏輯
       // 若無此需求，上述程式碼即可運作
       return sessions;
-
     } catch (e) {
       throw Exception('載入當日課程失敗: $e');
     }
