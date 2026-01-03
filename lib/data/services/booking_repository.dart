@@ -71,22 +71,24 @@ class BookingRepository {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('未登入');
 
-    // 1. 使用 'sessions' 而非 'session:sessions'
-    // 2. 確保 sessions 裡面有抓 courses
+    // 設定時間界線 (例如：只抓 90 天前的歷史 + 未來所有課程)
+    final limitDate = DateTime.now().subtract(const Duration(days: 90));
+
     final response = await _supabase
         .from('bookings')
         .select('''
           *,
-          sessions (
+          sessions!inner (
             *,
             courses (*)
           ),
           students (*)
         ''')
         .eq('user_id', userId)
-        .order('created_at', ascending: false);
-
-    return (response as List).map((e) => BookingModel.fromJson(e)).toList();
+        .gte('sessions.end_time', limitDate.toIso8601String())
+        .order('sessions(start_time)', ascending: false);
+    final data = List<Map<String, dynamic>>.from(response);
+    return data.map((e) => BookingModel.fromJson(e)).toList();
   }
 
   /// 取消預約 (邏輯刪除)

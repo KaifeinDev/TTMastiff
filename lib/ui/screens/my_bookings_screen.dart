@@ -522,8 +522,14 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 跨年顯示優化邏輯
+    final now = DateTime.now();
+    final isDifferentYear = booking.startTime.year != now.year;
+    // 如果是不同年，顯示 "2025/12/31"，否則顯示 "12/31"
+    final datePattern = isDifferentYear ? 'yyyy/MM/dd' : 'MM/dd';
+
     // 1. 日期與時間格式化
-    final monthDayFormat = DateFormat('MM/dd');
+    final monthDayFormat = DateFormat(datePattern);
     final weekDayFormat = DateFormat('E', 'zh_TW');
     final timeFormat = DateFormat('HH:mm');
 
@@ -723,13 +729,18 @@ class _DateHeader extends StatelessWidget {
         date.month == now.month &&
         date.day == now.day + 1;
 
+    final isSameYear = date.year == now.year;
+
     String title;
     if (isToday) {
       title = "今天";
     } else if (isTomorrow) {
       title = "明天";
     } else {
-      title = DateFormat('MM/dd', 'zh_TW').format(date);
+      // 如果是跨年 (例如明年)，顯示 "2026/01/05"
+      // 如果是今年，維持 "01/05"
+      final format = isSameYear ? 'MM/dd' : 'yyyy/MM/dd';
+      title = DateFormat(format, 'zh_TW').format(date);
     }
 
     final weekDay = DateFormat('EEEE', 'zh_TW').format(date); // 週二
