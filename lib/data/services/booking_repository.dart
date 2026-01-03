@@ -1,8 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/booking_model.dart';
+import 'package:flutter/material.dart';
 
 class BookingRepository {
   final SupabaseClient _supabase;
+  static final ValueNotifier<bool> bookingRefreshSignal = ValueNotifier(false);
 
   BookingRepository(this._supabase);
 
@@ -45,6 +47,8 @@ class BookingRepository {
                 })
                 .eq('id', existing['id']);
           }
+          BookingRepository.bookingRefreshSignal.value =
+              !BookingRepository.bookingRefreshSignal.value;
           // 如果已經是 confirmed，則跳過
         } else {
           // --- 情況 B: 全新報名 (Insert) ---
