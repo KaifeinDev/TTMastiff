@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 
 class BookingRepository {
   final SupabaseClient _supabase;
-  static final ValueNotifier<bool> bookingRefreshSignal = ValueNotifier(false);
-
+  static final RefreshSignal bookingRefreshSignal = RefreshSignal();
   BookingRepository(this._supabase);
 
   /// 批量建立預約 (支援多位學生 x 多個場次)
@@ -47,8 +46,8 @@ class BookingRepository {
                 })
                 .eq('id', existing['id']);
           }
-          BookingRepository.bookingRefreshSignal.value =
-              !BookingRepository.bookingRefreshSignal.value;
+          bookingRefreshSignal.notify();
+
           // 如果已經是 confirmed，則跳過
         } else {
           // --- 情況 B: 全新報名 (Insert) ---
@@ -61,6 +60,7 @@ class BookingRepository {
             'price_snapshot': price_snapshot, // 🔥 寫入價格快照
             'created_at': DateTime.now().toIso8601String(),
           });
+          bookingRefreshSignal.notify();
         }
       }
     }
@@ -98,6 +98,7 @@ class BookingRepository {
           .update({'status': 'cancelled'})
           .eq('id', bookingId);
 
+      bookingRefreshSignal.notify();
       // 註：如果您的業務邏輯需要「物理刪除」(從資料庫移除)，請改用:
       // await _supabase.from('bookings').delete().eq('id', bookingId);
     } catch (e) {
@@ -112,5 +113,13 @@ class BookingRepository {
         .from('bookings')
         .update({'attendance_status': 'leave'})
         .eq('id', bookingId);
+    bookingRefreshSignal.notify();
+  }
+}
+
+class RefreshSignal extends ChangeNotifier {
+  // 把受保護的 notifyListeners 包裝成公開方法
+  void notify() {
+    notifyListeners();
   }
 }

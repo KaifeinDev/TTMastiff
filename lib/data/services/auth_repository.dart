@@ -28,14 +28,13 @@ class AuthRepository {
     required String phone,
     required DateTime birthDate,
     String? medicalNote,
-    String referralSource = 'app_signup', // 預設來源
+    String referralSource = 'app_signup',
   }) async {
     try {
-      // 1. 建立 Supabase Auth 帳號 (Email/Password)
+      // 1. 建立 Supabase Auth 帳號
       final AuthResponse res = await _supabase.auth.signUp(
         email: email,
         password: password,
-        // 雖然我們有 profiles 表，但將基本資料也存在 metadata 是個好習慣 (方便 Supabase 後台查看)
         data: {'full_name': fullName, 'phone': phone},
       );
 
@@ -45,21 +44,22 @@ class AuthRepository {
       }
 
       // 2. 寫入 public.profiles 表
-      // 關鍵：這一步會觸發 DB 的 Trigger，自動建立 "students" 表的本人資料
+      // 因為我們剛剛刪除了 Trigger，這裡寫入後，"不會" 自動產生 student
       await _supabase.from('profiles').insert({
-        'id': user.id, // 強制連結 Auth ID
+        'id': user.id,
         'full_name': fullName,
         'phone': phone,
         'referral_source': referralSource,
-        'credits': 0, // 初始點數
-        'role': 'user', // 初始身份
+        'credits': 0,
+        'role': 'user',
       });
 
-      // 3. 建立 Primary Student (實體層：包含頭像、生日、備註)
+      // 3. 建立 Primary Student (由程式碼完全控制，包含所有細節)
       // 生成頭像 URL
       String avatarName = fullName.trim();
-      if (fullName.length > 2)
+      if (fullName.length > 2) {
         avatarName = fullName.substring(fullName.length - 2);
+      }
       final encodedName = Uri.encodeComponent(avatarName);
       final avatarUrl =
           'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
@@ -67,15 +67,16 @@ class AuthRepository {
       await _supabase.from('students').insert({
         'parent_id': user.id,
         'name': fullName,
-        'birth_date': birthDate.toIso8601String(), // 轉成字串存入 DB
+        // 優化：只取 YYYY-MM-DD，避免時區導致日期跑掉
+        'birth_date': birthDate.toIso8601String().substring(0, 10),
         'medical_note': medicalNote,
         'avatar_url': avatarUrl,
-        'is_primary': true, // ⚠️ 標記為本人
+        'is_primary': true,
         'level': 'beginner',
       });
     } catch (e) {
-      // 若是 Profile 寫入失敗，實務上可能需要考慮是否 rollback 刪除 auth user
-      // 但 MVP 階段先拋出錯誤讓 UI 顯示即可
+      // 這裡可以印出詳細錯誤，方便除錯
+      print('註冊流程詳細錯誤: $e');
       throw Exception('註冊流程失敗: $e');
     }
   }
@@ -83,5 +84,21 @@ class AuthRepository {
   // 登出
   Future<void> signOut() async {
     await _supabase.auth.signOut();
+  }
+
+  // 取得使用者的角色權限
+  Future<String> fetchUserRole(String userId) async {
+    try {
+      final data = await _supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+
+      return data['role'] as String? ?? 'user'; // 若沒設定則預設為 user
+    } catch (e) {
+      // 若發生錯誤 (例如 profile 還沒建立)，預設回傳 user 以策安全
+      return 'user';
+    }
   }
 }

@@ -12,6 +12,14 @@ class MyBookingScreen extends StatefulWidget {
   State<MyBookingScreen> createState() => _MyBookingScreenState();
 }
 
+// use in _fetchBooking
+class DaySection {
+  final DateTime date;
+  final List<List<BookingModel>> sessionGroups; // 這一天裡面的「場次群組」
+
+  DaySection({required this.date, required this.sessionGroups});
+}
+
 class _MyBookingScreenState extends State<MyBookingScreen>
     with SingleTickerProviderStateMixin {
   late final BookingRepository _bookingRepo;
@@ -34,9 +42,12 @@ class _MyBookingScreenState extends State<MyBookingScreen>
 
   @override
   void dispose() {
-    BookingRepository.bookingRefreshSignal.removeListener(_fetchBookings);
+    _tabController.dispose();
     super.dispose();
   }
+
+  // 在 State 裡面宣告這個變數取代原本的 List
+  List<DaySection> _groupedSections = [];
 
   Future<void> _fetchBookings() async {
     setState(() => _isLoading = true);
@@ -61,28 +72,51 @@ class _MyBookingScreenState extends State<MyBookingScreen>
         }
       }
 
-      // 2. 🔥 進行分組 (Grouping)
-      // 使用 Map 將相同 session_id 的預約集合起來
-      final Map<String, List<BookingModel>> groupedMap = {};
+      // 照時間排序
+      rawUpcoming.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+      // 2. 進行日期分組 Map
+      final Map<String, List<BookingModel>> dateMap = {};
+
       for (var booking in rawUpcoming) {
-        if (!groupedMap.containsKey(booking.sessionId)) {
-          groupedMap[booking.sessionId] = [];
+        // 產生 Key: "2026-01-06"
+        final dateKey = DateFormat('yyyy-MM-dd').format(booking.startTime);
+        if (!dateMap.containsKey(dateKey)) {
+          dateMap[dateKey] = [];
         }
-        groupedMap[booking.sessionId]!.add(booking);
+        dateMap[dateKey]!.add(booking);
       }
 
-      // 轉回 List 並排序 (依照場次時間)
-      final sortedGroups = groupedMap.values.toList();
-      sortedGroups.sort(
-        (a, b) => a.first.startTime.compareTo(b.first.startTime),
-      );
+      // 3. 轉換成 DaySection 結構
+      final List<DaySection> sections = [];
+
+      dateMap.forEach((dateKey, bookingsInDay) {
+        // 在每一天裡面，再依 Session ID 進行分組 (這是你原本的邏輯)
+        final Map<String, List<BookingModel>> sessionMap = {};
+        for (var b in bookingsInDay) {
+          if (!sessionMap.containsKey(b.sessionId)) {
+            sessionMap[b.sessionId] = [];
+          }
+          sessionMap[b.sessionId]!.add(b);
+        }
+
+        // 這一天的場次列表
+        final sessionGroups = sessionMap.values.toList();
+
+        sections.add(
+          DaySection(
+            date: DateTime.parse(dateKey),
+            sessionGroups: sessionGroups,
+          ),
+        );
+      });
 
       // 歷史紀錄依舊維持單筆排序
       rawHistory.sort((a, b) => b.startTime.compareTo(a.startTime));
 
       if (mounted) {
         setState(() {
-          _upcomingGroups = sortedGroups;
+          _groupedSections = sections;
           _historyBookings = rawHistory;
           _isLoading = false;
         });
@@ -180,22 +214,52 @@ class _MyBookingScreenState extends State<MyBookingScreen>
           : TabBarView(
               controller: _tabController,
               children: [
+                // -----------------------------------------------------
+                // 🔥 第一個 Tab：即將到來 (修改這裡!)
+                // -----------------------------------------------------
                 RefreshIndicator(
                   onRefresh: _fetchBookings,
-                  child: ListView.builder(
-                    // 即將到來 (使用分組列表)
-                    padding: const EdgeInsets.all(16),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _upcomingGroups.length,
-                    itemBuilder: (context, index) {
-                      return _GroupedBookingCard(
-                        bookings: _upcomingGroups[index],
-                        onAction: _handleAction,
-                      );
-                    },
-                  ),
+                  // ⚠️ 注意：這裡的判斷變數建議也改用新的 _groupedSections
+                  child: _groupedSections.isEmpty
+                      ? const _UpcomingEmptyState() // 空狀態 (維持不變)
+                      : ListView.builder(
+                          // 🔥 這裡就是第 2 點要修改的重點
+                          padding: const EdgeInsets.only(bottom: 30),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          // 改用新的日期分組清單
+                          itemCount: _groupedSections.length,
+                          itemBuilder: (context, index) {
+                            final section = _groupedSections[index];
+
+                            // 每一個 Item 包含：一個日期標題 + 該日期的所有課程卡片
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // A. 日期標題
+                                _DateHeader(date: section.date),
+
+                                // B. 該日期的所有課程 (用 map 轉出卡片)
+                                ...section.sessionGroups.map((group) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ), // 補一點左右邊距
+                                    child: _GroupedBookingCard(
+                                      bookings: group,
+                                      onAction: _handleAction,
+                                      isCompact: true, // 🔥 開啟緊湊模式
+                                    ),
+                                  );
+                                }),
+                              ],
+                            );
+                          },
+                        ),
                 ),
-                // 歷史紀錄 (維持原樣，或是您也可以套用分組)
+
+                // -----------------------------------------------------
+                // 第二個 Tab：歷史紀錄 (不用動)
+                // -----------------------------------------------------
                 RefreshIndicator(
                   onRefresh: _fetchBookings,
                   child: _HistoryList(bookings: _historyBookings),
@@ -206,12 +270,16 @@ class _MyBookingScreenState extends State<MyBookingScreen>
   }
 }
 
-// 🔥 新的 Widget：合併顯示同一場次的預約
+// Widget：合併顯示同一場次的預約
 class _GroupedBookingCard extends StatelessWidget {
   final List<BookingModel> bookings; // 這一組裡面的所有預約 (同一場次，不同學員)
   final Function(BookingModel) onAction;
-
-  const _GroupedBookingCard({required this.bookings, required this.onAction});
+  final bool isCompact;
+  const _GroupedBookingCard({
+    required this.bookings,
+    required this.onAction,
+    this.isCompact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +300,10 @@ class _GroupedBookingCard extends StatelessWidget {
         children: [
           // 1. 卡片頭部：顯示課程資訊 (只顯示一次)
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: isCompact ? 12 : 16, // 稍微調整垂直間距
+            ),
             decoration: BoxDecoration(
               color: Colors.blue.shade50,
               borderRadius: const BorderRadius.vertical(
@@ -390,7 +461,9 @@ class _GroupedBookingCard extends StatelessWidget {
   }
 }
 
-// 完整的歷史紀錄列表 Widget
+// -----------------------------------------------------
+// 優化後的歷史紀錄列表
+// -----------------------------------------------------
 class _HistoryList extends StatelessWidget {
   final List<BookingModel> bookings;
 
@@ -398,151 +471,162 @@ class _HistoryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. 空狀態處理
+    // 1. 空狀態處理 (保持原本的設計，但圖示可以微調)
     if (bookings.isEmpty) {
-      return ListView(
-        physics: AlwaysScrollableScrollPhysics(),
-        children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.history, size: 64, color: Colors.grey.shade300),
-              const SizedBox(height: 16),
-              Text(
-                "沒有歷史紀錄",
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
               ),
-            ],
-          ),
-        ],
+              child: Icon(
+                Icons.history_edu,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "目前沒有歷史紀錄",
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+            ),
+          ],
+        ),
       );
     }
 
-    final dateFormat = DateFormat('MM/dd (E)', 'zh_TW');
-    final timeFormat = DateFormat('HH:mm');
-
     // 2. 列表建構
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       itemCount: bookings.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final booking = bookings[index];
+        // 判斷是否需要顯示年份標題 (如果跨年了，可以在這裡加邏輯，目前先簡化)
+        return _HistoryCard(booking: booking);
+      },
+    );
+  }
+}
 
-        // 準備顯示資料
-        final dateStr = dateFormat.format(booking.startTime);
-        final timeStr =
-            "${timeFormat.format(booking.startTime)} - ${timeFormat.format(booking.endTime)}";
-        final studentName = booking.student?.name ?? '未知學員';
+// -----------------------------------------------------
+// 新增：單筆歷史紀錄卡片 (左側日期 + 右側資訊)
+// -----------------------------------------------------
+class _HistoryCard extends StatelessWidget {
+  final BookingModel booking;
 
-        // 3. 狀態判斷邏輯 (決定顏色與文字)
-        String statusText;
-        Color statusColor;
-        Color statusBgColor;
+  const _HistoryCard({required this.booking});
 
-        if (booking.status == 'cancelled') {
-          // 情況 A: 已取消 (最優先判斷)
-          statusText = '已取消';
-          statusColor = Colors.red.shade700;
-          statusBgColor = Colors.red.shade50;
-        } else if (booking.attendanceStatus == 'leave') {
-          // 情況 B: 已請假
-          statusText = '已請假';
-          statusColor = Colors.orange.shade800;
-          statusBgColor = Colors.orange.shade50;
-        } else {
-          // 情況 C: 正常結束 (預設)
-          statusText = '已結束';
-          statusColor = Colors.grey.shade600;
-          statusBgColor = Colors.grey.shade200;
-        }
+  @override
+  Widget build(BuildContext context) {
+    // 1. 日期與時間格式化
+    final monthDayFormat = DateFormat('MM/dd');
+    final weekDayFormat = DateFormat('E', 'zh_TW');
+    final timeFormat = DateFormat('HH:mm');
 
-        return Card(
-          elevation: 0, // 歷史紀錄不需要太多陰影，讓畫面乾淨點
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.grey.shade200), // 淡淡的邊框
+    final dateStr = monthDayFormat.format(booking.startTime);
+    final weekStr = weekDayFormat.format(booking.startTime);
+    final timeRange =
+        "${timeFormat.format(booking.startTime)} - ${timeFormat.format(booking.endTime)}";
+
+    // 2. 狀態顏色邏輯 (統一設定)
+    String statusText;
+    Color themeColor; // 文字與邊框色
+    Color bgColor; // 背景色
+
+    if (booking.status == 'cancelled') {
+      // 🔴 Case 1: 已取消 (紅色)
+      statusText = '已取消';
+      themeColor = Colors.red.shade600;
+      bgColor = Colors.red.shade50;
+    } else if (booking.attendanceStatus == 'leave') {
+      // 🟠 Case 2: 已請假 (橘色)
+      statusText = '已請假';
+      themeColor = Colors.orange.shade700;
+      bgColor = Colors.orange.shade50;
+    } else {
+      // 🟢 Case 3: 已結束/已完成 (綠色)
+      statusText = '已結束';
+      themeColor = Colors.green.shade700;
+      bgColor = Colors.green.shade50;
+    }
+
+    // 判斷是否要讓標題變淡或加刪除線 (僅針對已取消)
+    final isCancelled = booking.status == 'cancelled';
+    final contentColor = isCancelled ? Colors.grey.shade400 : Colors.black87;
+    final titleDecoration = isCancelled ? TextDecoration.lineThrough : null;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200), // 統一的淡邊框
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // A. 左側日期
+          SizedBox(
+            width: 50,
+            child: Column(
+              children: [
+                Text(
+                  dateStr,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isCancelled
+                        ? Colors.grey.shade400
+                        : Colors.blueGrey.shade700,
+                  ),
+                ),
+                Text(
+                  weekStr,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+
+          // 分隔線
+          Container(
+            width: 1,
+            height: 36,
+            color: Colors.grey.shade200,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+
+          // B. 中間資訊 (課程名稱、學員)
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 第一行：課程名稱 + 狀態標籤
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        booking.courseTitle,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          // 如果是已取消，標題顏色也淡一點
-                          color: booking.status == 'cancelled'
-                              ? Colors.grey
-                              : Colors.black87,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusBgColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        statusText,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  booking.courseTitle,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: contentColor,
+                    decoration: titleDecoration,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
-
-                // 第二行：時間
+                const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(width: 6),
+                    Icon(Icons.person, size: 12, color: Colors.grey.shade400),
+                    const SizedBox(width: 4),
                     Text(
-                      "$dateStr  $timeStr",
+                      "${booking.student?.name ?? '未知'}  •  $timeRange",
                       style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 4),
-
-                // 第三行：學員
-                Row(
-                  children: [
-                    Icon(Icons.person, size: 14, color: Colors.grey.shade400),
-                    const SizedBox(width: 6),
-                    Text(
-                      "學員: $studentName",
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 13,
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
                       ),
                     ),
                   ],
@@ -550,8 +634,133 @@ class _HistoryList extends StatelessWidget {
               ],
             ),
           ),
-        );
-      },
+
+          // C. 右側狀態標籤 (統一外觀，只變顏色)
+          Container(
+            margin: const EdgeInsets.only(left: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(8),
+              // 如果想要邊框更明顯，可以取消註解下面這行
+              // border: Border.all(color: themeColor.withOpacity(0.3)),
+            ),
+            child: Text(
+              statusText,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: themeColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 即將到來的空狀態引導頁面
+class _UpcomingEmptyState extends StatelessWidget {
+  const _UpcomingEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    // 使用 ListView 確保在空狀態下也能 "下拉刷新" (RefreshIndicator 需要可捲動的子元件)
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.2), // 垂直置中調整
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.calendar_today_rounded,
+                size: 64,
+                color: Colors.blue.shade300,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "目前沒有即將到來的課程",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "快去尋找感興趣的課程吧！",
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _DateHeader extends StatelessWidget {
+  final DateTime date;
+  const _DateHeader({required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+
+    final isTomorrow =
+        date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day + 1;
+
+    String title;
+    if (isToday) {
+      title = "今天";
+    } else if (isTomorrow) {
+      title = "明天";
+    } else {
+      title = DateFormat('MM/dd', 'zh_TW').format(date);
+    }
+
+    final weekDay = DateFormat('EEEE', 'zh_TW').format(date); // 週二
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: isToday ? Colors.blue.shade700 : Colors.black87,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            weekDay,
+            style: TextStyle(
+              fontSize: 14,
+              color: isToday ? Colors.blue.shade700 : Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+        ],
+      ),
     );
   }
 }
