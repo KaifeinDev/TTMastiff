@@ -14,10 +14,7 @@ class AuthRepository {
   // 登入
   Future<void> signIn({required String email, required String password}) async {
     try {
-      await _supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      await _supabase.auth.signInWithPassword(email: email, password: password);
     } catch (e) {
       throw Exception('登入失敗: $e');
     }
@@ -39,10 +36,7 @@ class AuthRepository {
         email: email,
         password: password,
         // 雖然我們有 profiles 表，但將基本資料也存在 metadata 是個好習慣 (方便 Supabase 後台查看)
-        data: {
-          'full_name': fullName,
-          'phone': phone,
-        },
+        data: {'full_name': fullName, 'phone': phone},
       );
 
       final User? user = res.user;
@@ -57,16 +51,18 @@ class AuthRepository {
         'full_name': fullName,
         'phone': phone,
         'referral_source': referralSource,
-        'credits': 0,    // 初始點數
-        'role': 'user',  // 初始身份
+        'credits': 0, // 初始點數
+        'role': 'user', // 初始身份
       });
-      
+
       // 3. 建立 Primary Student (實體層：包含頭像、生日、備註)
       // 生成頭像 URL
       String avatarName = fullName.trim();
-      if (fullName.length > 2) avatarName = fullName.substring(fullName.length - 2);
+      if (fullName.length > 2)
+        avatarName = fullName.substring(fullName.length - 2);
       final encodedName = Uri.encodeComponent(avatarName);
-      final avatarUrl = 'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
+      final avatarUrl =
+          'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
 
       await _supabase.from('students').insert({
         'parent_id': user.id,
@@ -74,7 +70,7 @@ class AuthRepository {
         'birth_date': birthDate.toIso8601String(), // 轉成字串存入 DB
         'medical_note': medicalNote,
         'avatar_url': avatarUrl,
-        'is_primary': true,        // ⚠️ 標記為本人
+        'is_primary': true, // ⚠️ 標記為本人
         'level': 'beginner',
       });
     } catch (e) {

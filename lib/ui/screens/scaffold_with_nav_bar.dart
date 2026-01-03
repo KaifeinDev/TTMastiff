@@ -5,17 +5,15 @@ import 'package:go_router/go_router.dart';
 class ScaffoldWithNavBar extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
-  const ScaffoldWithNavBar({
-    required this.navigationShell,
-    Key? key,
-  }) : super(key: key ?? const ValueKey<String>('ScaffoldWithNavBar'));
+  const ScaffoldWithNavBar({required this.navigationShell, Key? key})
+    : super(key: key ?? const ValueKey<String>('ScaffoldWithNavBar'));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       // 這裡顯示當前路由的子頁面
       body: navigationShell,
-      
+
       // 底部導航列
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,

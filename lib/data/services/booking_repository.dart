@@ -21,7 +21,6 @@ class BookingRepository {
     for (final studentId in studentIds) {
       // 遍歷該學生選中的所有場次
       for (final sessionId in sessionIds) {
-        
         // 檢查是否已存在紀錄
         final existing = await _supabase
             .from('bookings')
@@ -33,18 +32,20 @@ class BookingRepository {
         if (existing != null) {
           // --- 情況 A: 資料已存在 ---
           final String currentStatus = existing['status'] ?? 'confirmed';
-          
+
           // 如果是被取消的單，將其復活
           if (currentStatus == 'cancelled') {
-            await _supabase.from('bookings').update({
-              'status': 'confirmed',
-              'attendance_status': 'pending',
-              'price_snapshot': price_snapshot, // 🔥 更新為最新的價格
-              'updated_at': DateTime.now().toIso8601String(),
-            }).eq('id', existing['id']);
+            await _supabase
+                .from('bookings')
+                .update({
+                  'status': 'confirmed',
+                  'attendance_status': 'pending',
+                  'price_snapshot': price_snapshot, // 🔥 更新為最新的價格
+                  'updated_at': DateTime.now().toIso8601String(),
+                })
+                .eq('id', existing['id']);
           }
           // 如果已經是 confirmed，則跳過
-          
         } else {
           // --- 情況 B: 全新報名 (Insert) ---
           await _supabase.from('bookings').insert({
@@ -86,13 +87,13 @@ class BookingRepository {
 
   /// 取消預約 (邏輯刪除)
   Future<void> cancelBooking(String bookingId) async {
-    try{
+    try {
       // 將狀態更新為 'cancelled'
       await _supabase
           .from('bookings')
           .update({'status': 'cancelled'})
           .eq('id', bookingId);
-      
+
       // 註：如果您的業務邏輯需要「物理刪除」(從資料庫移除)，請改用:
       // await _supabase.from('bookings').delete().eq('id', bookingId);
     } catch (e) {
@@ -108,5 +109,4 @@ class BookingRepository {
         .update({'attendance_status': 'leave'})
         .eq('id', bookingId);
   }
-
 }

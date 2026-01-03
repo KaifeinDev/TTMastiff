@@ -24,7 +24,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   // ... Repositories (同前) ...
   late final StudentRepository _studentRepo;
   late final BookingRepository _bookingRepo;
-  late final CourseRepository _courseRepo; // 假設您已在 Repo 加入 fetchSessionsByCourseId
+  late final CourseRepository
+  _courseRepo; // 假設您已在 Repo 加入 fetchSessionsByCourseId
 
   CourseModel? _course;
   List<SessionModel> _upcomingSessions = []; // 未來的場次列表
@@ -63,19 +64,22 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           _course = results[0] as CourseModel;
           _upcomingSessions = results[1] as List<SessionModel>;
           _myStudents = results[2] as List<StudentModel>;
-          
+
           // 預設全選未來 4 週的場次 (提升體驗)
           // _selectedSessionIds.addAll(_upcomingSessions.take(4).map((e) => e.id));
-          
+
           // 預設選取主要學員
-          final primaryStudent = _myStudents.firstWhere((s) => s.isPrimary, orElse: () => _myStudents.first);
+          final primaryStudent = _myStudents.firstWhere(
+            (s) => s.isPrimary,
+            orElse: () => _myStudents.first,
+          );
           _selectedStudentIds.add(primaryStudent.id);
 
           _isLoading = false;
         });
       }
     } catch (e) {
-      if(mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       debugPrint("Error: $e");
     }
   }
@@ -83,7 +87,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   // 執行批量報名
   Future<void> _onBatchBookPressed() async {
     if (_selectedStudentIds.isEmpty || _selectedSessionIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請至少選擇一位學員和一堂課程')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請至少選擇一位學員和一堂課程')));
       return;
     }
 
@@ -91,7 +97,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
     try {
       // 計算總金額 (給用戶確認用，或是顯示在 Log)
-      final totalCost = _selectedStudentIds.length * _selectedSessionIds.length * _course!.price;
+      final totalCost =
+          _selectedStudentIds.length *
+          _selectedSessionIds.length *
+          _course!.price;
       print("預計扣款/花費: $totalCost");
 
       await _bookingRepo.createBatchBooking(
@@ -103,24 +112,30 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('成功報名 ${_selectedSessionIds.length} 堂課 x ${_selectedStudentIds.length} 位學員！'),
+            content: Text(
+              '成功報名 ${_selectedSessionIds.length} 堂課 x ${_selectedStudentIds.length} 位學員！',
+            ),
             backgroundColor: Colors.green,
-          )
+          ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      if(mounted) {
+      if (mounted) {
         setState(() => _isBooking = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('報名失敗: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('報名失敗: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_course == null) return const Scaffold(body: Center(child: Text('課程不存在')));
+    if (_isLoading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_course == null)
+      return const Scaffold(body: Center(child: Text('課程不存在')));
 
     final dateFormat = DateFormat('MM/dd (E)', 'zh_TW');
     final timeFormat = DateFormat('HH:mm');
@@ -136,7 +151,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 // 1. 課程資訊區塊 (略，可參考之前的設計)
                 Text("選擇上課學員", style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                
+
                 // 2. 多選學員區塊
                 Wrap(
                   spacing: 8,
@@ -160,19 +175,24 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 ),
 
                 const Divider(height: 32),
-                
+
                 Text("選擇上課日期", style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
 
                 // 3. 多選場次列表
-                if (_upcomingSessions.isEmpty) 
-                  const Text("目前沒有排定未來場次", style: TextStyle(color: Colors.grey)),
-                  
+                if (_upcomingSessions.isEmpty)
+                  const Text(
+                    "目前沒有排定未來場次",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+
                 ..._upcomingSessions.map((session) {
                   final isSelected = _selectedSessionIds.contains(session.id);
                   return CheckboxListTile(
                     title: Text(dateFormat.format(session.startTime)),
-                    subtitle: Text("${timeFormat.format(session.startTime)} - ${timeFormat.format(session.endTime)}"),
+                    subtitle: Text(
+                      "${timeFormat.format(session.startTime)} - ${timeFormat.format(session.endTime)}",
+                    ),
                     secondary: Text("\$${_course!.price}"),
                     value: isSelected,
                     onChanged: (val) {
@@ -189,12 +209,15 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               ],
             ),
           ),
-          
+
           // 底部按鈕
           SafeArea(
             child: Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(blurRadius: 5, color: Colors.black12)]),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [BoxShadow(blurRadius: 5, color: Colors.black12)],
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -202,22 +225,34 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text("已選: ${_selectedStudentIds.length} 人 x ${_selectedSessionIds.length} 堂"),
-                        Text("總計: \$${_selectedStudentIds.length * _selectedSessionIds.length * _course!.price}", 
-                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)),
+                        Text(
+                          "已選: ${_selectedStudentIds.length} 人 x ${_selectedSessionIds.length} 堂",
+                        ),
+                        Text(
+                          "總計: \$${_selectedStudentIds.length * _selectedSessionIds.length * _course!.price}",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.green,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   ElevatedButton(
                     onPressed: _isBooking ? null : _onBatchBookPressed,
-                    child: _isBooking 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
-                      : const Text("批量報名"),
-                  )
+                    child: _isBooking
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text("批量報名"),
+                  ),
                 ],
               ),
             ),
-          )
+          ),
         ],
       ),
     );

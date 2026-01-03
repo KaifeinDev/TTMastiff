@@ -55,17 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         // 登入成功，跳轉到首頁
         // context.go 會直接替換堆疊，使用者按上一頁不會回到登入頁
-        context.go('/home'); 
+        context.go('/home');
       }
     } catch (e) {
       if (mounted) {
         // 顯示簡化後的錯誤訊息
         final msg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -82,13 +79,18 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('登入')),
       body: Center(
-        child: SingleChildScrollView( // 避免鍵盤跳出時擋住畫面
+        child: SingleChildScrollView(
+          // 避免鍵盤跳出時擋住畫面
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch, // 讓按鈕跟輸入框同寬
             children: [
-              const Icon(Icons.sports_tennis, size: 80, color: Colors.blueAccent),
+              const Icon(
+                Icons.sports_tennis,
+                size: 80,
+                color: Colors.blueAccent,
+              ),
               const SizedBox(height: 16),
               const Text(
                 '歡迎回到 TTMastiff',
@@ -96,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 32),
-              
+
               // Email 輸入框
               TextField(
                 controller: _emailController,
@@ -108,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
-              
+
               // 密碼輸入框
               TextField(
                 controller: _passwordController,
@@ -119,7 +121,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: const Icon(Icons.lock),
                   // 顯示/隱藏密碼的眼睛按鈕
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
                     onPressed: () {
                       setState(() {
                         _obscurePassword = !_obscurePassword;
@@ -138,22 +144,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                        height: 20, 
-                        width: 20, 
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Text('登入', style: TextStyle(fontSize: 16)),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // 註冊連結
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('還沒有帳號嗎？'),
                   TextButton(
-                    onPressed: () => context.push('/register'), // 使用 push 這樣可以按上一頁回來
+                    onPressed: () =>
+                        context.push('/register'), // 使用 push 這樣可以按上一頁回來
                     child: const Text('立即註冊'),
                   ),
                 ],

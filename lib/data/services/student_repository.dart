@@ -27,7 +27,7 @@ class StudentRepository {
     required String name,
     required DateTime birthDate,
     String? medicalNote,
-    }) async {
+  }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('尚未登入');
 
@@ -37,7 +37,8 @@ class StudentRepository {
     }
     // 生成大頭貼
     final encodedName = Uri.encodeComponent(avatarName);
-    final avatarUrl = 'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
+    final avatarUrl =
+        'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
 
     await _supabase.from('students').insert({
       'parent_id': userId,
@@ -58,12 +59,16 @@ class StudentRepository {
     }
     // 重新生成大頭貼以符合新名字
     final encodedName = Uri.encodeComponent(avatarName);
-    final newAvatarUrl = 'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
+    final newAvatarUrl =
+        'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
 
-    await _supabase.from('students').update({
-      'name': newName,
-      'avatar_url': newAvatarUrl,
-      'medical_note': note,
-    }).eq('id', id);
+    await _supabase
+        .from('students')
+        .update({
+          'name': newName,
+          'avatar_url': newAvatarUrl,
+          'medical_note': note,
+        })
+        .eq('id', id);
   }
 }

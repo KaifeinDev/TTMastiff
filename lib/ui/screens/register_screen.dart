@@ -61,7 +61,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請選擇出生年月日')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請選擇出生年月日')));
       return;
     }
 
@@ -97,10 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         // 簡單處理錯誤訊息，去掉 Exception 前綴
         final msg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ 註冊失敗: $msg'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('❌ 註冊失敗: $msg'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -178,9 +177,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onTap: _pickDate,
                   child: InputDecorator(
                     decoration: const InputDecoration(
-                    labelText: '出生年月日',
-                    prefixIcon: Icon(Icons.cake_outlined),
-                    border: OutlineInputBorder(),
+                      labelText: '出生年月日',
+                      prefixIcon: Icon(Icons.cake_outlined),
+                      border: OutlineInputBorder(),
                     ),
                     child: Text(
                       _selectedDate == null
@@ -195,7 +194,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
 
                 // 5. Email
                 TextFormField(
@@ -223,9 +221,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
                       onPressed: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
                     ),
@@ -277,7 +277,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : const Text('立即註冊', style: TextStyle(fontSize: 16)),
                 ),
                 const SizedBox(height: 16),
