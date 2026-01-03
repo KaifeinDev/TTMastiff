@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart'; // 記得引入 intl 用於時間格式化
 
 // Screens
-import 'course_detail_screen.dart'; // 記得引入剛剛改好的 Detail Screen
+import 'course_detail_screen.dart';
 
 // Repositories & Models
 import '../../data/services/course_repository.dart';
@@ -41,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // 根據目前選中的星期，重新撈取資料
   Future<void> _fetchCourses() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMsg = null;
@@ -81,10 +83,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('課程總覽'),
+        title: const Text(
+          '課程總覽',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
+        centerTitle: false,
       ),
       backgroundColor: Colors.grey.shade100,
       body: Column(
@@ -92,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // 1. 星期選擇器
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(_weekDays.length, (index) {
@@ -107,18 +113,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       // 圓形按鈕
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        width: 40, // 固定寬度確保塞得下
-                        height: 40,
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
                           color: isSelected
                               ? Theme.of(context).primaryColor
                               : (isToday
-                                    ? Colors.blue.shade50
+                                    ? Theme.of(
+                                        context,
+                                      ).primaryColor.withOpacity(0.1)
                                     : Colors.transparent),
                           shape: BoxShape.circle,
                           border: isSelected
                               ? null
-                              : Border.all(color: Colors.grey.shade300),
+                              : Border.all(
+                                  color: isToday
+                                      ? Theme.of(context).primaryColor
+                                      : Colors.grey.shade300,
+                                  width: isToday ? 2 : 1,
+                                ),
                         ),
                         child: Center(
                           child: Text(
@@ -137,11 +150,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      // const SizedBox(height: 4),
-                      // Text(
-                      //   "週${_weekDays[index]}",
-                      //   style: TextStyle(fontSize: 10, color: isSelected ? Colors.black : Colors.grey),
-                      // )
+                      const SizedBox(height: 4),
+                      // 標示今日的小點 (選擇性)
+                      if (isToday)
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      else
+                        const SizedBox(height: 4),
                     ],
                   ),
                 );
@@ -163,14 +184,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (_errorMsg != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(_errorMsg!),
-            TextButton(onPressed: _fetchCourses, child: const Text("重試")),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+              const SizedBox(height: 16),
+              Text(
+                "讀取失敗",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _errorMsg!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _fetchCourses,
+                icon: const Icon(Icons.refresh),
+                label: const Text("重試"),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -180,15 +222,26 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.calendar_today_outlined,
-              size: 64,
-              color: Colors.grey.shade300,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.calendar_today_outlined,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
-              "週${_weekDays[_selectedDayIndex]} 目前沒有安排課程",
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+              "週${_weekDays[_selectedDayIndex]} 沒有安排課程",
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -198,9 +251,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // 顯示課程卡片列表
     return RefreshIndicator(
       onRefresh: _fetchCourses,
-      child: ListView.builder(
+      child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: _courses.length,
+        separatorBuilder: (ctx, index) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
           final course = _courses[index];
           return _CourseCard(course: course);
@@ -210,7 +264,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// 抽離出來的卡片 Widget，讓程式碼比較乾淨
+// =========================================================
+// 優化後的卡片 Widget
+// =========================================================
 class _CourseCard extends StatelessWidget {
   final CourseModel course;
 
@@ -218,15 +274,22 @@ class _CourseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 時間格式化 (例如: 10:00 - 11:30)
+    final timeFormat = DateFormat('HH:mm');
+    final timeRange =
+        "${timeFormat.format(course.defaultStartTime)} - ${timeFormat.format(course.defaultEndTime)}";
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
+      elevation: 0, // 平面化設計
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200), // 細邊框
+      ),
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias, // 讓圖片切圓角
+      child: InkWell(
         onTap: () {
-          // 點擊後跳轉到「課程詳情頁 (CourseDetailScreen)」
-          // 這裡傳入 courseId，支援批量報名
+          // 點擊後跳轉到「課程詳情頁」
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -234,102 +297,139 @@ class _CourseCard extends StatelessWidget {
             ),
           );
         },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // A. 圖片區塊 (如果有圖)
+            if (course.imageUrl != null && course.imageUrl!.isNotEmpty)
+              SizedBox(
+                height: 140,
+                width: double.infinity,
+                child: Image.network(
+                  course.imageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.grey.shade100,
+                    child: const Center(
+                      child: Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              ),
+
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. 左側：類型標籤 (團體/個人)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: course.category == 'personal'
-                          ? Colors.purple.shade50
-                          : Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      course.category == 'personal' ? '一對一' : '團體班',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: course.category == 'personal'
-                            ? Colors.purple
-                            : Colors.blue,
-                        fontWeight: FontWeight.bold,
+                  // B. 標籤與價格
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 類型標籤
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: course.category == 'personal'
+                              ? Colors.purple.shade50
+                              : Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          course.category == 'personal' ? '一對一' : '團體班',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: course.category == 'personal'
+                                ? Colors.purple
+                                : Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
+                      const Spacer(),
+                      // 價格
+                      Text(
+                        '\$${course.price}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  // 2. 右側：價格
+                  const SizedBox(height: 12),
+
+                  // C. 課程標題
                   Text(
-                    '\$${course.price}',
-                    style: TextStyle(
+                    course.title,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.green.shade700,
+                      height: 1.2,
                     ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // D. 課程說明 (簡短)
+                  if (course.description != null)
+                    Text(
+                      course.description!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                      ),
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // 分隔線
+                  Divider(height: 1, color: Colors.grey.shade100),
+                  const SizedBox(height: 12),
+
+                  // E. 底部資訊 (時間 & 查看按鈕)
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time_filled_rounded,
+                        size: 16,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        timeRange,
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        "預約",
+                        style: TextStyle(
+                          color: Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 16,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-
-              // 3. 課程標題
-              Text(
-                course.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // 4. 課程說明 (簡短版)
-              if (course.description != null)
-                Text(
-                  course.description!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                ),
-
-              const SizedBox(height: 16),
-
-              // 5. 底部行動呼籲
-              Row(
-                children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 16,
-                    color: Colors.grey.shade500,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    "${course.durationMinutes} 分鐘",
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                  const Spacer(),
-                  const Text(
-                    "查看時段",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 14,
-                    color: Colors.blue,
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
