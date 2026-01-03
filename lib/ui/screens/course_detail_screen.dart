@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/services/booking_repository.dart';
 import '../../data/services/student_repository.dart';
@@ -119,6 +120,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           ),
         );
         Navigator.pop(context);
+        // context.go(
+        //   '/bookings?refresh=${DateTime.now().millisecondsSinceEpoch}',
+        // );
       }
     } catch (e) {
       if (mounted) {
