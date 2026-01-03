@@ -27,8 +27,15 @@ class _MyBookingScreenState extends State<MyBookingScreen>
   void initState() {
     super.initState();
     _bookingRepo = BookingRepository(Supabase.instance.client);
+    BookingRepository.bookingRefreshSignal.addListener(_fetchBookings);
     _tabController = TabController(length: 2, vsync: this);
     _fetchBookings();
+  }
+
+  @override
+  void dispose() {
+    BookingRepository.bookingRefreshSignal.removeListener(_fetchBookings);
+    super.dispose();
   }
 
   Future<void> _fetchBookings() async {
@@ -173,19 +180,26 @@ class _MyBookingScreenState extends State<MyBookingScreen>
           : TabBarView(
               controller: _tabController,
               children: [
-                // 即將到來 (使用分組列表)
-                ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _upcomingGroups.length,
-                  itemBuilder: (context, index) {
-                    return _GroupedBookingCard(
-                      bookings: _upcomingGroups[index],
-                      onAction: _handleAction,
-                    );
-                  },
+                RefreshIndicator(
+                  onRefresh: _fetchBookings,
+                  child: ListView.builder(
+                    // 即將到來 (使用分組列表)
+                    padding: const EdgeInsets.all(16),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: _upcomingGroups.length,
+                    itemBuilder: (context, index) {
+                      return _GroupedBookingCard(
+                        bookings: _upcomingGroups[index],
+                        onAction: _handleAction,
+                      );
+                    },
+                  ),
                 ),
                 // 歷史紀錄 (維持原樣，或是您也可以套用分組)
-                _HistoryList(bookings: _historyBookings),
+                RefreshIndicator(
+                  onRefresh: _fetchBookings,
+                  child: _HistoryList(bookings: _historyBookings),
+                ),
               ],
             ),
     );
@@ -386,18 +400,22 @@ class _HistoryList extends StatelessWidget {
   Widget build(BuildContext context) {
     // 1. 空狀態處理
     if (bookings.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history, size: 64, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            Text(
-              "沒有歷史紀錄",
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
-            ),
-          ],
-        ),
+      return ListView(
+        physics: AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.history, size: 64, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
+              Text(
+                "沒有歷史紀錄",
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+              ),
+            ],
+          ),
+        ],
       );
     }
 
