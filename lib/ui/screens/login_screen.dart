@@ -32,17 +32,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 執行登入邏輯
   Future<void> _handleLogin() async {
-    // final email = _emailController.text.trim();
+    final email = _emailController.text.trim();
     // final password = _passwordController.text.trim();
-    final email = "test11@gmail.com";
-    final password = "test11";
+    // final email = "test11@gmail.com";
+    // final password = "test11";
+    // final email = "admin@admin.com";
+    final password = "test123";
 
-    // if (email.isEmpty || password.isEmpty) {
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     const SnackBar(content: Text('請輸入 Email 和密碼')),
-    //   );
-    //   return;
-    // }
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請輸入 Email 和密碼')));
+      return;
+    }
 
     setState(() {
       _isLoading = true;
