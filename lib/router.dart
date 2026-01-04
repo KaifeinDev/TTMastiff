@@ -138,7 +138,8 @@ final appRouter = GoRouter(
                 final courseId = state.pathParameters['courseId']!;
 
                 // 接收從列表頁傳來的整個 Course 物件 (extra)，這樣可以不讀取 API 直接顯示標題
-                final courseData = state.extra as CourseModel;
+                // extra 是可選的，如果沒有傳遞則為 null
+                final courseData = state.extra as CourseModel?;
 
                 return NoTransitionPage(
                   child: AdminCourseDetailScreen(
