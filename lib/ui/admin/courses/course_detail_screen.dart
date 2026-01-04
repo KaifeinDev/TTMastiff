@@ -53,12 +53,12 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
     try {
       // 1. 如果沒有 initialData，需重新抓取 Course 資訊
       if (widget.initialData == null) {
-        final course = await adminRepository.getCourseById(widget.courseId);
+        final course = await courseRepository.getCourseById(widget.courseId);
         _courseData = course;
       }
 
       // 2. 抓取 Sessions (Repo 現在回傳 List<SessionModel>)
-      final sessions = await adminRepository.getSessionsByCourse(
+      final sessions = await sessionRepository.getSessionsByCourse(
         widget.courseId,
       );
 
@@ -133,7 +133,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
 
     if (confirm == true) {
       try {
-        await adminRepository.deleteSession(sessionId);
+        await sessionRepository.deleteSession(sessionId);
         _refreshData();
         if (mounted) {
           ScaffoldMessenger.of(

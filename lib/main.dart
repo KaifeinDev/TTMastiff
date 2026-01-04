@@ -5,12 +5,19 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:ttmastiff/data/services/auth_manager.dart';
 import 'package:ttmastiff/data/services/auth_repository.dart';
-import 'package:ttmastiff/data/services/admin_repository.dart';
+import 'package:ttmastiff/data/services/session_repository.dart';
+import 'package:ttmastiff/data/services/coach_repository.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
+import 'package:ttmastiff/data/services/booking_repository.dart';
+
 import 'router.dart';
 
 late final AuthRepository authRepository;
 late final AuthManager authManager;
-late final AdminRepository adminRepository;
+late final SessionRepository sessionRepository;
+late final CoachRepository coachRepository;
+late final CourseRepository courseRepository;
+late final BookingRepository bookingRepository;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,13 +29,19 @@ Future<void> main() async {
       anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
     );
     print("✅ Supabase initialized successfully");
+
+    final client = Supabase.instance.client;
     // 3. 🔥 初始化 AuthRepository (資料層)
-    authRepository = AuthRepository(Supabase.instance.client);
+    authRepository = AuthRepository(client);
 
     // 4. 🔥 初始化 AuthManager (狀態層)
     authManager = AuthManager(authRepository);
 
-    adminRepository = AdminRepository(Supabase.instance.client);
+    sessionRepository = SessionRepository(client);
+    coachRepository = CoachRepository(client);
+    courseRepository = CourseRepository(client);
+    bookingRepository = BookingRepository(client);
+
     // 5. 🔥 啟動監聽並檢查權限 (這會決定使用者一進去是 Home 還是 Admin)
     await authManager.init();
     print(

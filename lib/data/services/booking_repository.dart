@@ -117,6 +117,56 @@ class BookingRepository {
         .eq('id', bookingId);
     bookingRefreshSignal.notify();
   }
+
+  /// 1. 取得指定場次 (Session) 的所有預約名單
+  Future<List<BookingModel>> fetchBookingsBySessionId(String sessionId) async {
+    final response = await _supabase
+        .from('bookings')
+        .select('''
+          *,
+          students (*),
+          sessions (
+            *,
+            courses (*)
+          )
+        ''')
+        .eq('session_id', sessionId)
+        // 排除已取消的嗎？通常管理員還是想看到取消的人，所以全抓，在 UI 判斷顏色
+        .order('created_at', ascending: true);
+
+    final data = List<Map<String, dynamic>>.from(response);
+    return data.map((e) => BookingModel.fromJson(e)).toList();
+  }
+
+  /// 2. 更新預約狀態 (簽到、請假、取消)
+  Future<void> updateBookingStatus({
+    required String bookingId,
+    required String status, // 'confirmed', 'cancelled'
+    required String
+    attendanceStatus, // 'pending', 'attended', 'leave', 'absent'
+  }) async {
+    await _supabase
+        .from('bookings')
+        .update({'status': status, 'attendance_status': attendanceStatus})
+        .eq('id', bookingId);
+  }
+
+  /// 3. 幫學生新增預約 (管理員手動加入)
+  Future<void> createBooking({
+    required String sessionId,
+    required String studentId,
+    required String userId, // 家長/User ID
+    required int priceSnapshot, // 當下的價格
+  }) async {
+    await _supabase.from('bookings').insert({
+      'session_id': sessionId,
+      'student_id': studentId,
+      'user_id': userId,
+      'status': 'confirmed',
+      'attendance_status': 'pending', // 預設為待上課
+      'price_snapshot': priceSnapshot,
+    });
+  }
 }
 
 class RefreshSignal extends ChangeNotifier {
