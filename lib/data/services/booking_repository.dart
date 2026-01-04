@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 
 class BookingRepository {
   final SupabaseClient _supabase;
-  static final ValueNotifier<bool> bookingRefreshSignal = ValueNotifier(false);
-
+  static final RefreshSignal bookingRefreshSignal = RefreshSignal();
   BookingRepository(this._supabase);
 
   /// 批量建立預約 (支援多位學生 x 多個場次)
@@ -47,8 +46,8 @@ class BookingRepository {
                 })
                 .eq('id', existing['id']);
           }
-          BookingRepository.bookingRefreshSignal.value =
-              !BookingRepository.bookingRefreshSignal.value;
+          bookingRefreshSignal.notify();
+
           // 如果已經是 confirmed，則跳過
         } else {
           // --- 情況 B: 全新報名 (Insert) ---
@@ -61,6 +60,7 @@ class BookingRepository {
             'price_snapshot': price_snapshot, // 🔥 寫入價格快照
             'created_at': DateTime.now().toIso8601String(),
           });
+          bookingRefreshSignal.notify();
         }
       }
     }
@@ -71,22 +71,24 @@ class BookingRepository {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('未登入');
 
-    // 1. 使用 'sessions' 而非 'session:sessions'
-    // 2. 確保 sessions 裡面有抓 courses
+    // 設定時間界線 (例如：只抓 90 天前的歷史 + 未來所有課程)
+    final limitDate = DateTime.now().subtract(const Duration(days: 90));
+
     final response = await _supabase
         .from('bookings')
         .select('''
           *,
-          sessions (
+          sessions!inner (
             *,
             courses (*)
           ),
           students (*)
         ''')
         .eq('user_id', userId)
-        .order('created_at', ascending: false);
-
-    return (response as List).map((e) => BookingModel.fromJson(e)).toList();
+        .gte('sessions.end_time', limitDate.toIso8601String())
+        .order('sessions(start_time)', ascending: false);
+    final data = List<Map<String, dynamic>>.from(response);
+    return data.map((e) => BookingModel.fromJson(e)).toList();
   }
 
   /// 取消預約 (邏輯刪除)
@@ -98,6 +100,7 @@ class BookingRepository {
           .update({'status': 'cancelled'})
           .eq('id', bookingId);
 
+      bookingRefreshSignal.notify();
       // 註：如果您的業務邏輯需要「物理刪除」(從資料庫移除)，請改用:
       // await _supabase.from('bookings').delete().eq('id', bookingId);
     } catch (e) {
@@ -112,5 +115,63 @@ class BookingRepository {
         .from('bookings')
         .update({'attendance_status': 'leave'})
         .eq('id', bookingId);
+    bookingRefreshSignal.notify();
+  }
+
+  /// 1. 取得指定場次 (Session) 的所有預約名單
+  Future<List<BookingModel>> fetchBookingsBySessionId(String sessionId) async {
+    final response = await _supabase
+        .from('bookings')
+        .select('''
+          *,
+          students (*),
+          sessions (
+            *,
+            courses (*)
+          )
+        ''')
+        .eq('session_id', sessionId)
+        // 排除已取消的嗎？通常管理員還是想看到取消的人，所以全抓，在 UI 判斷顏色
+        .order('created_at', ascending: true);
+
+    final data = List<Map<String, dynamic>>.from(response);
+    return data.map((e) => BookingModel.fromJson(e)).toList();
+  }
+
+  /// 2. 更新預約狀態 (簽到、請假、取消)
+  Future<void> updateBookingStatus({
+    required String bookingId,
+    required String status, // 'confirmed', 'cancelled'
+    required String
+    attendanceStatus, // 'pending', 'attended', 'leave', 'absent'
+  }) async {
+    await _supabase
+        .from('bookings')
+        .update({'status': status, 'attendance_status': attendanceStatus})
+        .eq('id', bookingId);
+  }
+
+  /// 3. 幫學生新增預約 (管理員手動加入)
+  Future<void> createBooking({
+    required String sessionId,
+    required String studentId,
+    required String userId, // 家長/User ID
+    required int priceSnapshot, // 當下的價格
+  }) async {
+    await _supabase.from('bookings').insert({
+      'session_id': sessionId,
+      'student_id': studentId,
+      'user_id': userId,
+      'status': 'confirmed',
+      'attendance_status': 'pending', // 預設為待上課
+      'price_snapshot': priceSnapshot,
+    });
+  }
+}
+
+class RefreshSignal extends ChangeNotifier {
+  // 把受保護的 notifyListeners 包裝成公開方法
+  void notify() {
+    notifyListeners();
   }
 }
