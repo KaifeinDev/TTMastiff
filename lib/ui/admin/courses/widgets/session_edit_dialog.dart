@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart'; // adminRepository
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-// 🔥 引入 Model
+// 🔥 引入 main.dart 裡的全域變數
+import 'package:ttmastiff/main.dart';
+
+// Models
 import '../../../../data/models/session_model.dart';
+import '../../../../data/models/booking_model.dart';
+import '../../../../data/models/student_model.dart';
 
 class SessionEditDialog extends StatefulWidget {
-  // 🔥 改動 1: 這裡接收 Model
   final SessionModel session;
-  final String category; // 用來輔助計算人數上限
+  final String category;
 
   const SessionEditDialog({
     super.key,
@@ -20,79 +24,158 @@ class SessionEditDialog extends StatefulWidget {
   State<SessionEditDialog> createState() => _SessionEditDialogState();
 }
 
-class _SessionEditDialogState extends State<SessionEditDialog> {
+class _SessionEditDialogState extends State<SessionEditDialog>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  // Tab 1: 學員名單變數
+  List<BookingModel> _roster = [];
+  bool _isLoadingRoster = false;
+
+  // Tab 2: 場次設定變數
   final _locationController = TextEditingController();
   final _capacityController = TextEditingController();
-
   List<Map<String, dynamic>> _allCoaches = [];
   List<String> _selectedCoachIds = [];
-
   late DateTime _startDateTime;
   late DateTime _endDateTime;
-  bool _isLoading = false;
+  bool _isSavingSettings = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchCoaches();
+    _tabController = TabController(length: 2, vsync: this);
 
-    // 🔥 改動 2: 使用 Model 初始化
+    // 初始化 Tab 2 資料
     final s = widget.session;
     _locationController.text = s.location ?? '';
     _capacityController.text = s.maxCapacity.toString();
-    // 這裡我們建立一個新的 List，避免改動原資料
     _selectedCoachIds = List<String>.from(s.coachIds);
-
-    // Model 的時間已經是 DateTime，不需 parse
     _startDateTime = s.startTime;
     _endDateTime = s.endTime;
+
+    // 載入資料 (使用全域變數)
+    _fetchCoaches();
+    _fetchRoster();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _locationController.dispose();
     _capacityController.dispose();
     super.dispose();
   }
 
+  // --------------------------------------------------------------------------
+  // Tab 1 邏輯: 名單管理
+  // --------------------------------------------------------------------------
+  Future<void> _fetchRoster() async {
+    setState(() => _isLoadingRoster = true);
+    try {
+      // 🔥 使用全域 bookingRepository
+      final bookings = await bookingRepository.fetchBookingsBySessionId(
+        widget.session.id,
+      );
+      if (mounted) setState(() => _roster = bookings);
+    } catch (e) {
+      debugPrint('Fetch roster error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingRoster = false);
+    }
+  }
+
+  Future<void> _updateStudentStatus(
+    String bookingId,
+    String status,
+    String attendance,
+  ) async {
+    try {
+      // 🔥 使用全域 bookingRepository
+      await bookingRepository.updateBookingStatus(
+        bookingId: bookingId,
+        status: status,
+        attendanceStatus: attendance,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('狀態已更新')));
+        _fetchRoster();
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('更新失敗: $e')));
+    }
+  }
+
+  void _showAddStudentDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => _StudentSearchDialog(
+        onStudentSelected: (student) async {
+          try {
+            // 🔥 使用全域 bookingRepository 幫學生報名
+            await bookingRepository.createBooking(
+              sessionId: widget.session.id,
+              studentId: student.id,
+              userId: student.parentId,
+              priceSnapshot: widget.session.displayPrice,
+            );
+
+            if (mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('已加入學員: ${student.name}')));
+              _fetchRoster(); // 刷新名單
+            }
+          } catch (e) {
+            if (mounted)
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('加入失敗: $e')));
+          }
+        },
+      ),
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // Tab 2 邏輯: 場次設定
+  // --------------------------------------------------------------------------
   Future<void> _fetchCoaches() async {
     try {
-      final coaches = await adminRepository.getCoaches();
-      if (mounted) {
-        setState(() => _allCoaches = coaches);
-      }
+      // 🔥 使用全域 coachRepository
+      final coaches = await coachRepository.getCoaches();
+      if (mounted) setState(() => _allCoaches = coaches);
     } catch (e) {
       debugPrint('Fetch coaches error: $e');
     }
   }
 
-  // 自動計算人數 (同 batch 邏輯)
   void _recalcCapacity() {
-    if (widget.category == 'personal') return; // 個人課不自動改
+    if (widget.category == 'personal') return;
     int count = _selectedCoachIds.isEmpty ? 1 : _selectedCoachIds.length;
     _capacityController.text = (count * 4).toString();
   }
 
   Future<void> _pickDateTime(bool isStart) async {
+    // ... (維持原本時間選擇邏輯)
     final initialDate = isStart ? _startDateTime : _endDateTime;
-
-    // 1. 選日期
     final date = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(2024),
       lastDate: DateTime(2030),
     );
-    if (date == null) return;
-
-    // 2. 選時間
-    if (!mounted) return;
+    if (date == null || !mounted) return;
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initialDate),
     );
     if (time == null) return;
-
     final newDateTime = DateTime(
       date.year,
       date.month,
@@ -100,16 +183,12 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       time.hour,
       time.minute,
     );
-
     setState(() {
       if (isStart) {
         _startDateTime = newDateTime;
-        // UX 優化：如果新的開始時間晚於結束時間，自動把結束時間往後推一小時
-        if (_startDateTime.isAfter(_endDateTime)) {
+        if (_startDateTime.isAfter(_endDateTime))
           _endDateTime = _startDateTime.add(const Duration(hours: 1));
-        }
       } else {
-        // UX 優化：結束時間不能早於開始時間
         if (newDateTime.isBefore(_startDateTime)) {
           ScaffoldMessenger.of(
             context,
@@ -121,11 +200,11 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     });
   }
 
-  Future<void> _submit() async {
-    setState(() => _isLoading = true);
+  Future<void> _submitSettings() async {
+    setState(() => _isSavingSettings = true);
     try {
-      await adminRepository.updateSession(
-        // 🔥 使用 Model ID
+      // 🔥 使用全域 sessionRepository
+      await sessionRepository.updateSession(
         sessionId: widget.session.id,
         coachIds: _selectedCoachIds,
         location: _locationController.text,
@@ -133,141 +212,321 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         startTime: _startDateTime.toUtc(),
         endTime: _endDateTime.toUtc(),
       );
-
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('錯誤: $e')));
-      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isSavingSettings = false);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // UI 渲染 (與之前相同，僅微調細節)
+  // --------------------------------------------------------------------------
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 500,
+        height: 700,
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50.withOpacity(0.5),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.session.courseTitle,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              DateFormat(
+                                'MM/dd HH:mm',
+                              ).format(widget.session.startTime),
+                              style: TextStyle(color: Colors.grey[700]),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TabBar(
+                    controller: _tabController,
+                    labelColor: Colors.blue.shade800,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: Colors.blue,
+                    tabs: const [
+                      Tab(text: '學員名單'),
+                      Tab(text: '場次設定'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Body
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [_buildRosterView(), _buildSettingsView()],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRosterView() {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddStudentDialog,
+        icon: const Icon(Icons.person_add),
+        label: const Text('加入學生'),
+      ),
+      body: _isLoadingRoster
+          ? const Center(child: CircularProgressIndicator())
+          : _roster.isEmpty
+          ? const Center(
+              child: Text('目前無人報名', style: TextStyle(color: Colors.grey)),
+            )
+          : ListView.separated(
+              // padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(bottom: 80),
+              itemCount: _roster.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (context, index) {
+                final booking = _roster[index];
+                return ListTile(
+                  leading: CircleAvatar(
+                    child: Text(booking.student?.name[0] ?? '?'),
+                  ),
+                  title: Text(booking.student?.name ?? '未知'),
+                  subtitle: _buildStatusBadge(
+                    booking.attendanceStatus,
+                    booking.status,
+                  ),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (val) {
+                      if (val == 'cancel')
+                        _updateStudentStatus(
+                          booking.id,
+                          'cancelled',
+                          'pending',
+                        );
+                      else
+                        _updateStudentStatus(booking.id, 'confirmed', val);
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'attended', child: Text('✅ 出席')),
+                      PopupMenuItem(value: 'leave', child: Text('🤧 請假')),
+                      PopupMenuItem(value: 'absent', child: Text('❌ 曠課')),
+                      PopupMenuDivider(),
+                      PopupMenuItem(value: 'cancel', child: Text('🗑️ 移除')),
+                    ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _buildStatusBadge(String attendance, String status) {
+    if (status == 'cancelled')
+      return const Text('已取消', style: TextStyle(color: Colors.grey));
+    String text = attendance == 'attended'
+        ? '已出席'
+        : (attendance == 'leave' ? '請假' : '待上課');
+    Color color = attendance == 'attended'
+        ? Colors.green
+        : (attendance == 'leave' ? Colors.orange : Colors.blue);
+    return Text(
+      text,
+      style: TextStyle(color: color, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildSettingsView() {
+    // 這裡放入原本的 Settings UI，並在 submit 時呼叫 sessionRepository.updateSession
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          // 時間設定
+          _buildTimeRow('開始時間', _startDateTime, () => _pickDateTime(true)),
+          const SizedBox(height: 16),
+          _buildTimeRow('結束時間', _endDateTime, () => _pickDateTime(false)),
+          const SizedBox(height: 24),
+          // 地點與人數
+          TextField(
+            controller: _locationController,
+            decoration: const InputDecoration(
+              labelText: '地點',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _capacityController,
+            decoration: const InputDecoration(
+              labelText: '人數上限',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 24),
+          // 教練
+          const Align(alignment: Alignment.centerLeft, child: Text('教練分配')),
+          Wrap(
+            spacing: 8,
+            children: _allCoaches.map((c) {
+              final id = c['id'] as String;
+              final selected = _selectedCoachIds.contains(id);
+              return FilterChip(
+                label: Text(c['full_name'] ?? '未命名'),
+                selected: selected,
+                onSelected: (val) => setState(() {
+                  val
+                      ? _selectedCoachIds.add(id)
+                      : _selectedCoachIds.remove(id);
+                  _recalcCapacity();
+                }),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _isSavingSettings ? null : _submitSettings,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+              child: _isSavingSettings
+                  ? const CircularProgressIndicator()
+                  : const Text('儲存變更', style: TextStyle(color: Colors.white)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeRow(String label, DateTime time, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label),
+          Text(
+            DateFormat('yyyy/MM/dd HH:mm').format(time),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 簡單的學生搜尋 Dialog
+class _StudentSearchDialog extends StatefulWidget {
+  final Function(StudentModel) onStudentSelected;
+  const _StudentSearchDialog({required this.onStudentSelected});
+
+  @override
+  State<_StudentSearchDialog> createState() => _StudentSearchDialogState();
+}
+
+class _StudentSearchDialogState extends State<_StudentSearchDialog> {
+  final _searchController = TextEditingController();
+  List<StudentModel> _results = [];
+  bool _searching = false;
+
+  Future<void> _search() async {
+    setState(() => _searching = true);
+    try {
+      // 這裡直接用 Supabase Client 搜尋，或者你在 StudentRepository 補上 searchStudent 方法
+      // 假設簡單搜尋名字
+      final res = await Supabase.instance.client
+          .from('students')
+          .select()
+          .ilike('name', '%${_searchController.text}%')
+          .limit(5);
+      setState(() {
+        _results = (res as List).map((e) => StudentModel.fromJson(e)).toList();
+      });
+    } finally {
+      setState(() => _searching = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('編輯單一場次'),
+      title: const Text('搜尋學生'),
       content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 1. 時間選擇
-              ListTile(
-                title: const Text('開始時間'),
-                subtitle: Text(
-                  DateFormat('yyyy/MM/dd HH:mm').format(_startDateTime),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                trailing: const Icon(Icons.calendar_today, color: Colors.blue),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                onTap: () => _pickDateTime(true),
-              ),
-              ListTile(
-                title: const Text('結束時間'),
-                subtitle: Text(
-                  DateFormat('yyyy/MM/dd HH:mm').format(_endDateTime),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                trailing: const Icon(Icons.calendar_today, color: Colors.blue),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                onTap: () => _pickDateTime(false),
-              ),
-              const Divider(height: 30),
-
-              // 2. 地點
-              TextField(
-                controller: _locationController,
-                decoration: const InputDecoration(
-                  labelText: '桌次 / 地點',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.place),
+        width: 300,
+        height: 300,
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: '輸入姓名...',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: _search,
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // 3. 教練多選
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '教練分配',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: _allCoaches.map((coach) {
-                  final coachId = coach['id'] as String;
-                  final coachName = coach['full_name'] ?? '未命名';
-                  final isSelected = _selectedCoachIds.contains(coachId);
-
-                  return FilterChip(
-                    label: Text(coachName),
-                    selected: isSelected,
-                    checkmarkColor: Colors.blue,
-                    selectedColor: Colors.blue.shade100,
-                    onSelected: (selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedCoachIds.add(coachId);
-                        } else {
-                          _selectedCoachIds.remove(coachId);
-                        }
-                        _recalcCapacity();
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              if (_allCoaches.isEmpty)
-                const Text('暫無教練資料', style: TextStyle(color: Colors.grey)),
-
-              const SizedBox(height: 16),
-
-              // 4. 人數上限
-              TextField(
-                controller: _capacityController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: '人數上限',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.group),
-                  suffixText: '人',
-                ),
-              ),
-            ],
-          ),
+              onSubmitted: (_) => _search(),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: _searching
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      itemCount: _results.length,
+                      itemBuilder: (context, index) {
+                        final s = _results[index];
+                        return ListTile(
+                          title: Text(s.name),
+                          onTap: () {
+                            Navigator.pop(context);
+                            widget.onStudentSelected(s);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _submit,
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text('更新', style: TextStyle(color: Colors.white)),
-        ),
-      ],
     );
   }
 }

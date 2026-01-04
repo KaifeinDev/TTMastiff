@@ -95,7 +95,7 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
 
       if (widget.course == null) {
         // Create
-        await adminRepository.createCourse(
+        await courseRepository.createCourse(
           title: _titleController.text,
           category: _category,
           price: price,
@@ -106,7 +106,7 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
       } else {
         // Update
         // 🔥 改動 4: 使用 widget.course!.id 取得 ID
-        await adminRepository.updateCourse(
+        await courseRepository.updateCourse(
           courseId: widget.course!.id,
           title: _titleController.text,
           category: _category,

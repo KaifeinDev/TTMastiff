@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart'; // 確保能存取 adminRepository
+import 'package:ttmastiff/main.dart'; // 確保能存取 Repository
 
 class BatchSessionDialog extends StatefulWidget {
   final String courseId;
@@ -54,7 +54,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
 
   Future<void> _fetchCoaches() async {
     try {
-      final coaches = await adminRepository.getCoaches();
+      final coaches = await coachRepository.getCoaches();
       if (mounted) {
         setState(() => _allCoaches = coaches);
       }
@@ -167,7 +167,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
 
       // 批次寫入 DB
       // 這裡傳 Map 是正確的，因為 Create 不需要 Model
-      await adminRepository.batchCreateSessions(
+      await sessionRepository.batchCreateSessions(
         courseId: widget.courseId,
         sessionsData: sessionsPayload,
       );

@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/session_model.dart';
 import '../models/course_model.dart';
 
+import '../../core/utils/time_extensions.dart';
 
 class CourseRepository {
   final SupabaseClient _supabase;
@@ -176,6 +177,88 @@ class CourseRepository {
           .toList();
     } catch (e) {
       throw Exception('載入當日課程失敗: $e');
+    }
+  }
+
+  // 🔥 [修改] 取得所有課程模板 -> 回傳 List<CourseModel>
+  Future<List<CourseModel>> getCourses() async {
+    final data = await _supabase
+        .from('courses')
+        .select('*')
+        .order('created_at', ascending: false);
+
+    // 將資料庫的 Map 轉換成 CourseModel 物件
+    return (data as List).map((e) => CourseModel.fromJson(e)).toList();
+  }
+
+  // 🔥 [修改] 取得單一課程資訊 -> 回傳 CourseModel
+  Future<CourseModel> getCourseById(String courseId) async {
+    final data = await _supabase
+        .from('courses')
+        .select('*')
+        .eq('id', courseId)
+        .single();
+
+    return CourseModel.fromJson(data);
+  }
+
+  // 建立課程模板 (回傳 ID，維持原樣)
+  Future<String> createCourse({
+    required String title,
+    required String category,
+    required int price,
+    String? description,
+    required DateTime defaultStartTime,
+    required DateTime defaultEndTime,
+  }) async {
+    final res = await _supabase
+        .from('courses')
+        .insert({
+          'title': title,
+          'category': category,
+          'price': price,
+          'description': description,
+          'default_start_time': defaultStartTime.toPostgresTimeString(),
+          'default_end_time': defaultEndTime.toPostgresTimeString(),
+          'is_published': true,
+        })
+        .select()
+        .single();
+
+    return res['id'];
+  }
+
+  // 更新課程模板 (維持原樣，參數傳入比較彈性)
+  Future<void> updateCourse({
+    required String courseId,
+    required String title,
+    required String category,
+    required int price,
+    String? description,
+    required DateTime defaultStartTime,
+    required DateTime defaultEndTime,
+  }) async {
+    await _supabase
+        .from('courses')
+        .update({
+          'title': title,
+          'category': category,
+          'price': price,
+          'description': description,
+          'default_start_time': defaultStartTime.toPostgresTimeString(),
+          'default_end_time': defaultEndTime.toPostgresTimeString(),
+        })
+        .eq('id', courseId);
+  }
+
+  /// 刪除課程模板
+  Future<void> deleteCourse(String courseId) async {
+    try {
+      await _supabase.from('courses').delete().eq('id', courseId);
+    } catch (e) {
+      // 這裡可能會捕捉到 Foreign Key Constraint 錯誤
+      // 實際專案中，可能需要先檢查是否有現存 Session，或者由資料庫 CASCADE 處理
+      throw Exception('刪除課程失敗: $e');
     }
   }
 }

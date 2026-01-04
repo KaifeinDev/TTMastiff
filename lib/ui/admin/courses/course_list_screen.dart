@@ -28,7 +28,7 @@ class _CourseListScreenState extends State<CourseListScreen> {
   Future<void> _fetchCourses() async {
     try {
       // Repository 現在回傳 List<CourseModel>
-      final data = await adminRepository.getCourses();
+      final data = await courseRepository.getCourses();
       if (mounted) {
         setState(() {
           _courses = data;
@@ -80,7 +80,7 @@ class _CourseListScreenState extends State<CourseListScreen> {
 
     if (confirm == true) {
       try {
-        await adminRepository.deleteCourse(courseId); // 需在 repo 實作
+        await courseRepository.deleteCourse(courseId); // 需在 repo 實作
         _fetchCourses();
       } catch (e) {
         if (mounted)
