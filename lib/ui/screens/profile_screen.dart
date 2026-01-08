@@ -8,6 +8,8 @@ import '../../data/services/student_repository.dart';
 import '../../data/models/student_model.dart';
 import '../../core/utils/util.dart';
 
+import 'package:ttmastiff/main.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -415,366 +417,450 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // 🌟 獲取主要顯示資訊
     final displayAvatar = _primaryStudent?.avatarUrl;
     final displayName = _primaryStudent?.name ?? '用戶';
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('我的檔案'),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _handleLogout,
-            tooltip: '登出',
+    return ListenableBuilder(
+      listenable: authManager,
+      builder: (context, child) {
+        final bool isAdmin = authManager.isAdmin;
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('我的檔案'),
+            centerTitle: false,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: _handleLogout,
+                tooltip: '登出',
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. 主帳號資訊卡片
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: Colors.white,
-                            backgroundImage: displayAvatar != null
-                                ? NetworkImage(displayAvatar)
-                                : null,
-                            child: displayAvatar == null
-                                ? Text(
-                                    displayName.isNotEmpty
-                                        ? displayName[0]
-                                        : '?',
-                                    style: const TextStyle(fontSize: 24),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  displayName,
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                if (_userEmail != null &&
-                                    _userEmail!.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.email,
-                                          size: 14,
-                                          color: Colors.grey,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          _userEmail!,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                if (_userPhone != null &&
-                                    _userPhone!.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.phone_iphone,
-                                          size: 14,
-                                          color: Colors.grey,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          _userPhone!,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                const SizedBox(height: 8),
-                                // Container(
-                                //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                //   decoration: BoxDecoration(
-                                //     color: Colors.white.withOpacity(0.5),
-                                //     borderRadius: BorderRadius.circular(12),
-                                //   ),
-                                //   child: const Text('主帳號 (家長)', style: TextStyle(fontSize: 12)),
-                                // )
-                              ],
-                            ),
-                          ),
-                          // 鎖定按鈕
-                          IconButton(
-                            onPressed: () => _showLockedDialog(
-                              '資料已鎖定',
-                              '為了確保會員權益與實名制安全，主帳號資料無法自行修改。\n\n如需變更，請洽櫃檯人員。',
-                            ),
-                            icon: const Icon(
-                              Icons.lock_outline,
-                              color: Colors.grey,
-                            ),
-                            tooltip: '資料鎖定',
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // 2. 錢包/點數區塊
-                    Card(
-                      elevation: 2,
-                      color: Theme.of(context).primaryColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 20,
-                          horizontal: 24,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '剩餘點數',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Credits',
-                                  style: TextStyle(
-                                    color: Colors.white30,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.monetization_on,
-                                  color: Colors.amber,
-                                  size: 32,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '$_credits',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // 3. 學員管理標題
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.people_outline),
-                            const SizedBox(width: 8),
-                            Text(
-                              '家庭成員 / 學員',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                          ],
+                        // 1. 主帳號資訊卡片
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 30,
+                                backgroundColor: Colors.white,
+                                backgroundImage: displayAvatar != null
+                                    ? NetworkImage(displayAvatar)
+                                    : null,
+                                child: displayAvatar == null
+                                    ? Text(
+                                        displayName.isNotEmpty
+                                            ? displayName[0]
+                                            : '?',
+                                        style: const TextStyle(fontSize: 24),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      displayName,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                    if (_userEmail != null &&
+                                        _userEmail!.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.email,
+                                              size: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _userEmail!,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodyMedium,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    if (_userPhone != null &&
+                                        _userPhone!.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.phone_iphone,
+                                              size: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _userPhone!,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodyMedium,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    const SizedBox(height: 8),
+                                    // Container(
+                                    //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    //   decoration: BoxDecoration(
+                                    //     color: Colors.white.withOpacity(0.5),
+                                    //     borderRadius: BorderRadius.circular(12),
+                                    //   ),
+                                    //   child: const Text('主帳號 (家長)', style: TextStyle(fontSize: 12)),
+                                    // )
+                                  ],
+                                ),
+                              ),
+                              // 鎖定按鈕
+                              IconButton(
+                                onPressed: () => _showLockedDialog(
+                                  '資料已鎖定',
+                                  '為了確保會員權益與實名制安全，主帳號資料無法自行修改。\n\n如需變更，請洽櫃檯人員。',
+                                ),
+                                icon: const Icon(
+                                  Icons.lock_outline,
+                                  color: Colors.grey,
+                                ),
+                                tooltip: '資料鎖定',
+                              ),
+                            ],
+                          ),
                         ),
-                        FilledButton.tonalIcon(
-                          onPressed: _showAddStudentDialog,
-                          icon: const Icon(Icons.add),
-                          label: const Text('新增'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
 
-                    // 4. 學員列表
-                    if (_students.isEmpty)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32.0),
-                          child: Text('載入中...'),
-                        ),
-                      )
-                    else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _students.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final student = _students[index];
-                          final isSelf = student.isPrimary;
-                          final hasNote =
-                              student.medical_note != null &&
-                              student.medical_note!.isNotEmpty;
-
-                          return Card(
-                            elevation: 0,
+                        const SizedBox(height: 16),
+                        if (isAdmin) ...[
+                          Card(
+                            elevation: 4,
+                            shadowColor: Colors.red.withOpacity(0.3),
                             shape: RoundedRectangleBorder(
-                              side: BorderSide(color: Colors.grey.shade200),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: Colors.red.shade200,
+                                width: 1,
+                              ),
                             ),
+                            color: Colors.red.shade50, // 用淺紅色背景區分
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () => _showEditDialog(student),
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () {
+                                // 這裡填入您後台的首頁路由
+                                context.go('/admin/dashboard');
+                              },
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
+                                  horizontal: 20,
+                                  vertical: 16,
                                 ),
-                                child: ListTile(
-                                  leading: Hero(
-                                    tag: 'avatar_${student.id}',
-                                    child: Container(
-                                      width: 50,
-                                      height: 50,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
+                                        color: Colors.white,
                                         shape: BoxShape.circle,
-                                        color: Colors.grey.shade200,
-                                        image: student.avatarUrl != null
-                                            ? DecorationImage(
-                                                image: NetworkImage(
-                                                  student.avatarUrl!,
-                                                ),
-                                                fit: BoxFit.cover,
-                                              )
-                                            : null,
-                                      ),
-                                      child: student.avatarUrl == null
-                                          ? Center(
-                                              child: Text(
-                                                student.name.isNotEmpty
-                                                    ? student.name[0]
-                                                    : '?',
-                                                style: const TextStyle(
-                                                  fontSize: 20,
-                                                ),
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                  ),
-                                  title: Row(
-                                    children: [
-                                      Text(
-                                        student.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
+                                        border: Border.all(
+                                          color: Colors.red.shade100,
                                         ),
                                       ),
-                                      // 🌟 修正了原本的 itSelf 錯誤
-                                      if (isSelf) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blueGrey.withOpacity(
-                                              0.1,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            '本人',
+                                      child: const Icon(
+                                        Icons.admin_panel_settings,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '管理後台',
                                             style: TextStyle(
-                                              color: Colors.blueGrey,
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          Text(
+                                            '切換至管理員模式',
+                                            style: TextStyle(
+                                              color: Colors.redAccent,
                                               fontSize: 12,
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        // '${student.birthDate.year}/${student.birthDate.month}/${student.birthDate.day}',
-                                        student.birthDate.toDateWithAge(),
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 13,
-                                        ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (hasNote)
-                                        Tooltip(
-                                          message: student.medical_note,
-                                          child: Icon(
-                                            Icons.medical_information,
-                                            size: 20,
-                                            color: Colors.red.shade300,
-                                          ),
-                                        ),
-                                      const SizedBox(width: 8),
-                                      const Icon(
-                                        Icons.chevron_right,
-                                        color: Colors.grey,
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                    const Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 16,
+                                      color: Colors.red,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                          );
-                        },
-                      ),
-                  ],
+                          ),
+                          // 加一點間距，才不會跟下面的錢包卡片黏在一起
+                          const SizedBox(height: 16),
+                        ],
+
+                        // 2. 錢包/點數區塊
+                        Card(
+                          elevation: 2,
+                          color: Theme.of(context).primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 20,
+                              horizontal: 24,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '剩餘點數',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Credits',
+                                      style: TextStyle(
+                                        color: Colors.white30,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.monetization_on,
+                                      color: Colors.amber,
+                                      size: 32,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '$_credits',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // 3. 學員管理標題
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.people_outline),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '家庭成員 / 學員',
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            FilledButton.tonalIcon(
+                              onPressed: _showAddStudentDialog,
+                              icon: const Icon(Icons.add),
+                              label: const Text('新增'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 4. 學員列表
+                        if (_students.isEmpty)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(32.0),
+                              child: Text('載入中...'),
+                            ),
+                          )
+                        else
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _students.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (context, index) {
+                              final student = _students[index];
+                              final isSelf = student.isPrimary;
+                              final hasNote =
+                                  student.medical_note != null &&
+                                  student.medical_note!.isNotEmpty;
+
+                              return Card(
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  side: BorderSide(color: Colors.grey.shade200),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () => _showEditDialog(student),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: ListTile(
+                                      leading: Hero(
+                                        tag: 'avatar_${student.id}',
+                                        child: Container(
+                                          width: 50,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.grey.shade200,
+                                            image: student.avatarUrl != null
+                                                ? DecorationImage(
+                                                    image: NetworkImage(
+                                                      student.avatarUrl!,
+                                                    ),
+                                                    fit: BoxFit.cover,
+                                                  )
+                                                : null,
+                                          ),
+                                          child: student.avatarUrl == null
+                                              ? Center(
+                                                  child: Text(
+                                                    student.name.isNotEmpty
+                                                        ? student.name[0]
+                                                        : '?',
+                                                    style: const TextStyle(
+                                                      fontSize: 20,
+                                                    ),
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                      title: Row(
+                                        children: [
+                                          Text(
+                                            student.name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          // 🌟 修正了原本的 itSelf 錯誤
+                                          if (isSelf) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blueGrey
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: const Text(
+                                                '本人',
+                                                style: TextStyle(
+                                                  color: Colors.blueGrey,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            // '${student.birthDate.year}/${student.birthDate.month}/${student.birthDate.day}',
+                                            student.birthDate.toDateWithAge(),
+                                            style: TextStyle(
+                                              color: Colors.grey.shade600,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (hasNote)
+                                            Tooltip(
+                                              message: student.medical_note,
+                                              child: Icon(
+                                                Icons.medical_information,
+                                                size: 20,
+                                                color: Colors.red.shade300,
+                                              ),
+                                            ),
+                                          const SizedBox(width: 8),
+                                          const Icon(
+                                            Icons.chevron_right,
+                                            color: Colors.grey,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+        );
+      },
     );
   }
 }
