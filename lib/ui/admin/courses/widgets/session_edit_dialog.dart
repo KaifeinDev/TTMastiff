@@ -361,12 +361,28 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   Widget _buildStatusBadge(String attendance, String status) {
     if (status == 'cancelled')
       return const Text('已取消', style: TextStyle(color: Colors.grey));
-    String text = attendance == 'attended'
-        ? '已出席'
-        : (attendance == 'leave' ? '請假' : '待上課');
-    Color color = attendance == 'attended'
-        ? Colors.green
-        : (attendance == 'leave' ? Colors.orange : Colors.blue);
+    String text = '待上課';
+    Color color = Colors.blue;
+    switch (attendance) {
+      case 'attended':
+        {
+          text = '已出席';
+          color = Colors.green;
+        }
+        break;
+      case 'leave':
+        {
+          text = '已請假';
+          color = Colors.orange;
+        }
+        break;
+      case 'absent':
+        {
+          text = '曠課';
+          color = Colors.red;
+        }
+        break;
+    }
     return Text(
       text,
       style: TextStyle(color: color, fontWeight: FontWeight.bold),
