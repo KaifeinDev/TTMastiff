@@ -244,16 +244,16 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.blue.shade100,
-                            foregroundColor: Colors.blue.shade800,
-                            child: Text(
-                              '${start.day}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                          // leading: CircleAvatar(
+                          //   backgroundColor: Colors.blue.shade100,
+                          //   foregroundColor: Colors.blue.shade800,
+                          //   child: Text(
+                          //     '${start.day}',
+                          //     style: const TextStyle(
+                          //       fontWeight: FontWeight.bold,
+                          //     ),
+                          //   ),
+                          // ),
                           title: Text(
                             DateFormat(
                               'yyyy/MM/dd (E)',

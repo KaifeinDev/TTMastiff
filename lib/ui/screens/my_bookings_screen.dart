@@ -7,6 +7,9 @@ import '../../data/models/booking_model.dart';
 import '../../data/services/booking_repository.dart';
 import '../../main.dart'; // 為了取得全域 bookingRepository
 
+const int kFreeCancelHours = 12; // 課程開始前 12 小時以前可免費取消
+const int kLockoutHours = 1; // 課程開始前 1 小時鎖定
+
 class MyBookingScreen extends StatefulWidget {
   const MyBookingScreen({super.key});
 
@@ -37,12 +40,14 @@ class _MyBookingScreenState extends State<MyBookingScreen>
   @override
   void initState() {
     super.initState();
+    BookingRepository.bookingRefreshSignal.addListener(_fetchBookings);
     _tabController = TabController(length: 2, vsync: this);
     _fetchBookings();
   }
 
   @override
   void dispose() {
+    BookingRepository.bookingRefreshSignal.removeListener(_fetchBookings);
     _tabController.dispose();
     super.dispose();
   }
@@ -123,77 +128,74 @@ class _MyBookingScreenState extends State<MyBookingScreen>
   }
 
   // 操作處理 (取消/請假)
-  void _handleBookingAction(BookingModel booking) {
-    showModalBottomSheet(
+  Future<void> _handleBookingAction(BookingModel booking) async {
+    final now = DateTime.now();
+    // 使用浮點數計算小時，比整數精確 (例如 1.5 小時)
+    final hoursLeft = booking.startTime.difference(now).inMinutes / 60.0;
+
+    // 再次檢查狀態，避免 UI 沒刷新導致誤按
+    if (hoursLeft < kLockoutHours) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('課程即將開始，已停止線上操作，請直接聯繫場館。')));
+      _fetchBookings(); // 刷新 UI 讓按鈕消失
+      return;
+    }
+
+    final isLeaveWindow = hoursLeft < kFreeCancelHours; // 是否進入「僅能請假」區間
+
+    // 顯示對話框
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.sick, color: Colors.orange),
-                title: const Text('請假 (Leave)'),
-                subtitle: const Text('將狀態改為請假，釋出名額'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _updateStatus(booking, 'leave');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.cancel, color: Colors.red),
-                title: const Text('取消預約 (Cancel)'),
-                subtitle: const Text('完全取消此預約'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _updateStatus(
-                    booking,
-                    'cancelled',
-                  ); // 這裡傳遞 cancelled 給後端判斷
-                },
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text(isLeaveWindow ? '申請請假？' : '取消預約？'),
+        content: Text(
+          isLeaveWindow
+              ? '課程即將在 $kFreeCancelHours 小時內開始，無法取消退費。\n您確定要標記為請假嗎？'
+              : '距離開課還有充足時間，取消將全額退還點數。\n確定要取消此預約嗎？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('保留'),
           ),
-        );
-      },
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: isLeaveWindow ? Colors.orange : Colors.red,
+            ),
+            child: Text(isLeaveWindow ? '確認請假' : '確認取消'),
+          ),
+        ],
+      ),
     );
-  }
 
-  Future<void> _updateStatus(BookingModel booking, String actionType) async {
-    try {
-      // 這裡呼叫 Repository 更新
-      // 注意：需根據您的 Repo 實作調整。
-      // 如果是請假 -> status: confirmed, attendance: leave
-      // 如果是取消 -> status: cancelled, attendance: pending
-
-      String newStatus = booking.status;
-      String newAttendance = booking.attendanceStatus;
-
-      if (actionType == 'leave') {
-        newAttendance = 'leave';
-      } else if (actionType == 'cancelled') {
-        newStatus = 'cancelled';
-        newAttendance = 'pending';
-      }
-
-      await bookingRepository.updateBookingStatus(
-        bookingId: booking.id,
-        status: newStatus,
-        attendanceStatus: newAttendance,
-      );
-
-      // 刷新列表
-      _fetchBookings();
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('更新成功')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('失敗: $e')));
+    if (confirm == true) {
+      try {
+        if (isLeaveWindow) {
+          // 情況 2: 請假 (Attendance -> Leave)
+          await bookingRepository.requestLeave(booking.id);
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('已標記為請假')));
+          }
+        } else {
+          // 情況 3: 取消 (Status -> Cancelled)
+          await bookingRepository.cancelBooking(booking.id);
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('預約已取消')));
+          }
+        }
+        _fetchBookings(); // 重整列表
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('操作失敗: $e')));
+        }
       }
     }
   }
@@ -218,7 +220,16 @@ class _MyBookingScreenState extends State<MyBookingScreen>
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
-              children: [_buildUpcomingList(), _buildHistoryList()],
+              children: [
+                RefreshIndicator(
+                  onRefresh: _fetchBookings,
+                  child: _buildUpcomingList(),
+                ),
+                RefreshIndicator(
+                  onRefresh: _fetchBookings,
+                  child: _buildHistoryList(),
+                ),
+              ],
             ),
     );
   }
@@ -244,7 +255,6 @@ class _MyBookingScreenState extends State<MyBookingScreen>
               return _GroupedBookingCard(
                 bookings: group,
                 onAction: _handleBookingAction,
-                // 🔥 修正：這裡不再傳入 isCompact
               );
             }),
           ],
@@ -406,11 +416,6 @@ class _GroupedBookingCard extends StatelessWidget {
 
           // 學員列表
           ...bookings.map((booking) {
-            final hoursLeft = booking.startTime
-                .difference(DateTime.now())
-                .inHours;
-            final isLate = hoursLeft < 12;
-
             return Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
@@ -438,7 +443,7 @@ class _GroupedBookingCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  _buildRightSideStatus(booking, isLate),
+                  _buildRightSideStatus(booking),
                 ],
               ),
             );
@@ -448,7 +453,7 @@ class _GroupedBookingCard extends StatelessWidget {
     );
   }
 
-  Widget _buildRightSideStatus(BookingModel booking, bool isLate) {
+  Widget _buildRightSideStatus(BookingModel booking) {
     if (booking.attendanceStatus == 'leave') {
       return _buildStatusBadge('已請假', Colors.orange);
     }
@@ -460,21 +465,46 @@ class _GroupedBookingCard extends StatelessWidget {
     }
 
     if (booking.attendanceStatus == 'pending') {
-      return OutlinedButton(
-        onPressed: () => onAction(booking),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: isLate ? Colors.orange : Colors.red,
-          side: BorderSide(
-            color: isLate ? Colors.orange.shade200 : Colors.red.shade200,
+      final now = DateTime.now();
+      final hoursLeft = booking.startTime.difference(now).inMinutes / 60.0;
+
+      if (hoursLeft > kFreeCancelHours) {
+        // 可取消時段
+        return OutlinedButton(
+          onPressed: () => onAction(booking),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.red,
+            side: BorderSide(color: Colors.red.shade200),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            minimumSize: const Size(0, 32),
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+          child: const Text('取消', style: TextStyle(fontSize: 13)),
+        );
+      } else if (hoursLeft > kLockoutHours) {
+        // 可請假時段
+        return OutlinedButton(
+          onPressed: () => onAction(booking),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.orange,
+            side: BorderSide(color: Colors.orange.shade200),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+            minimumSize: const Size(0, 32),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-          minimumSize: const Size(0, 32),
-        ),
-        child: Text(isLate ? '請假' : '取消', style: const TextStyle(fontSize: 13)),
-      );
+          child: Text('請假', style: const TextStyle(fontSize: 13)),
+        );
+      } else {
+        return _buildStatusBadge(
+          hoursLeft < 0 ? '待上課' : '上課中',
+          hoursLeft < 0 ? Colors.blue : Colors.green,
+        );
+        // return const SizedBox.shrink();
+      }
     }
     return Text(booking.attendanceStatus);
   }
