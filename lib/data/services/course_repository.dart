@@ -14,11 +14,6 @@ class CourseRepository {
   // ==========================================
   // 統一查詢欄位：包含 Session 本體、關聯的 Course、以及計算確認的報名人數
   // 注意：這裡使用 count 語法 'bookings(count)' 會回傳 { "bookings": [{"count": 3}] }
-  String get _baseSelectQuery => '''
-    *,
-    courses (*),
-    bookings(count)
-  ''';
 
   // ==========================================
   // 公開方法
