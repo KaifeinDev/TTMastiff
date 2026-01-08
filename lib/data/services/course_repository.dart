@@ -1,10 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/session_model.dart';
 import '../models/course_model.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/utils/time_extensions.dart';
 
 class CourseRepository {
+  static final RefreshSignal courseRefreshSignal = RefreshSignal();
   final SupabaseClient _supabase;
 
   CourseRepository(this._supabase);
@@ -219,7 +221,7 @@ class CourseRepository {
         })
         .select()
         .single();
-
+    courseRefreshSignal.notify();
     return res['id'];
   }
 
@@ -244,16 +246,25 @@ class CourseRepository {
           'default_end_time': defaultEndTime.toPostgresTimeString(),
         })
         .eq('id', courseId);
+    courseRefreshSignal.notify();
   }
 
   /// 刪除課程模板
   Future<void> deleteCourse(String courseId) async {
     try {
       await _supabase.from('courses').delete().eq('id', courseId);
+      courseRefreshSignal.notify();
     } catch (e) {
       // 這裡可能會捕捉到 Foreign Key Constraint 錯誤
       // 實際專案中，可能需要先檢查是否有現存 Session，或者由資料庫 CASCADE 處理
       throw Exception('刪除課程失敗: $e');
     }
+  }
+}
+
+class RefreshSignal extends ChangeNotifier {
+  // 把受保護的 notifyListeners 包裝成公開方法
+  void notify() {
+    notifyListeners();
   }
 }
