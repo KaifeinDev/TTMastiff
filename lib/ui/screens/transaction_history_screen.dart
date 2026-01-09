@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // 需要先 pub add intl
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/services/credit_repository.dart';
+import 'package:ttmastiff/main.dart'; // 🔥 引入 main 以使用全域 repository
 import '../../data/models/transaction_model.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
@@ -13,16 +13,14 @@ class TransactionHistoryScreen extends StatefulWidget {
 }
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
-  late final CreditRepository _creditRepo;
   late Future<List<TransactionModel>> _futureTransactions;
 
   @override
   void initState() {
     super.initState();
-    _creditRepo = CreditRepository(Supabase.instance.client);
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId != null) {
-      _futureTransactions = _creditRepo.fetchTransactions(userId);
+      _futureTransactions = transactionRepository.fetchTransactions(userId);
     } else {
       _futureTransactions = Future.error('未登入');
     }

@@ -110,15 +110,4 @@ class CreditRepository {
       throw Exception('退款失敗: $e'); // 這裡會捕捉到 SQL 拋出的 Access Denied
     }
   }
-
-  Future<List<TransactionModel>> fetchTransactions(String userId) async {
-    final response = await _client
-        .from('transactions')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false); // 最新的一筆在最上面
-
-    final List<dynamic> data = response;
-    return data.map((json) => TransactionModel.fromJson(json)).toList();
-  }
 }

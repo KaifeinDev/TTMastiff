@@ -11,6 +11,7 @@ import '../../core/utils/util.dart';
 
 import 'package:ttmastiff/main.dart';
 import '../../data/services/booking_repository.dart';
+import 'transaction_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -645,61 +646,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // 2. 錢包/點數區塊
                         Card(
                           elevation: 2,
-                          color: Theme.of(context).primaryColor,
+                          color: Theme.of(
+                            context,
+                          ).primaryColor, // 🔥 回歸原本的純色，不要漸層
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 20,
-                              horizontal: 24,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Column(
+                            children: [
+                              // --- 上半部：完全保留您原本的程式碼與排版 ---
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                  horizontal: 24,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      '剩餘點數',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 14,
-                                      ),
+                                    const Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '剩餘點數',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Credits',
+                                          style: TextStyle(
+                                            color: Colors.white30,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Credits',
-                                      style: TextStyle(
-                                        color: Colors.white30,
-                                        fontSize: 12,
-                                      ),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.monetization_on,
+                                          color: Colors.amber,
+                                          size: 32,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          NumberFormat(
+                                            '#,###',
+                                          ).format(_credits),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.monetization_on,
-                                      color: Colors.amber,
-                                      size: 32,
+                              ),
+
+                              // --- 分隔線 (極細微，避免割裂感) ---
+                              const Divider(
+                                height: 1,
+                                thickness: 1,
+                                color: Colors.white12, // 12% 透明度的白色，非常低調
+                              ),
+
+                              // --- 下半部：按鈕區 ---
+                              Material(
+                                color: Colors.transparent, // 讓水波紋顯示底色
+                                child: InkWell(
+                                  onTap: () {
+                                    context.push('/profile/transactions');
+                                  },
+                                  // 確保按下去的水波紋不會超出圓角
+                                  borderRadius: const BorderRadius.only(
+                                    bottomLeft: Radius.circular(16),
+                                    bottomRight: Radius.circular(16),
+                                  ),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      NumberFormat('#,###').format(_credits),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.history,
+                                          size: 18,
+                                          color: Colors.white.withOpacity(0.9),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          '查看交易與儲值紀錄',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.chevron_right,
+                                          size: 16,
+                                          color: Colors.white.withOpacity(0.5),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-
                         const SizedBox(height: 32),
 
                         // 3. 學員管理標題
