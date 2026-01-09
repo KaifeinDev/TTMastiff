@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../data/services/student_repository.dart';
 import '../../data/services/course_repository.dart';
+import '../../data/services/session_repository.dart';
 import '../../data/models/student_model.dart';
 import '../../data/models/course_model.dart';
 import '../../data/models/session_model.dart';
@@ -21,6 +22,7 @@ class UserListScreen extends StatefulWidget {
 class _UserListScreenState extends State<UserListScreen> {
   late final StudentRepository _studentRepo;
   late final CourseRepository _courseRepo;
+  late final SessionRepository _sessionRepo;
 
   // 篩選狀態
   List<CourseModel> _courses = [];
@@ -41,6 +43,7 @@ class _UserListScreenState extends State<UserListScreen> {
     super.initState();
     _studentRepo = StudentRepository(Supabase.instance.client);
     _courseRepo = CourseRepository(Supabase.instance.client);
+    _sessionRepo = SessionRepository(Supabase.instance.client);
     _loadCourses();
   }
 
@@ -76,7 +79,8 @@ class _UserListScreenState extends State<UserListScreen> {
     });
 
     try {
-      final sessions = await _courseRepo.fetchUpcomingSessionsByCourseId(courseId);
+      // 查詢該課程的所有場次（不限制未來場次）
+      final sessions = await _sessionRepo.getSessionsByCourse(courseId);
       if (mounted) {
         setState(() {
           _sessions = sessions;
