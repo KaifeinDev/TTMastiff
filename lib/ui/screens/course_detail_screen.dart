@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-// Repositories
-import '../../data/services/booking_repository.dart';
-import '../../data/services/student_repository.dart';
-import '../../data/services/course_repository.dart';
+import 'package:ttmastiff/main.dart';
 
 // Models
 import '../../data/models/session_model.dart';
@@ -22,11 +17,6 @@ class CourseDetailScreen extends StatefulWidget {
 }
 
 class _CourseDetailScreenState extends State<CourseDetailScreen> {
-  // Repositories
-  late final StudentRepository _studentRepo;
-  late final BookingRepository _bookingRepo;
-  late final CourseRepository _courseRepo;
-
   // Data
   CourseModel? _course;
   List<SessionModel> _upcomingSessions = [];
@@ -43,10 +33,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   @override
   void initState() {
     super.initState();
-    final client = Supabase.instance.client;
-    _studentRepo = StudentRepository(client);
-    _bookingRepo = BookingRepository(client);
-    _courseRepo = CourseRepository(client);
 
     _loadData();
   }
@@ -55,9 +41,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     try {
       // 平行請求資料以提升速度
       final results = await Future.wait([
-        _courseRepo.fetchCourseById(widget.courseId),
-        _courseRepo.fetchUpcomingSessionsByCourseId(widget.courseId),
-        _studentRepo.getMyStudents(),
+        courseRepository.fetchCourseById(widget.courseId),
+        courseRepository.fetchUpcomingSessionsByCourseId(widget.courseId),
+        studentRepository.getMyStudents(),
       ]);
 
       if (mounted) {
@@ -120,7 +106,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     try {
       // 這裡呼叫 Repository 進行批量寫入
       // 注意：實際實作 BookingRepository 時，建議要能處理不同 Session 不同價格的情況
-      await _bookingRepo.createBatchBooking(
+      await bookingRepository.createBatchBooking(
         sessionIds: _selectedSessionIds.toList(),
         studentIds: _selectedStudentIds.toList(),
         // 這裡傳入課程原價作為快照，或是後端會再驗證一次價格
@@ -131,7 +117,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '報名成功！\n共 ${_selectedSessionIds.length} 堂課 x ${_selectedStudentIds.length} 位學員',
+              '報名成功！\n共 ${_selectedSessionIds.length} 堂課 x ${_selectedStudentIds.length} 位學員，總計 \$$_totalCost',
             ),
             backgroundColor: Colors.green,
           ),

@@ -71,4 +71,201 @@ class StudentRepository {
         })
         .eq('id', id);
   }
+
+  /// 根據課程和場次篩選學員（管理員用）
+  /// 如果 courseId 為 null，返回所有學員
+  /// 如果 sessionId 為 null，返回該課程的所有學員
+  /// 如果都提供，返回該場次的所有學員
+  /// name 和 phone 用於模糊搜尋
+  /// 返回的每個項目包含：student, parentPhone, parentName, bookings（如果 includeBookings = true）
+  Future<List<Map<String, dynamic>>> fetchStudentsByFilter({
+    String? courseId,
+    String? sessionId,
+    String? name,
+    String? phone,
+    bool includeBookings = false, // 是否包含報名課程資訊
+  }) async {
+    try {
+
+      // 1. 統一處理電話篩選：先查詢符合電話的家長 ID
+      List<String>? parentIdsForPhone;
+      if (phone != null && phone.trim().isNotEmpty) {
+        final profilesResponse = await _supabase
+            .from('profiles')
+            .select('id')
+            .ilike('phone', '%${phone.trim()}%');
+        
+        parentIdsForPhone = (profilesResponse as List)
+            .map((p) => p['id'] as String)
+            .toList();
+        
+        if (parentIdsForPhone.isEmpty) {
+          return []; // 沒有找到符合電話的家長，返回空列表
+        }
+      }
+
+      // 2. 根據條件決定查詢路徑，獲取學員數據
+      List<Map<String, dynamic>> studentsData = [];
+      
+      if (sessionId != null) {
+        // 指定場次：查詢該場次的報名
+        final bookingsData = await _supabase
+            .from('bookings')
+            .select('students(*)')
+            .eq('session_id', sessionId)
+            .eq('status', 'confirmed')
+            .then((response) => List<Map<String, dynamic>>.from(response));
+        
+        // 提取學員數據
+        for (var booking in bookingsData) {
+          if (booking['students'] != null) {
+            studentsData.add(booking['students'] as Map<String, dynamic>);
+          }
+        }
+            
+      } else if (courseId != null) {
+        // 指定課程：先獲取該課程的所有場次 ID
+        final sessionsResponse = await _supabase
+            .from('sessions')
+            .select('id')
+            .eq('course_id', courseId);
+
+        final sessionIds = (sessionsResponse as List)
+            .map((s) => s['id'] as String)
+            .toList();
+
+        if (sessionIds.isEmpty) {
+          return [];
+        }
+
+        // 查詢這些場次的所有報名
+        final bookingsData = await _supabase
+            .from('bookings')
+            .select('students(*)')
+            .filter('session_id', 'in', sessionIds)
+            .eq('status', 'confirmed')
+            .then((response) => List<Map<String, dynamic>>.from(response));
+        
+        // 提取學員數據
+        for (var booking in bookingsData) {
+          if (booking['students'] != null) {
+            studentsData.add(booking['students'] as Map<String, dynamic>);
+          }
+        }
+            
+      } else {
+        // 沒有指定課程或場次：直接從 students 表查詢
+        final response = await _supabase
+            .from('students')
+            .select('*')
+            .order('created_at', ascending: true)
+            .then((data) => List<Map<String, dynamic>>.from(data));
+        
+        studentsData = response;
+      }
+
+      // 3. 統一應用名字和電話篩選（統一處理邏輯）
+      final Map<String, StudentModel> uniqueStudents = {};
+      final nameFilter = name?.trim().toLowerCase();
+      
+      for (var studentData in studentsData) {
+        // 應用名字篩選
+        if (nameFilter != null && nameFilter.isNotEmpty) {
+          final studentName = (studentData['name'] as String? ?? '').toLowerCase();
+          if (!studentName.contains(nameFilter)) continue;
+        }
+        
+        // 應用電話篩選（通過 parent_id）
+        if (parentIdsForPhone != null) {
+          final parentId = studentData['parent_id'] as String?;
+          if (parentId == null || !parentIdsForPhone.contains(parentId)) {
+            continue;
+          }
+        }
+        
+        // 解析並去重
+        final student = StudentModel.fromJson(studentData);
+        uniqueStudents[student.id] = student;
+      }
+      
+      final studentsList = uniqueStudents.values.toList();
+      
+      // 4. 批量查詢家長電話和姓名
+      Map<String, String?> parentPhones = {};
+      Map<String, String?> parentNames = {};
+      
+      if (studentsList.isNotEmpty) {
+        final parentIds = studentsList.map((s) => s.parentId).toSet().toList();
+        try {
+          final profilesResponse = await _supabase
+              .from('profiles')
+              .select('id, phone, full_name')
+              .inFilter('id', parentIds);
+
+          // 建立 parentId -> phone/name 的映射
+          final Map<String, Map<String, String?>> parentInfoMap = {};
+          for (var profile in profilesResponse) {
+            final parentId = profile['id'] as String;
+            parentInfoMap[parentId] = {
+              'phone': profile['phone'] as String?,
+              'name': profile['full_name'] as String?,
+            };
+          }
+
+          // 建立學員 ID -> 電話/姓名的映射
+          for (var student in studentsList) {
+            final parentInfo = parentInfoMap[student.parentId];
+            parentPhones[student.id] = parentInfo?['phone'];
+            parentNames[student.id] = parentInfo?['name'];
+          }
+        } catch (e) {
+          // 如果查詢失敗，只記錄錯誤，不影響返回學員列表
+          print('⚠️ 查詢家長資訊失敗: $e');
+        }
+      }
+      
+      // 5. 如果需要，批量查詢報名課程
+      Map<String, List<Map<String, dynamic>>> studentsBookings = {};
+      if (includeBookings && studentsList.isNotEmpty) {
+        final studentIds = studentsList.map((s) => s.id).toList();
+        try {
+          final bookingsResponse = await _supabase
+              .from('bookings')
+              .select('''
+                *,
+                sessions (
+                  *,
+                  courses (*)
+                )
+              ''')
+              .inFilter('student_id', studentIds)
+              .eq('status', 'confirmed')
+              .order('created_at', ascending: false);
+
+          for (var booking in bookingsResponse) {
+            final bookingStudentId = booking['student_id'] as String;
+            if (!studentsBookings.containsKey(bookingStudentId)) {
+              studentsBookings[bookingStudentId] = [];
+            }
+            studentsBookings[bookingStudentId]!.add(booking);
+          }
+        } catch (e) {
+          print('⚠️ 查詢報名課程失敗: $e');
+        }
+      }
+      
+      // 6. 組裝返回結果
+      return studentsList.map((student) {
+        return {
+          'student': student,
+          'parentPhone': parentPhones[student.id],
+          'parentName': parentNames[student.id],
+          'bookings': includeBookings ? studentsBookings[student.id] : null,
+        };
+      }).toList();
+    } catch (e) {
+      throw Exception('載入學員列表失敗: $e');
+    }
+  }
+
 }
