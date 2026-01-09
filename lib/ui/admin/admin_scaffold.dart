@@ -71,13 +71,6 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           iconColor: iconColor,
         ),
         _AdminMenuItem(
-          icon: Icons.assignment,
-          title: '預約審核',
-          route: '/admin/bookings',
-          textColor: textColor,
-          iconColor: iconColor,
-        ),
-        _AdminMenuItem(
           icon: Icons.people,
           title: '學員與點數',
           route: '/admin/users',

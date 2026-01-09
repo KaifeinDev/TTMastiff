@@ -14,8 +14,7 @@ import 'ui/screens/scaffold_with_nav_bar.dart';
 // --- 2. 管理後台頁面 ---
 import '../ui/admin/admin_scaffold.dart';
 import '../ui/admin/dashboard_screen.dart';
-import '../ui/admin/booking_manage_screen.dart';
-import '../ui/admin/user_list_screen.dart';
+import 'ui/admin/students/user_list_screen.dart';
 
 // --- 3. 新增的課程管理頁面 (請確認檔案已建立) ---
 // 原本的 course_manage_screen.dart 建議改名為 course_list_screen.dart
@@ -138,7 +137,8 @@ final appRouter = GoRouter(
                 final courseId = state.pathParameters['courseId']!;
 
                 // 接收從列表頁傳來的整個 Course 物件 (extra)，這樣可以不讀取 API 直接顯示標題
-                final courseData = state.extra as CourseModel;
+                // extra 是可選的，如果沒有傳遞則為 null
+                final courseData = state.extra as CourseModel?;
 
                 return NoTransitionPage(
                   child: AdminCourseDetailScreen(
@@ -150,12 +150,6 @@ final appRouter = GoRouter(
               },
             ),
           ],
-        ),
-
-        GoRoute(
-          path: '/admin/bookings',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: BookingManageScreen()),
         ),
         GoRoute(
           path: '/admin/users',

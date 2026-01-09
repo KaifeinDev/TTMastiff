@@ -15,6 +15,7 @@ class AuthManager extends ChangeNotifier {
   User? get currentUser => _authRepository.currentUser;
   bool get isAdmin => _userRole == 'admin';
   bool get isLoading => _isLoading;
+  bool _manualLoginInProgress = false;
 
   // 初始化：啟動監聽
   Future<void> init() async {
@@ -34,8 +35,10 @@ class AuthManager extends ChangeNotifier {
         _userRole = null;
       }
 
-      _isLoading = false;
-      notifyListeners(); // 🔥 通知 GoRouter 刷新
+      if (!_manualLoginInProgress) {
+        _isLoading = false;
+        notifyListeners();
+      }
     });
 
     // 如果啟動時已經有 User (沒觸發監聽)，手動查一次
@@ -45,17 +48,47 @@ class AuthManager extends ChangeNotifier {
       notifyListeners();
     } else {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // 登入
+  Future<void> signIn({required String email, required String password}) async {
+    try {
+      _manualLoginInProgress = true; // 鎖住 loading 控制權
+      _isLoading = true;
+      notifyListeners();
+
+      await _authRepository.signIn(email: email, password: password);
+      final user = _authRepository.currentUser;
+      if (user != null) {
+        print("✅ 登入成功，正在抓取身分資料 ID: ${user.id}...");
+        await _updateUserRole(user.id);
+        print("✅ 身分資料抓取完畢，角色為: $_userRole");
+      }
+    } catch (e) {
+      throw Exception('登入失敗: $e');
+    } finally {
+      _manualLoginInProgress = false;
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
   Future<void> _updateUserRole(String userId) async {
-    // 呼叫 Repository 查資料
-    _userRole = await _authRepository.fetchUserRole(userId);
-    notifyListeners();
+    try {
+      // 這裡建議加一個 log 確認 Repo 回傳什麼
+      final role = await _authRepository.fetchUserRole(userId);
+      _userRole = role;
+    } catch (e) {
+      _userRole = 'user'; // 失敗時預設為 user，避免卡死
+    }
   }
 
   // 登出封裝
   Future<void> signOut() async {
+    _userRole = null; // 先清空
     await _authRepository.signOut();
+    notifyListeners();
   }
 }

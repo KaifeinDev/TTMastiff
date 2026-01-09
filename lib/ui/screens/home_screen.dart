@@ -3,8 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart'; // 記得引入 intl 用於時間格式化
 import 'package:go_router/go_router.dart';
 
-// Screens
-import 'course_detail_screen.dart';
 
 // Repositories & Models
 import '../../data/services/course_repository.dart';
