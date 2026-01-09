@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/constants/transaction_types.dart';
 
 class CreditRepository {
   final SupabaseClient _client;
