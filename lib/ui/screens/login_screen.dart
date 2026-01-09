@@ -37,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // final email = "test11@gmail.com";
     // final password = "test11";
     // final email = "admin@admin.com";
-    final password = "test123";
+    final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(

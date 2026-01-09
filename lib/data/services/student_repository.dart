@@ -77,13 +77,16 @@ class StudentRepository {
   /// 如果 sessionId 為 null，返回該課程的所有學員
   /// 如果都提供，返回該場次的所有學員
   /// name 和 phone 用於模糊搜尋
-  Future<List<StudentModel>> fetchStudentsByFilter({
+  /// 返回的每個項目包含：student, parentPhone, parentName, bookings（如果 includeBookings = true）
+  Future<List<Map<String, dynamic>>> fetchStudentsByFilter({
     String? courseId,
     String? sessionId,
     String? name,
     String? phone,
+    bool includeBookings = false, // 是否包含報名課程資訊
   }) async {
     try {
+
       // 1. 統一處理電話篩選：先查詢符合電話的家長 ID
       List<String>? parentIdsForPhone;
       if (phone != null && phone.trim().isNotEmpty) {
@@ -131,7 +134,9 @@ class StudentRepository {
             .map((s) => s['id'] as String)
             .toList();
 
-        if (sessionIds.isEmpty) return [];
+        if (sessionIds.isEmpty) {
+          return [];
+        }
 
         // 查詢這些場次的所有報名
         final bookingsData = await _supabase
@@ -183,53 +188,84 @@ class StudentRepository {
         uniqueStudents[student.id] = student;
       }
       
-      return uniqueStudents.values.toList();
+      final studentsList = uniqueStudents.values.toList();
+      
+      // 4. 批量查詢家長電話和姓名
+      Map<String, String?> parentPhones = {};
+      Map<String, String?> parentNames = {};
+      
+      if (studentsList.isNotEmpty) {
+        final parentIds = studentsList.map((s) => s.parentId).toSet().toList();
+        try {
+          final profilesResponse = await _supabase
+              .from('profiles')
+              .select('id, phone, full_name')
+              .inFilter('id', parentIds);
+
+          // 建立 parentId -> phone/name 的映射
+          final Map<String, Map<String, String?>> parentInfoMap = {};
+          for (var profile in profilesResponse) {
+            final parentId = profile['id'] as String;
+            parentInfoMap[parentId] = {
+              'phone': profile['phone'] as String?,
+              'name': profile['full_name'] as String?,
+            };
+          }
+
+          // 建立學員 ID -> 電話/姓名的映射
+          for (var student in studentsList) {
+            final parentInfo = parentInfoMap[student.parentId];
+            parentPhones[student.id] = parentInfo?['phone'];
+            parentNames[student.id] = parentInfo?['name'];
+          }
+        } catch (e) {
+          // 如果查詢失敗，只記錄錯誤，不影響返回學員列表
+          print('⚠️ 查詢家長資訊失敗: $e');
+        }
+      }
+      
+      // 5. 如果需要，批量查詢報名課程
+      Map<String, List<Map<String, dynamic>>> studentsBookings = {};
+      if (includeBookings && studentsList.isNotEmpty) {
+        final studentIds = studentsList.map((s) => s.id).toList();
+        try {
+          final bookingsResponse = await _supabase
+              .from('bookings')
+              .select('''
+                *,
+                sessions (
+                  *,
+                  courses (*)
+                )
+              ''')
+              .inFilter('student_id', studentIds)
+              .eq('status', 'confirmed')
+              .order('created_at', ascending: false);
+
+          for (var booking in bookingsResponse) {
+            final bookingStudentId = booking['student_id'] as String;
+            if (!studentsBookings.containsKey(bookingStudentId)) {
+              studentsBookings[bookingStudentId] = [];
+            }
+            studentsBookings[bookingStudentId]!.add(booking);
+          }
+        } catch (e) {
+          print('⚠️ 查詢報名課程失敗: $e');
+        }
+      }
+      
+      // 6. 組裝返回結果
+      return studentsList.map((student) {
+        return {
+          'student': student,
+          'parentPhone': parentPhones[student.id],
+          'parentName': parentNames[student.id],
+          'bookings': includeBookings ? studentsBookings[student.id] : null,
+        };
+      }).toList();
     } catch (e) {
       throw Exception('載入學員列表失敗: $e');
     }
   }
 
-  /// 獲取學員的完整資訊（包含家長資訊和報名課程）
-  Future<Map<String, dynamic>> fetchStudentDetail(String studentId) async {
-    try {
-      // 1. 獲取學員基本資訊
-      final studentResponse = await _supabase
-          .from('students')
-          .select()
-          .eq('id', studentId)
-          .single();
-
-      final student = StudentModel.fromJson(studentResponse);
-
-      // 2. 獲取家長資訊（從 profiles 表）
-      final profileResponse = await _supabase
-          .from('profiles')
-          .select('phone, full_name')
-          .eq('id', student.parentId)
-          .maybeSingle();
-
-      // 3. 獲取該學員的所有報名（包含課程資訊）
-      final bookingsResponse = await _supabase
-          .from('bookings')
-          .select('''
-            *,
-            sessions (
-              *,
-              courses (*)
-            )
-          ''')
-          .eq('student_id', studentId)
-          .eq('status', 'confirmed')
-          .order('created_at', ascending: false);
-
-      return {
-        'student': student,
-        'parentPhone': profileResponse?['phone'],
-        'parentName': profileResponse?['full_name'],
-        'bookings': bookingsResponse,
-      };
-    } catch (e) {
-      throw Exception('載入學員詳情失敗: $e');
-    }
-  }
 }
