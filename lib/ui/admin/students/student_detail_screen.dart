@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart';
 
@@ -64,6 +65,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   void _showTopUpDialog(BuildContext context) {
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
+    final pinController = TextEditingController();
     bool isLoading = false;
 
     showDialog(
@@ -94,6 +96,25 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     border: const OutlineInputBorder(),
                   ),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: pinController,
+                  obscureText: true, // 隱藏密碼 (變星星/圓點)
+                  keyboardType: TextInputType.number, // 只允許數字
+                  maxLength: 4,
+                  inputFormatters: [
+                    FilteringTextInputFormatter
+                        .digitsOnly, // 🔥 只允許輸入數字 (防止貼上文字)
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: '操作密碼 (PIN)',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    hintText: '請輸入您的 PIN 碼',
+                    border: OutlineInputBorder(),
+                    errorStyle: TextStyle(color: Colors.red),
+                    counterText: "",
+                  ),
+                ),
               ],
             ),
             actions: [
@@ -106,10 +127,17 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     ? null
                     : () async {
                         final amountText = amountController.text;
+                        final pinText = pinController.text; // PIN
                         if (amountText.isEmpty ||
                             int.tryParse(amountText) == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('請輸入有效的數字')),
+                          );
+                          return;
+                        }
+                        if (pinText.isEmpty || pinText.length != 4) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('請輸入完整操作密碼 (PIN)')),
                           );
                           return;
                         }
@@ -124,6 +152,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                           final newBalance = await creditRepository.addCredit(
                             userId: widget.student.parentId, // 存入 Profile
                             amount: amount,
+                            pin: pinText,
                             // 備註若為空，自動補上學生名字
                             description: descriptionController.text.isEmpty
                                 ? '${widget.student.name}${widget.student.isPrimary == false ? ' / ${widget.parentName}' : ''} 儲值 ${amount}'
@@ -147,7 +176,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('儲值失敗: $e'),
+                                content: Text(
+                                  '儲值失敗: ${e.toString().replaceAll('Exception:', '')}',
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
