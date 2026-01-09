@@ -18,11 +18,11 @@ class CreditRepository {
   }
 
   // 增加點數 (並回傳更新後的點數)
-  Future<int> addCredit(
-    String userId,
-    int amount, // amount to add
+  Future<int> addCredit({
+    required String userId,
+    required int amount, // amount to add
     String? description,
-  ) async {
+  }) async {
     // 1. 先查舊的點數 (為了確保數據正確)
     final currentCredit = await getCurrentCredit(userId);
 

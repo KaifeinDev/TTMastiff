@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // 假設您的 Model 和 Repository 路徑如下，請根據實際專案結構調整
@@ -590,7 +591,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  '$_credits',
+                                  NumberFormat('#,###').format(_credits),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 32,
