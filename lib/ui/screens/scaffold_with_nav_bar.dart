@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ttmastiff/data/services/booking_repository.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
 
 /// 這是共用的殼，包含底部的 NavigationBar
 class ScaffoldWithNavBar extends StatelessWidget {
@@ -18,11 +20,20 @@ class ScaffoldWithNavBar extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (int index) {
-          // 切換分頁
-          navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
-          );
+          if (index == navigationShell.currentIndex) {
+            // 切換分頁
+            // 點擊可重載
+            if (index == 0) {
+              CourseRepository.courseRefreshSignal.notify();
+            }
+            // if (index == 1) {
+            //   BookingRepository.bookingRefreshSignal.notify();
+            // }
+            navigationShell.goBranch(index, initialLocation: true);
+          } else {
+            // 切換到其他分頁
+            navigationShell.goBranch(index, initialLocation: false);
+          }
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.calendar_month), label: '課程'),

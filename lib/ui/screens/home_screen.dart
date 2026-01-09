@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart'; // 記得引入 intl 用於時間格式化
+import 'package:go_router/go_router.dart';
 
 // Screens
 import 'course_detail_screen.dart';
@@ -32,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _courseRepo = CourseRepository(Supabase.instance.client);
-
+    CourseRepository.courseRefreshSignal.addListener(_fetchCourses);
     // 初始化時，自動選擇「今天」是星期幾
     // DateTime.weekday 回傳 1(Mon)~7(Sun)，我們轉成 0~6 的 index
     _selectedDayIndex = DateTime.now().weekday - 1;
@@ -290,12 +291,7 @@ class _CourseCard extends StatelessWidget {
       child: InkWell(
         onTap: () {
           // 點擊後跳轉到「課程詳情頁」
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CourseDetailScreen(courseId: course.id),
-            ),
-          );
+          context.push('/home/course_detail/${course.id}');
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
