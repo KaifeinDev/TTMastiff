@@ -10,6 +10,7 @@ import '../../data/models/student_model.dart';
 import '../../core/utils/util.dart';
 
 import 'package:ttmastiff/main.dart';
+import '../../data/services/booking_repository.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -36,6 +37,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadData();
+    // 當 BookingRepository 發出通知時 (例如報名成功扣款後)，
+    // 自動重新執行 _loadData 來抓取最新的點數
+    BookingRepository.bookingRefreshSignal.addListener(_loadData);
+  }
+
+  @override
+  void dispose() {
+    BookingRepository.bookingRefreshSignal.removeListener(_loadData);
+    super.dispose();
   }
 
   Future<void> _loadData() async {

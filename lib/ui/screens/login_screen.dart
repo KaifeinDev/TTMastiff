@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ttmastiff/data/services/auth_manager.dart';
-// import 'package:supabase_flutter/supabase_flutter.dart';
-// import 'package:ttmastiff/data/services/auth_manager.dart';
-// import '../../data/services/auth_repository.dart';
 import 'package:ttmastiff/main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -33,12 +29,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 執行登入邏輯
   Future<void> _handleLogin() async {
-    // final email = _emailController.text.trim();
-    // final password = _passwordController.text.trim();
-    // final email = "test11@gmail.com";
-    // final password = "test11";
-    final email = "admin@admin.com";
-    final password = "test123";
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    // final email = "admin@admin.com";
+    // final password = "test123";
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(
