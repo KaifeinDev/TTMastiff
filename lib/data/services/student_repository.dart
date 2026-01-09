@@ -76,24 +76,70 @@ class StudentRepository {
   /// 如果 courseId 為 null，返回所有學員
   /// 如果 sessionId 為 null，返回該課程的所有學員
   /// 如果都提供，返回該場次的所有學員
+  /// name 和 phone 用於模糊搜尋
   Future<List<StudentModel>> fetchStudentsByFilter({
     String? courseId,
     String? sessionId,
+    String? name,
+    String? phone,
   }) async {
     try {
+      // 如果有電話篩選，先查詢符合電話的家長 ID
+      List<String>? parentIdsForPhone;
+      if (phone != null && phone.trim().isNotEmpty) {
+        final profilesResponse = await _supabase
+            .from('profiles')
+            .select('id')
+            .ilike('phone', '%${phone.trim()}%');
+        
+        parentIdsForPhone = (profilesResponse as List)
+            .map((p) => p['id'] as String)
+            .toList();
+        
+        if (parentIdsForPhone.isEmpty) {
+          return []; // 沒有找到符合電話的家長，返回空列表
+        }
+      }
+
       if (sessionId != null) {
         // 如果指定了場次，從 bookings 表查詢該場次的學員
-        final response = await _supabase
+        var query = _supabase
             .from('bookings')
             .select('students(*)')
             .eq('session_id', sessionId)
             .eq('status', 'confirmed'); // 只查已確認的報名
 
-        // 提取學員資料並去重
+        // 如果有電話篩選，過濾家長 ID
+        if (parentIdsForPhone != null) {
+          // 需要通過 students 的 parent_id 過濾
+          // 由於是關聯查詢，我們先查詢所有，然後在應用層過濾
+        }
+
+        final response = await query;
+
+        // 提取學員資料並去重，同時應用名字和電話篩選
         final Map<String, StudentModel> uniqueStudents = {};
         for (var booking in response) {
           if (booking['students'] != null) {
-            final student = StudentModel.fromJson(booking['students']);
+            final studentData = booking['students'] as Map<String, dynamic>;
+            
+            // 名字篩選
+            if (name != null && name.trim().isNotEmpty) {
+              final studentName = studentData['name'] as String? ?? '';
+              if (!studentName.toLowerCase().contains(name.trim().toLowerCase())) {
+                continue;
+              }
+            }
+            
+            // 電話篩選（通過 parent_id）
+            if (parentIdsForPhone != null) {
+              final parentId = studentData['parent_id'] as String?;
+              if (parentId == null || !parentIdsForPhone.contains(parentId)) {
+                continue;
+              }
+            }
+            
+            final student = StudentModel.fromJson(studentData);
             uniqueStudents[student.id] = student;
           }
         }
@@ -119,22 +165,69 @@ class StudentRepository {
             .filter('session_id', 'in', sessionIds)
             .eq('status', 'confirmed');
 
-        // 提取學員資料並去重
+        // 提取學員資料並去重，同時應用名字和電話篩選
         final Map<String, StudentModel> uniqueStudents = {};
         for (var booking in response) {
           if (booking['students'] != null) {
-            final student = StudentModel.fromJson(booking['students']);
+            final studentData = booking['students'] as Map<String, dynamic>;
+            
+            // 名字篩選
+            if (name != null && name.trim().isNotEmpty) {
+              final studentName = studentData['name'] as String? ?? '';
+              if (!studentName.toLowerCase().contains(name.trim().toLowerCase())) {
+                continue;
+              }
+            }
+            
+            // 電話篩選（通過 parent_id）
+            if (parentIdsForPhone != null) {
+              final parentId = studentData['parent_id'] as String?;
+              if (parentId == null || !parentIdsForPhone.contains(parentId)) {
+                continue;
+              }
+            }
+            
+            final student = StudentModel.fromJson(studentData);
             uniqueStudents[student.id] = student;
           }
         }
         return uniqueStudents.values.toList();
       } else {
         // 如果都沒指定，返回所有學員
-        final response = await _supabase
-            .from('students')
-            .select()
-            .order('created_at', ascending: true);
+        // 如果有電話篩選，需要先查詢符合電話的家長 ID
+        List<String>? parentIdsForPhone;
+        if (phone != null && phone.trim().isNotEmpty) {
+          final profilesResponse = await _supabase
+              .from('profiles')
+              .select('id')
+              .ilike('phone', '%${phone.trim()}%');
+          
+          parentIdsForPhone = (profilesResponse as List)
+              .map((p) => p['id'] as String)
+              .toList();
+          
+          if (parentIdsForPhone.isEmpty) {
+            return []; // 沒有找到符合電話的家長，返回空列表
+          }
+        }
 
+        // 構建查詢（不查詢 profiles，因為沒有直接關係）
+        var queryBuilder = _supabase
+            .from('students')
+            .select('*');
+
+        // 如果有名字篩選，使用模糊搜尋
+        if (name != null && name.trim().isNotEmpty) {
+          queryBuilder = queryBuilder.ilike('name', '%${name.trim()}%');
+        }
+
+        // 如果有電話篩選，過濾家長 ID
+        if (parentIdsForPhone != null) {
+          queryBuilder = queryBuilder.inFilter('parent_id', parentIdsForPhone);
+        }
+
+        // 最後加上排序並執行查詢
+        final response = await queryBuilder.order('created_at', ascending: true);
         return (response as List)
             .map((e) => StudentModel.fromJson(e))
             .toList();

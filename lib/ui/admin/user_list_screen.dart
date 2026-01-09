@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -10,6 +9,7 @@ import '../../data/models/course_model.dart';
 import '../../data/models/session_model.dart';
 import '../../data/models/booking_model.dart';
 import '../../core/utils/util.dart';
+import 'courses/widgets/session_edit_dialog.dart';
 
 class UserListScreen extends StatefulWidget {
   const UserListScreen({super.key});
@@ -27,9 +27,12 @@ class _UserListScreenState extends State<UserListScreen> {
   CourseModel? _selectedCourse;
   List<SessionModel> _sessions = [];
   SessionModel? _selectedSession;
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   // 學員列表
   List<StudentModel> _students = [];
+  Map<String, String?> _studentPhones = {}; // 存儲學員 ID -> 電話的映射
   bool _isLoading = false;
   bool _isLoadingFilter = false;
 
@@ -39,6 +42,13 @@ class _UserListScreenState extends State<UserListScreen> {
     _studentRepo = StudentRepository(Supabase.instance.client);
     _courseRepo = CourseRepository(Supabase.instance.client);
     _loadCourses();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCourses() async {
@@ -99,19 +109,62 @@ class _UserListScreenState extends State<UserListScreen> {
     setState(() {
       _isLoading = true;
       _students = [];
+      _studentPhones = {};
     });
 
     try {
       final students = await _studentRepo.fetchStudentsByFilter(
         courseId: _selectedCourse?.id,
         sessionId: _selectedSession?.id,
+        name: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
       );
 
-      if (mounted) {
-        setState(() {
-          _students = students;
-          _isLoading = false;
-        });
+      // 批量查詢學員的家長電話
+      if (students.isNotEmpty) {
+        final parentIds = students.map((s) => s.parentId).toSet().toList();
+        try {
+          final profilesResponse = await Supabase.instance.client
+              .from('profiles')
+              .select('id, phone')
+              .inFilter('id', parentIds);
+
+          final Map<String, String?> phoneMap = {};
+          for (var profile in profilesResponse) {
+            phoneMap[profile['id'] as String] = profile['phone'] as String?;
+          }
+
+          // 建立學員 ID -> 電話的映射
+          final Map<String, String?> studentPhoneMap = {};
+          for (var student in students) {
+            studentPhoneMap[student.id] = phoneMap[student.parentId];
+          }
+
+          if (mounted) {
+            setState(() {
+              _students = students;
+              _studentPhones = studentPhoneMap;
+              _isLoading = false;
+            });
+          }
+        } catch (e) {
+          // 如果查詢電話失敗，仍然顯示學員列表，只是沒有電話
+          if (mounted) {
+            setState(() {
+              _students = students;
+              _studentPhones = {};
+              _isLoading = false;
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _students = students;
+            _studentPhones = {};
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -153,6 +206,7 @@ class _UserListScreenState extends State<UserListScreen> {
                 // 課程選擇
                 DropdownButtonFormField<CourseModel>(
                   value: _selectedCourse,
+                  isExpanded: true, // 讓下拉選單可以展開，避免溢出
                   decoration: const InputDecoration(
                     labelText: '選擇課程',
                     border: OutlineInputBorder(),
@@ -166,7 +220,11 @@ class _UserListScreenState extends State<UserListScreen> {
                     ..._courses.map((course) {
                       return DropdownMenuItem<CourseModel>(
                         value: course,
-                        child: Text(course.title),
+                        child: Text(
+                          course.title,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       );
                     }),
                   ],
@@ -212,6 +270,33 @@ class _UserListScreenState extends State<UserListScreen> {
 
                 const SizedBox(height: 16),
 
+                // 名字搜尋
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: '姓名（選填）',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person),
+                    hintText: '輸入姓名進行模糊搜尋',
+                  ),
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 16),
+
+                // 電話搜尋
+                TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: '電話（選填）',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.phone),
+                    hintText: '輸入電話進行模糊搜尋',
+                  ),
+                  textInputAction: TextInputAction.done,
+                ),
+                const SizedBox(height: 16),
+
                 // 查詢按鈕
                 SizedBox(
                   width: double.infinity,
@@ -229,7 +314,7 @@ class _UserListScreenState extends State<UserListScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text('查詢學員', style: TextStyle(fontSize: 16)),
+                        : const Text('查詢', style: TextStyle(fontSize: 16)),
                   ),
                 ),
               ],
@@ -293,12 +378,48 @@ class _UserListScreenState extends State<UserListScreen> {
                                   fontSize: 16,
                                 ),
                               ),
-                              subtitle: Text(
-                                student.birthDate.toDateWithAge(),
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 14,
-                                ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.cake_outlined,
+                                        size: 16,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        student.birthDate.toDateWithAge(),
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (_studentPhones[student.id] != null &&
+                                      _studentPhones[student.id]!.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.phone_outlined,
+                                          size: 16,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _studentPhones[student.id]!,
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
                               ),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: () {
@@ -315,7 +436,6 @@ class _UserListScreenState extends State<UserListScreen> {
   }
 
   Future<void> _showStudentDetail(StudentModel student) async {
-    if (!mounted) return;
 
     // 顯示載入對話框
     if (!mounted) return;
@@ -418,6 +538,11 @@ class StudentDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 判斷學員是否為本人（註冊者）
+    // 如果 student.name == parentName，則為本人
+    final isSelf = parentName != null && 
+                  parentName!.trim().isNotEmpty &&
+                  student.name.trim() == parentName!.trim();
 
     return Scaffold(
       appBar: AppBar(
@@ -461,12 +586,22 @@ class StudentDetailScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              student.birthDate.toDateWithAge(),
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 16,
-                              ),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.cake_outlined,
+                                  size: 16,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  student.birthDate.toDateWithAge(),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -474,17 +609,20 @@ class StudentDetailScreen extends StatelessWidget {
                     ],
                   ),
                   const Divider(height: 32),
+                  // 如果是本人，只顯示電話；如果不是本人，顯示家長電話和家長姓名
                   _InfoRow(
                     icon: Icons.phone,
-                    label: '家長電話',
+                    label: isSelf ? '電話' : '家長電話',
                     value: parentPhone ?? '未提供',
                   ),
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.person,
-                    label: '家長姓名',
-                    value: parentName ?? '未提供',
-                  ),
+                  if (!isSelf) ...[
+                    const SizedBox(height: 12),
+                    _InfoRow(
+                      icon: Icons.person,
+                      label: '家長姓名',
+                      value: parentName ?? '未提供',
+                    ),
+                  ],
                   if (student.medical_note != null && student.medical_note!.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     _InfoRow(
@@ -535,10 +673,14 @@ class StudentDetailScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   onTap: course != null
                       ? () {
-                          // 導航到課程詳情頁
-                          context.push(
-                            '/admin/courses/${course.id}',
-                            extra: course, // 傳遞 Course 物件
+                          // 直接打開該場次的對話框
+                          final category = course.category;
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) => SessionEditDialog(
+                              session: session,
+                              category: category,
+                            ),
                           );
                         }
                       : null,
