@@ -15,7 +15,7 @@ import 'ui/screens/scaffold_with_nav_bar.dart';
 import '../ui/admin/admin_scaffold.dart';
 import '../ui/admin/dashboard_screen.dart';
 import '../ui/admin/booking_manage_screen.dart';
-import '../ui/admin/user_list_screen.dart';
+import 'ui/admin/students/user_list_screen.dart';
 
 // --- 3. 新增的課程管理頁面 (請確認檔案已建立) ---
 // 原本的 course_manage_screen.dart 建議改名為 course_list_screen.dart
