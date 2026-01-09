@@ -55,6 +55,7 @@ class SessionModel {
       id: json['id'],
       courseId: json['course_id'],
       // Session 的時間是 timestamptz (完整日期時間)，直接 parse 即可，不需要像 Course 那樣補日期
+      // if the time is not right, check device time zone
       startTime: DateTime.parse(json['start_time']).toLocal(),
       endTime: DateTime.parse(json['end_time']).toLocal(),
 
@@ -119,7 +120,7 @@ class SessionModel {
 
   /// 💰 智慧價格：優先使用單堂定價，沒有則使用課程定價
   int get displayPrice {
-    if (_sessionPrice != null) return _sessionPrice!;
+    if (_sessionPrice != null) return _sessionPrice;
     return course?.price ?? 0;
   }
 
