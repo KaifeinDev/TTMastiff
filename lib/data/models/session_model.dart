@@ -96,6 +96,7 @@ class SessionModel {
     List<CoachModel>? coaches,
     int? bookingsCount,
     List<String>? coachIds,
+    CourseModel? course,
   }) {
     return SessionModel(
       id: id,

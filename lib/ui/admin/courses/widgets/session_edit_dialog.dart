@@ -90,6 +90,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     String status,
     String attendance,
   ) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       // 🔥 使用全域 bookingRepository
       await bookingRepository.updateBookingStatus(
@@ -97,17 +98,14 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         status: status,
         attendanceStatus: attendance,
       );
+
+      messenger.showSnackBar(const SnackBar(content: Text('更新成功')));
+
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('狀態已更新')));
         _fetchRoster();
       }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('更新失敗: $e')));
+      messenger.showSnackBar(SnackBar(content: Text('更新失敗: $e')));
     }
   }
 
@@ -116,6 +114,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       context: context,
       builder: (context) => _StudentSearchDialog(
         onStudentSelected: (student) async {
+          final messenger = ScaffoldMessenger.of(context);
           try {
             // 🔥 使用全域 bookingRepository 幫學生報名
             await bookingRepository.createBooking(
@@ -125,17 +124,17 @@ class _SessionEditDialogState extends State<SessionEditDialog>
               priceSnapshot: widget.session.displayPrice,
             );
 
+            messenger.showSnackBar(
+              SnackBar(content: Text('已加入學員: ${student.name}')),
+            );
+
             if (mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('已加入學員: ${student.name}')));
               _fetchRoster(); // 刷新名單
             }
           } catch (e) {
-            if (mounted)
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('加入失敗: $e')));
+            messenger.showSnackBar(
+              SnackBar(content: Text('加入失敗: $e'), backgroundColor: Colors.red),
+            );
           }
         },
       ),
@@ -260,7 +259,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
-                            ),
+                             ),
                             Text(
                               DateFormat(
                                 'MM/dd HH:mm',

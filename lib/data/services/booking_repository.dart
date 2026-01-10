@@ -229,7 +229,7 @@ class BookingRepository {
     return data.map((e) => BookingModel.fromJson(e)).toList();
   }
 
-  /// 2. 更新預約狀態 (簽到、請假、取消)
+  /// 2. 更新預約狀態 (出席、請假、曠課)
   Future<void> updateBookingStatus({
     required String bookingId,
     required String status, // 'confirmed', 'cancelled'
@@ -243,20 +243,118 @@ class BookingRepository {
   }
 
   /// 3. 幫學生新增預約 (管理員手動加入)
+  /// 3. 幫學生新增預約 (管理員手動加入)
+  /// 🔥 修改：加入滿班檢查、復活舊單邏輯、以及自動扣款
   Future<void> createBooking({
     required String sessionId,
     required String studentId,
-    required String userId, // 家長/User ID
-    required int priceSnapshot, // 當下的價格
+    required String userId, // 這是要被扣款的家長 ID
+    required int priceSnapshot,
   }) async {
-    await _supabase.from('bookings').insert({
-      'session_id': sessionId,
-      'student_id': studentId,
-      'user_id': userId,
-      'status': 'confirmed',
-      'attendance_status': 'pending', // 預設為待上課
-      'price_snapshot': priceSnapshot,
-    });
+    // 1. 查詢課程資訊 (為了拿到 課程名稱 和 最大容量)
+    final sessionData = await _supabase
+        .from('sessions')
+        .select('id, max_capacity, courses(title)')
+        .eq('id', sessionId)
+        .single();
+
+    final String courseName = sessionData['courses']['title'] ?? '課程';
+    final int maxCapacity = sessionData['max_capacity'] ?? 0;
+
+    // 2. 滿班檢查
+    final int currentCount = await _supabase
+        .from('bookings')
+        .count(CountOption.exact)
+        .eq('session_id', sessionId)
+        .eq('status', 'confirmed');
+
+    if (currentCount >= maxCapacity) {
+      throw Exception('新增失敗：該場次已額滿 ($currentCount/$maxCapacity)');
+    }
+
+    // 3. 檢查是否已存在紀錄 (避免重複 ID 或需要復活舊單)
+    final existing = await _supabase
+        .from('bookings')
+        .select()
+        .eq('session_id', sessionId)
+        .eq('student_id', studentId)
+        .maybeSingle();
+
+    if (existing != null) {
+      // [情況 A] 資料已存在
+      final String currentStatus = existing['status'] ?? 'confirmed';
+      final String bookingId = existing['id'];
+
+      if (currentStatus == 'confirmed') {
+        throw Exception('該學生已經報名過此課程');
+      }
+
+      if (currentStatus == 'cancelled') {
+        // A-1. 復活訂單 (Update)
+        await _supabase
+            .from('bookings')
+            .update({
+              'status': 'confirmed',
+              'attendance_status': 'pending',
+              'price_snapshot': priceSnapshot,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', bookingId);
+
+        // A-2. 執行扣款
+        try {
+          await _creditRepo.payForBooking(
+            userId: userId,
+            cost: priceSnapshot,
+            bookingId: bookingId,
+            courseName: courseName,
+          );
+        } catch (e) {
+          // 💥 扣款失敗，狀態改回 cancelled (Rollback)
+          await _supabase
+              .from('bookings')
+              .update({'status': 'cancelled'})
+              .eq('id', bookingId);
+          throw Exception('扣款失敗：${e.toString()}'); // 拋出錯誤讓 UI 顯示
+        }
+      }
+    } else {
+      // [情況 B] 全新報名 (Insert)
+
+      // B-1. 建立預約
+      final newBooking = await _supabase
+          .from('bookings')
+          .insert({
+            'session_id': sessionId,
+            'student_id': studentId,
+            'user_id': userId,
+            'status': 'confirmed',
+            'attendance_status': 'pending',
+            'price_snapshot': priceSnapshot,
+            'created_at': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      final String newBookingId = newBooking['id'];
+
+      // B-2. 執行扣款
+      try {
+        await _creditRepo.payForBooking(
+          userId: userId,
+          cost: priceSnapshot,
+          bookingId: newBookingId,
+          courseName: courseName,
+        );
+      } catch (e) {
+        // 💥 扣款失敗，物理刪除剛建立的預約 (Rollback)
+        await _supabase.from('bookings').delete().eq('id', newBookingId);
+        throw Exception('扣款失敗：${e.toString()}');
+      }
+    }
+
+    // 通知 UI 更新
+    bookingRefreshSignal.notify();
   }
 }
 
