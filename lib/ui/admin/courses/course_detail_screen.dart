@@ -100,7 +100,8 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
 
   // 開啟單場編輯對話框
   // 🔥 改動 3: 參數直接接收 SessionModel
-  void _editSession(SessionModel session) async {
+  void _editSession(SessionModel s) async {
+    final session = s.copyWith(course: _courseData);
     final result = await showDialog(
       context: context,
       builder: (context) =>
