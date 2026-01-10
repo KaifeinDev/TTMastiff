@@ -159,6 +159,33 @@ class BookingRepository {
     return data.map((e) => BookingModel.fromJson(e)).toList();
   }
 
+  /// 取得當前學生的所有預約 (包含 Session, Course, Student 詳細資料)
+  Future<List<BookingModel>> fetchBookingsByStudentId(String studentId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('未登入');
+
+    // 設定時間界線 (今天以前)
+    final limitDate = DateTime.now();
+
+    final response = await _supabase
+        .from('bookings')
+        .select('''
+          *,
+          sessions!inner (
+            *,
+            courses (*)
+          ),
+          students (*)
+        ''')
+        .eq('student_id', studentId)
+        .gte('sessions.end_time', limitDate.toIso8601String())
+        .eq('status', 'confirmed')
+        .order('sessions(start_time)', ascending: false);
+
+    final data = List<Map<String, dynamic>>.from(response);
+    return data.map((e) => BookingModel.fromJson(e)).toList();
+  }
+
   /// 取消預約 (並執行退費)
   Future<void> cancelBooking(String bookingId) async {
     try {
