@@ -29,7 +29,10 @@ class AdminCourseDetailScreen extends StatefulWidget {
 class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
   // 🔥 改動 2: 使用 Model 儲存狀態
   late CourseModel _courseData;
-  List<SessionModel> _sessions = [];
+  List<SessionModel> _upcomingSessions = []; // 未來
+  List<SessionModel> _historySessions = []; // 歷史
+  Map<dynamic, String> _coachMap = {};
+
   bool _isLoading = true;
 
   @override
@@ -46,7 +49,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
 
   Future<void> _refreshData() async {
     // 如果沒有初始資料，才顯示全頁 loading，否則會有畫面閃爍
-    if (widget.initialData == null) {
+    if (widget.initialData == null || mounted) {
       setState(() => _isLoading = true);
     }
 
@@ -62,10 +65,30 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
         widget.courseId,
       );
 
+      final coachesList = await coachRepository.getCoaches();
+      final coachMap = {
+        for (var c in coachesList) c['id']: c['full_name'] as String,
+      };
+
+      final now = DateTime.now();
+
+      // A. 未來課程：時間 >= 現在
+      final upcoming = sessions
+          .where((s) => !s.startTime.isBefore(now))
+          .toList();
+      // 排序：越近的越上面 (升冪)
+      upcoming.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+      // B. 歷史課程：時間 < 現在
+      final history = sessions.where((s) => s.startTime.isBefore(now)).toList();
+      // 排序：剛結束的越上面 (降冪)
+      history.sort((a, b) => b.startTime.compareTo(a.startTime));
+
       if (mounted) {
         setState(() {
-          _sessions = sessions;
-          _isLoading = false;
+          _upcomingSessions = upcoming;
+          _historySessions = history;
+          _coachMap = coachMap;
         });
       }
     } catch (e) {
@@ -73,6 +96,9 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
+      }
+    } finally {
+      if (mounted) {
         setState(() => _isLoading = false);
       }
     }
@@ -99,7 +125,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
   }
 
   // 開啟單場編輯對話框
-  // 🔥 改動 3: 參數直接接收 SessionModel
+  // 參數直接接收 SessionModel
   void _editSession(SessionModel s) async {
     final session = s.copyWith(course: _courseData);
     final result = await showDialog(
@@ -153,153 +179,433 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 若尚未載入完成且無初始資料
     if (_isLoading && widget.initialData == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // 安全防護：萬一 _courseData 還沒初始化 (雖然邏輯上不該發生)
-    // 可以加個簡單判斷或在變數宣告時加上 late 的處理
-    // 這裡依賴 initState 的邏輯
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: Colors.grey.shade50, // 讓背景稍微灰一點，突顯白色卡片
+        appBar: AppBar(
+          title: Text(_courseData.title),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          foregroundColor: Colors.black, // 標題黑色
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _openBatchGenerator,
+          tooltip: '批量排課', // 滑鼠靠上去會顯示這個文字
+          backgroundColor: Colors.blue.shade50, // 建議用顯眼的顏色
+          child: const Icon(Icons.add),
+        ),
+        body: Column(
+          children: [
+            // 1. 頂部資訊儀表板 (新增的)
+            _buildSummaryHeader(),
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_courseData.title), // 直接使用屬性
+            // 2. TabBar
+            Container(
+              color: Colors.white,
+              child: const TabBar(
+                labelColor: Colors.blue,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.blue,
+                tabs: [
+                  Tab(text: '即將開始'),
+                  Tab(text: '歷史紀錄'),
+                ],
+              ),
+            ),
+
+            // 3. 列表內容
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildSessionList(_upcomingSessions, isHistory: false),
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildSessionList(_historySessions, isHistory: true),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildSessionCard(SessionModel s, bool isHistory) {
+    // 處理教練名字 (若有)
+    final coachNames = s.coachIds.map((id) => _coachMap[id] ?? '未知').join(', ');
+    final hasCoach = s.coachIds.isNotEmpty;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shadowColor: Colors.black12,
+      color: isHistory ? Colors.grey.shade50 : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isHistory ? Colors.transparent : Colors.grey.shade200,
+        ),
+      ),
+      child: Column(
         children: [
-          // 頂部資訊區
+          // ─── 卡片 Header (日期與地點) ───
+          // 這裡就是原本消失的日期區塊
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: Colors.blue.shade50,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              // 歷史紀錄用灰色頭，一般用淡藍色頭
+              color: isHistory ? Colors.grey.shade200 : Colors.blue.shade50,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+            ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${_courseData.category == 'group' ? '團體課' : '個人課'} | \$${_courseData.price}',
-                        style: TextStyle(color: Colors.blue.shade700),
+                // 左邊：日期
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: isHistory ? Colors.grey : Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      // 記得引入 intl 套件
+                      DateFormat('yyyy/MM/dd (E)', 'zh_TW').format(s.startTime),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: isHistory
+                            ? Colors.grey.shade600
+                            : Colors.blue.shade900,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '已排定場次：${_sessions.length} 堂',
-                        style: TextStyle(
-                          color: Colors.blue.shade900,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                    ),
+                  ],
+                ),
+
+                // 右邊：地點 Tag (有最大寬度限制)
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.place, size: 12, color: Colors.grey.shade500),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          s.location ?? "未定",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade800,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                     ],
                   ),
                 ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.calendar_month, size: 18),
-                  label: const Text('批次排課'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: _openBatchGenerator,
-                ),
               ],
             ),
           ),
 
-          // 列表區
-          Expanded(
-            child: _sessions.isEmpty
-                ? Center(
+          // ─── 2. 卡片內容 (時間、名額、教練) ───
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 左邊區塊：時間與名額
+                  Expanded(
+                    flex: 3,
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.event_busy,
-                          size: 64,
-                          color: Colors.grey.shade300,
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.access_time,
+                              size: 18,
+                              color: Colors.black54,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${DateFormat('HH:mm').format(s.startTime)} - ${DateFormat('HH:mm').format(s.endTime)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          '目前沒有排定的上課日期',
-                          style: TextStyle(color: Colors.grey),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.group,
+                              size: 18,
+                              color: Colors.black54,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '名額: ${s.maxCapacity} 人',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: _sessions.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final s = _sessions[index];
-                      // 🔥 Model 的時間直接是 DateTime，不需要 parse
-                      final start = s.startTime;
-                      final end = s.endTime;
-
-                      return Card(
-                        elevation: 0,
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          side: BorderSide(color: Colors.grey.shade200),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: ListTile(
-                          title: Text(
-                            DateFormat(
-                              'yyyy/MM/dd (E)',
-                              'zh_TW',
-                            ).format(start), // 建議加上 locale
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                '時間: ${DateFormat('HH:mm').format(start)} - ${DateFormat('HH:mm').format(end)}',
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '桌次: ${s.location ?? "未定"} | 名額: ${s.maxCapacity}',
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                          isThreeLine: true,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.grey,
-                                ),
-                                onPressed: () => _editSession(s),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.redAccent,
-                                ),
-                                onPressed: () => _deleteSession(s.id),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
                   ),
+
+                  // 中間分隔線 (高度會自動跟隨)
+                  Container(
+                    width: 1,
+                    color: Colors.grey.shade200,
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+
+                  // 右邊區塊：教練資訊
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '教練',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        hasCoach
+                            ? Text(
+                                coachNames,
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  height: 1.3,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : Row(
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 14,
+                                    color: Colors.orange.shade300,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '未指定',
+                                    style: TextStyle(
+                                      color: Colors.orange.shade300,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ─── 3. 底部操作按鈕 (僅非歷史紀錄顯示) ───
+          if (!isHistory) ...[
+            const Divider(height: 1), // 加上分隔線區隔按鈕區
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('編輯'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey.shade700,
+                    ),
+                    onPressed: () => _editSession(s),
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('刪除'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade400,
+                    ),
+                    onPressed: () => _deleteSession(s.id),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // 修改 _buildSessionList，讓它使用新的卡片
+  Widget _buildSessionList(
+    List<SessionModel> sessions, {
+    bool isHistory = false,
+  }) {
+    if (sessions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.event_busy, size: 64, color: Colors.grey.shade200),
+            const SizedBox(height: 16),
+            Text(
+              isHistory ? '沒有歷史課程紀錄' : '目前沒有排定的課程',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      // 改用 builder 比較乾淨
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      itemCount: sessions.length,
+      itemBuilder: (context, index) {
+        return _buildSessionCard(sessions[index], isHistory);
+      },
+    );
+  }
+
+  Widget _buildSummaryHeader() {
+    // 計算統計數據
+    final total = _upcomingSessions.length + _historySessions.length;
+    final upcoming = _upcomingSessions.length;
+    final history = _historySessions.length;
+
+    return Container(
+      // 移除過大的 padding 和陰影，改成底色區隔
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          // 1. 課程類型與價格 (左側)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _courseData.category == 'group'
+                          ? Colors.orange.shade50
+                          : Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: _courseData.category == 'group'
+                            ? Colors.orange.shade200
+                            : Colors.purple.shade200,
+                      ),
+                    ),
+                    child: Text(
+                      _courseData.category == 'group' ? '團體班' : '個人班',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _courseData.category == 'group'
+                            ? Colors.orange.shade800
+                            : Colors.purple.shade800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '\$${_courseData.price}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const Text(
+                    '/堂',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // 中間格線
+          Container(
+            height: 24,
+            width: 1,
+            color: Colors.grey.shade300,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+
+          // 2. 統計數據 (右側 - 緊湊排列)
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildCompactStat('總場次', '$total'),
+                _buildCompactStat(
+                  '待進行',
+                  '$upcoming',
+                  color: Colors.blue.shade700,
+                ),
+                _buildCompactStat('已結束', '$history', color: Colors.grey),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  // 統計小元件
+  Widget _buildCompactStat(String label, String value, {Color? color}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color ?? Colors.black87,
+          ),
+        ),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
     );
   }
 }
