@@ -341,7 +341,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       // 左半部 (頭像與個資) - 維持不變
+                      // 1. 左半部 (頭像與個資)
                       Expanded(
+                        flex: 4,
                         child: Row(
                           children: [
                             StudentAvatar(
@@ -350,44 +352,36 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                               radius: 32,
                             ),
                             const SizedBox(width: 12),
+
+                            // 這裡的 Expanded 限制了文字區塊的最大寬度
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center, // 垂直置中
                                 children: [
-                                  Text(
-                                    _student!.name,
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
+                                  // ─── 姓名 (加入 FittedBox) ───
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown, // 空間不足時縮小
+                                    alignment:
+                                        Alignment.centerLeft, // 🔥 關鍵：縮小時靠左對齊
+                                    child: Text(
+                                      _student!.name,
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1, // 強制單行，觸發縮小機制
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
+
                                   const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.cake_outlined,
-                                        size: 16,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _student!.birthDate.toDateWithAge(),
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
                                 ],
                               ),
                             ),
                           ],
                         ),
                       ),
-
                       // 中間分隔線
                       Container(
                         height: 50,
@@ -397,64 +391,74 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       ),
 
                       // 🔥 右半部：方案三 (Gold) 🔥
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Icon(
-                                Icons.monetization_on,
-                                color: Colors.amber.shade700,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 4),
-                              _isLoadingCredits
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Icon(
+                                  Icons.monetization_on,
+                                  color: Colors.amber.shade700,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 4),
+                                _isLoadingCredits
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Flexible(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            NumberFormat(
+                                              '#,###',
+                                            ).format(_parentCredits),
+                                            style: TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.grey.shade800,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    )
-                                  : Text(
-                                      NumberFormat(
-                                        '#,###',
-                                      ).format(_parentCredits),
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.grey.shade800,
-                                      ),
-                                    ),
-                            ],
-                          ),
-                          Text(
-                            'Credits',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.amber.shade800,
-                              fontWeight: FontWeight.bold,
+                              ],
                             ),
-                          ),
+                            Text(
+                              'Credits',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.amber.shade800,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
 
-                          const SizedBox(height: 4),
-                          SizedBox(
-                            height: 24,
-                            child: TextButton.icon(
-                              onPressed: () => _showTopUpDialog(context),
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              icon: const Icon(Icons.add_card, size: 14),
-                              label: const Text(
-                                '儲值',
-                                style: TextStyle(fontSize: 12),
+                            const SizedBox(height: 4),
+                            SizedBox(
+                              height: 24,
+                              child: TextButton.icon(
+                                onPressed: () => _showTopUpDialog(context),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  alignment: Alignment.centerRight,
+                                ),
+                                icon: const Icon(Icons.add_card, size: 14),
+                                label: const Text(
+                                  '儲值',
+                                  style: TextStyle(fontSize: 12),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -464,18 +468,24 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   Divider(height: 1, color: Colors.grey.shade200),
                   const SizedBox(height: 16),
                   StudentInfoRow(
-                    icon: Icons.phone,
-                    label: isSelf ? '電話' : '家長電話',
-                    value: _parentPhone ?? '未提供',
+                    icon: Icons.cake,
+                    label: '生日',
+                    value: _student!.birthDate.toDateWithAge(),
                   ),
                   if (!isSelf) ...[
                     const SizedBox(height: 12),
                     StudentInfoRow(
                       icon: Icons.person,
-                      label: '家長姓名',
+                      label: '家長',
                       value: _parentName ?? '未提供',
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  StudentInfoRow(
+                    icon: Icons.phone,
+                    label: isSelf ? '電話' : '電話',
+                    value: _parentPhone ?? '未提供',
+                  ),
                   if (_student!.medical_note != null &&
                       _student!.medical_note!.isNotEmpty) ...[
                     const SizedBox(height: 12),
