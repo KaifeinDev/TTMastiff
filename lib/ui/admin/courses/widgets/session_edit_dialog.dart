@@ -413,6 +413,20 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   }
 
   Widget _buildSettingsView() {
+    void _adjustCapacity(int amount) {
+      // 1. 嘗試將目前文字轉為整數，若為空或格式錯誤則預設為 0
+      int currentValue = int.tryParse(_capacityController.text) ?? 0;
+
+      // 2. 計算新數值
+      int newValue = currentValue + amount;
+
+      // 3. 避免變成負數
+      if (newValue < 0) newValue = 0;
+
+      // 4. 更新 Controller 顯示
+      _capacityController.text = newValue.toString();
+    }
+
     // 這裡放入原本的 Settings UI，並在 submit 時呼叫 sessionRepository.updateSession
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -434,9 +448,30 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           const SizedBox(height: 16),
           TextField(
             controller: _capacityController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: '人數上限',
               border: OutlineInputBorder(),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min, // 這一行非常重要！讓 Row 只佔據最小寬度
+                children: [
+                  // 減號按鈕
+                  IconButton(
+                    icon: const Icon(
+                      Icons.remove_circle_outline,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () => _adjustCapacity(-1),
+                  ),
+                  // 加號按鈕
+                  IconButton(
+                    icon: const Icon(
+                      Icons.add_circle_outline,
+                      color: Colors.blue,
+                    ),
+                    onPressed: () => _adjustCapacity(1),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 24),
