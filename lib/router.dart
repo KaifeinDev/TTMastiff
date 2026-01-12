@@ -10,6 +10,7 @@ import 'ui/screens/course_detail_screen.dart'; // 這是前台的課程詳情
 import 'ui/screens/my_bookings_screen.dart';
 import 'ui/screens/profile_screen.dart';
 import 'ui/screens/scaffold_with_nav_bar.dart';
+import 'ui/screens/transaction_history_screen.dart';
 
 // --- 2. 管理後台頁面 ---
 import '../ui/admin/admin_scaffold.dart';
@@ -104,6 +105,14 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/profile',
               builder: (context, state) => const ProfileScreen(),
+              routes: [
+            // 這就是 /profile/transactions
+            GoRoute(
+              path: 'transactions', 
+              parentNavigatorKey: _rootNavigatorKey, // 🌟 關鍵：加上這行，新頁面會蓋過 Bottom Bar
+              builder: (context, state) => const TransactionHistoryScreen(),
+            ),
+          ],
             ),
           ],
         ),

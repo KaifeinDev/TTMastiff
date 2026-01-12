@@ -14,30 +14,45 @@ class BookingRepository {
   Future<void> createBatchBooking({
     required List<String> sessionIds,
     required List<String> studentIds,
-    required int price_snapshot, // 課程價格
+    required int price_snapshot,
   }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('未登入使用者');
 
-    // --- 步驟 1: 預先查詢課程名稱 (用於扣款明細) ---
-    // 修正：使用 filter 替代 in_，並對應 courses 表的 title 欄位
+    // 1. 查詢課程資訊 (包含 max_capacity)
     final List<dynamic> sessionsData = await _supabase
         .from('sessions')
-        .select('id, courses(title)') // 課程名稱欄位是 title
-        .filter('id', 'in', sessionIds); // 修正語法錯誤
+        .select('id, max_capacity, courses(title)') // 記得抓取 max_capacity
+        .filter('id', 'in', sessionIds);
 
-    // 建立 Map: { sessionId: courseTitle }
-    final Map<String, String> sessionCourseMap = {
-      for (var s in sessionsData)
-        s['id'] as String: (s['courses']?['title'] as String?) ?? '未知課程',
+    // 建立 Map 方便查找: { sessionId: SessionData }
+    final Map<String, dynamic> sessionInfoMap = {
+      for (var s in sessionsData) s['id'] as String: s,
     };
 
-    // --- 步驟 2: 開始報名迴圈 ---
+    // 雙重迴圈：遍歷所有選中的學生
     for (final studentId in studentIds) {
       for (final sessionId in sessionIds) {
-        final courseName = sessionCourseMap[sessionId] ?? '課程';
+        final sessionData = sessionInfoMap[sessionId];
+        final String courseName = sessionData['courses']['title'] ?? '課程';
+        final int maxCapacity = sessionData['max_capacity'] ?? 0;
 
-        // 檢查是否已存在紀錄
+        // 🔥 [新增] 滿班檢查 (Capacity Check)
+        // 檢查目前該場次 "已確認 (confirmed)" 的報名人數
+        final int currentCount = await _supabase
+            .from('bookings')
+            .count(CountOption.exact)
+            .eq('session_id', sessionId)
+            .eq('status', 'confirmed');
+
+        // 如果目前人數已經 >= 最大容量，拋出錯誤
+        if (currentCount >= maxCapacity) {
+          throw Exception(
+            '報名失敗："$courseName" 該場次已額滿 ($currentCount/$maxCapacity)',
+          );
+        }
+
+        // --- 檢查是否已存在紀錄 ---
         final existing = await _supabase
             .from('bookings')
             .select()
@@ -50,20 +65,19 @@ class BookingRepository {
           final String currentStatus = existing['status'] ?? 'confirmed';
           final String bookingId = existing['id'];
 
-          // 如果是被取消的單，將其復活並扣款
           if (currentStatus == 'cancelled') {
-            // A-1. 先更新狀態為 confirmed (復活)
+            // A-1. 復活訂單
             await _supabase
                 .from('bookings')
                 .update({
                   'status': 'confirmed',
                   'attendance_status': 'pending',
-                  'price_snapshot': price_snapshot, //
+                  'price_snapshot': price_snapshot,
                   'updated_at': DateTime.now().toIso8601String(),
                 })
                 .eq('id', bookingId);
 
-            // 🔥 A-2. 嘗試扣款
+            // A-2. 扣款 (使用 RPC)
             try {
               await _creditRepo.payForBooking(
                 userId: userId,
@@ -72,23 +86,19 @@ class BookingRepository {
                 courseName: courseName,
               );
             } catch (e) {
-              // 💥 扣款失敗 (餘額不足)，回滾 (Rollback)
-              // 把狀態改回 cancelled，當作沒報名過
+              // 💥 扣款失敗，狀態改回 cancelled (Rollback)
               await _supabase
                   .from('bookings')
                   .update({'status': 'cancelled'})
                   .eq('id', bookingId);
-
-              throw Exception(
-                '扣款失敗，報名已取消: ${e.toString().replaceAll('Exception:', '')}',
-              );
+              throw Exception('扣款失敗：餘額不足');
             }
           }
-          // 如果已經是 confirmed，則跳過 (不重複扣款)
+          // 如果已經是 confirmed，跳過
         } else {
-          // [情況 B] 全新報名 (Insert)
+          // [情況 B] 全新報名
 
-          // B-1. 建立預約並「立即回傳資料」以取得 ID
+          // B-1. 建立預約
           final newBooking = await _supabase
               .from('bookings')
               .insert({
@@ -97,7 +107,7 @@ class BookingRepository {
                 'session_id': sessionId,
                 'status': 'confirmed',
                 'attendance_status': 'pending',
-                'price_snapshot': price_snapshot, //
+                'price_snapshot': price_snapshot,
                 'created_at': DateTime.now().toIso8601String(),
               })
               .select()
@@ -105,7 +115,7 @@ class BookingRepository {
 
           final String newBookingId = newBooking['id'];
 
-          // 🔥 B-2. 嘗試扣款
+          // B-2. 扣款
           try {
             await _creditRepo.payForBooking(
               userId: userId,
@@ -114,10 +124,9 @@ class BookingRepository {
               courseName: courseName,
             );
           } catch (e) {
-            // 💥 扣款失敗，物理刪除剛剛建立的預約 (Rollback)
+            // 💥 扣款失敗，物理刪除預約 (Rollback)
             await _supabase.from('bookings').delete().eq('id', newBookingId);
-
-            throw Exception('點數不足，報名失敗');
+            throw Exception('扣款失敗：餘額不足');
           }
         }
       }
@@ -150,18 +159,68 @@ class BookingRepository {
     return data.map((e) => BookingModel.fromJson(e)).toList();
   }
 
-  /// 取消預約 (邏輯刪除)
+  /// 取得當前學生的所有預約 (包含 Session, Course, Student 詳細資料)
+  Future<List<BookingModel>> fetchBookingsByStudentId(String studentId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('未登入');
+
+    // 設定時間界線 (今天以前)
+    final limitDate = DateTime.now();
+
+    final response = await _supabase
+        .from('bookings')
+        .select('''
+          *,
+          sessions!inner (
+            *,
+            courses (*)
+          ),
+          students (*)
+        ''')
+        .eq('student_id', studentId)
+        .gte('sessions.end_time', limitDate.toIso8601String())
+        .eq('status', 'confirmed')
+        .order('sessions(start_time)', ascending: false);
+
+    final data = List<Map<String, dynamic>>.from(response);
+    return data.map((e) => BookingModel.fromJson(e)).toList();
+  }
+
+  /// 取消預約 (並執行退費)
   Future<void> cancelBooking(String bookingId) async {
     try {
-      // 將狀態更新為 'cancelled'
+      // 1. 查詢預約資訊
+      final booking = await _supabase
+          .from('bookings')
+          .select('user_id, price_snapshot, status, sessions(courses(title))')
+          .eq('id', bookingId)
+          .single();
+
+      final String currentStatus = booking['status'];
+      final int paidAmount = booking['price_snapshot'] ?? 0;
+      final String userId = booking['user_id'];
+      final String courseTitle =
+          booking['sessions']?['courses']?['title'] ?? '課程';
+
+      if (currentStatus == 'cancelled') return;
+
+      // 2. 更新狀態
       await _supabase
           .from('bookings')
           .update({'status': 'cancelled'})
           .eq('id', bookingId);
 
+      // 3. 🔥 執行退費 (傳入 bookingId)
+      if (paidAmount > 0) {
+        await _creditRepo.processRefund(
+          userId: userId,
+          amount: paidAmount,
+          description: '取消報名退費: $courseTitle',
+          bookingId: bookingId, // 傳入 ID 以建立關聯
+        );
+      }
+
       bookingRefreshSignal.notify();
-      // 註：如果您的業務邏輯需要「物理刪除」(從資料庫移除)，請改用:
-      // await _supabase.from('bookings').delete().eq('id', bookingId);
     } catch (e) {
       throw Exception('取消預約失敗: $e');
     }
@@ -197,7 +256,7 @@ class BookingRepository {
     return data.map((e) => BookingModel.fromJson(e)).toList();
   }
 
-  /// 2. 更新預約狀態 (簽到、請假、取消)
+  /// 2. 更新預約狀態 (出席、請假、曠課)
   Future<void> updateBookingStatus({
     required String bookingId,
     required String status, // 'confirmed', 'cancelled'
@@ -211,20 +270,118 @@ class BookingRepository {
   }
 
   /// 3. 幫學生新增預約 (管理員手動加入)
+  /// 3. 幫學生新增預約 (管理員手動加入)
+  /// 🔥 修改：加入滿班檢查、復活舊單邏輯、以及自動扣款
   Future<void> createBooking({
     required String sessionId,
     required String studentId,
-    required String userId, // 家長/User ID
-    required int priceSnapshot, // 當下的價格
+    required String userId, // 這是要被扣款的家長 ID
+    required int priceSnapshot,
   }) async {
-    await _supabase.from('bookings').insert({
-      'session_id': sessionId,
-      'student_id': studentId,
-      'user_id': userId,
-      'status': 'confirmed',
-      'attendance_status': 'pending', // 預設為待上課
-      'price_snapshot': priceSnapshot,
-    });
+    // 1. 查詢課程資訊 (為了拿到 課程名稱 和 最大容量)
+    final sessionData = await _supabase
+        .from('sessions')
+        .select('id, max_capacity, courses(title)')
+        .eq('id', sessionId)
+        .single();
+
+    final String courseName = sessionData['courses']['title'] ?? '課程';
+    final int maxCapacity = sessionData['max_capacity'] ?? 0;
+
+    // 2. 滿班檢查
+    final int currentCount = await _supabase
+        .from('bookings')
+        .count(CountOption.exact)
+        .eq('session_id', sessionId)
+        .eq('status', 'confirmed');
+
+    if (currentCount >= maxCapacity) {
+      throw Exception('新增失敗：該場次已額滿 ($currentCount/$maxCapacity)');
+    }
+
+    // 3. 檢查是否已存在紀錄 (避免重複 ID 或需要復活舊單)
+    final existing = await _supabase
+        .from('bookings')
+        .select()
+        .eq('session_id', sessionId)
+        .eq('student_id', studentId)
+        .maybeSingle();
+
+    if (existing != null) {
+      // [情況 A] 資料已存在
+      final String currentStatus = existing['status'] ?? 'confirmed';
+      final String bookingId = existing['id'];
+
+      if (currentStatus == 'confirmed') {
+        throw Exception('該學生已經報名過此課程');
+      }
+
+      if (currentStatus == 'cancelled') {
+        // A-1. 復活訂單 (Update)
+        await _supabase
+            .from('bookings')
+            .update({
+              'status': 'confirmed',
+              'attendance_status': 'pending',
+              'price_snapshot': priceSnapshot,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', bookingId);
+
+        // A-2. 執行扣款
+        try {
+          await _creditRepo.payForBooking(
+            userId: userId,
+            cost: priceSnapshot,
+            bookingId: bookingId,
+            courseName: courseName,
+          );
+        } catch (e) {
+          // 💥 扣款失敗，狀態改回 cancelled (Rollback)
+          await _supabase
+              .from('bookings')
+              .update({'status': 'cancelled'})
+              .eq('id', bookingId);
+          throw Exception('扣款失敗：${e.toString()}'); // 拋出錯誤讓 UI 顯示
+        }
+      }
+    } else {
+      // [情況 B] 全新報名 (Insert)
+
+      // B-1. 建立預約
+      final newBooking = await _supabase
+          .from('bookings')
+          .insert({
+            'session_id': sessionId,
+            'student_id': studentId,
+            'user_id': userId,
+            'status': 'confirmed',
+            'attendance_status': 'pending',
+            'price_snapshot': priceSnapshot,
+            'created_at': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      final String newBookingId = newBooking['id'];
+
+      // B-2. 執行扣款
+      try {
+        await _creditRepo.payForBooking(
+          userId: userId,
+          cost: priceSnapshot,
+          bookingId: newBookingId,
+          courseName: courseName,
+        );
+      } catch (e) {
+        // 💥 扣款失敗，物理刪除剛建立的預約 (Rollback)
+        await _supabase.from('bookings').delete().eq('id', newBookingId);
+        throw Exception('扣款失敗：${e.toString()}');
+      }
+    }
+
+    // 通知 UI 更新
+    bookingRefreshSignal.notify();
   }
 }
 

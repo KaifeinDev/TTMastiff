@@ -90,6 +90,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     String status,
     String attendance,
   ) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       // 🔥 使用全域 bookingRepository
       await bookingRepository.updateBookingStatus(
@@ -97,17 +98,30 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         status: status,
         attendanceStatus: attendance,
       );
+
+      messenger.showSnackBar(const SnackBar(content: Text('更新成功')));
+
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('狀態已更新')));
         _fetchRoster();
       }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('更新失敗: $e')));
+      messenger.showSnackBar(SnackBar(content: Text('更新失敗: $e')));
+    }
+  }
+
+  Future<void> _cancelStudentBooking(String bookingId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      // 🔥 使用全域 bookingRepository
+      await bookingRepository.cancelBooking(bookingId);
+
+      messenger.showSnackBar(const SnackBar(content: Text('取消成功，已成功退費')));
+
+      if (mounted) {
+        _fetchRoster();
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('取消失敗: $e')));
     }
   }
 
@@ -116,6 +130,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       context: context,
       builder: (context) => _StudentSearchDialog(
         onStudentSelected: (student) async {
+          final messenger = ScaffoldMessenger.of(context);
           try {
             // 🔥 使用全域 bookingRepository 幫學生報名
             await bookingRepository.createBooking(
@@ -125,17 +140,17 @@ class _SessionEditDialogState extends State<SessionEditDialog>
               priceSnapshot: widget.session.displayPrice,
             );
 
+            messenger.showSnackBar(
+              SnackBar(content: Text('已加入學員: ${student.name}')),
+            );
+
             if (mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('已加入學員: ${student.name}')));
               _fetchRoster(); // 刷新名單
             }
           } catch (e) {
-            if (mounted)
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('加入失敗: $e')));
+            messenger.showSnackBar(
+              SnackBar(content: Text('加入失敗: $e'), backgroundColor: Colors.red),
+            );
           }
         },
       ),
@@ -333,25 +348,33 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                     booking.attendanceStatus,
                     booking.status,
                   ),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (val) {
-                      if (val == 'cancel')
-                        _updateStudentStatus(
-                          booking.id,
-                          'cancelled',
-                          'pending',
-                        );
-                      else
-                        _updateStudentStatus(booking.id, 'confirmed', val);
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: 'attended', child: Text('✅ 出席')),
-                      PopupMenuItem(value: 'leave', child: Text('🤧 請假')),
-                      PopupMenuItem(value: 'absent', child: Text('❌ 曠課')),
-                      PopupMenuDivider(),
-                      PopupMenuItem(value: 'cancel', child: Text('🗑️ 移除')),
-                    ],
-                  ),
+                  trailing: booking.status == 'cancelled'
+                      ? null
+                      : PopupMenuButton<String>(
+                          onSelected: (val) {
+                            if (val == 'cancel')
+                              _cancelStudentBooking(booking.id);
+                            else
+                              _updateStudentStatus(
+                                booking.id,
+                                'confirmed',
+                                val,
+                              );
+                          },
+                          itemBuilder: (context) => const [
+                            PopupMenuItem(
+                              value: 'attended',
+                              child: Text('✅ 出席'),
+                            ),
+                            PopupMenuItem(value: 'leave', child: Text('🤧 請假')),
+                            PopupMenuItem(value: 'absent', child: Text('❌ 曠課')),
+                            PopupMenuDivider(),
+                            PopupMenuItem(
+                              value: 'cancel',
+                              child: Text('🔙 取消'),
+                            ),
+                          ],
+                        ),
                 );
               },
             ),

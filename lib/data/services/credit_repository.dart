@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/transaction_model.dart';
 
 class CreditRepository {
   final SupabaseClient _client;
@@ -85,6 +86,28 @@ class CreditRepository {
       }
       // 其他錯誤
       rethrow;
+    }
+  }
+
+  // 系統退款專用 (不需要 PIN 碼)
+  Future<void> processRefund({
+    required String userId,
+    required int amount,
+    required String description,
+    String? bookingId, // 新增這個參數，讓交易紀錄能連結回去
+  }) async {
+    try {
+      await _client.rpc(
+        'process_refund',
+        params: {
+          'target_user_id': userId,
+          'amount_to_refund': amount,
+          'description_text': description,
+          'booking_uuid': bookingId,
+        },
+      );
+    } catch (e) {
+      throw Exception('退款失敗: $e'); // 這裡會捕捉到 SQL 拋出的 Access Denied
     }
   }
 }
