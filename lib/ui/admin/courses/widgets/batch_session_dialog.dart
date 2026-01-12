@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart'; // 確保能存取 Repository
+import 'package:flutter/services.dart';
 
 class BatchSessionDialog extends StatefulWidget {
   final String courseId;
@@ -72,6 +73,22 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       int count = _selectedCoachIds.isEmpty ? 1 : _selectedCoachIds.length;
       _capacityController.text = (count * 4).toString();
     }
+  }
+
+  void _manualAdjustCapacity(int change) {
+    // 1. 取得當前輸入框的數字，如果是空的就當作 0
+    int currentValue = int.tryParse(_capacityController.text) ?? 0;
+
+    // 2. 計算新數值
+    int newValue = currentValue + change;
+
+    // 3. 防止變成負數
+    if (newValue < 0) newValue = 0;
+
+    // 4. 更新畫面
+    setState(() {
+      _capacityController.text = newValue.toString();
+    });
   }
 
   // 預覽功能：計算會產生多少堂課
@@ -184,6 +201,43 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
     }
   }
 
+  void _showAddCoachDialog(BuildContext context) {
+    // 1. 過濾出「尚未選擇」的教練
+    final availableCoaches = _allCoaches.where((coach) {
+      final coachId = coach['id'] as String;
+      return !_selectedCoachIds.contains(coachId);
+    }).toList();
+
+    if (availableCoaches.isEmpty) return;
+
+    // 2. 顯示清單對話框
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return SimpleDialog(
+          title: const Text('選擇要加入的教練'),
+          children: availableCoaches.map((coach) {
+            return SimpleDialogOption(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              child: Text(
+                coach['full_name'] ?? '未命名',
+                style: const TextStyle(fontSize: 16),
+              ),
+              onPressed: () {
+                // 3. 點選後加入清單並更新 UI
+                setState(() {
+                  _selectedCoachIds.add(coach['id']);
+                  _updateCapacity(); // 連動人數
+                });
+                Navigator.pop(ctx); // 關閉對話框
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -258,71 +312,135 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
               ),
               const SizedBox(height: 12),
 
-              // 教練選擇
-              const Text(
-                '指定教練：',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 4),
-              _allCoaches.isEmpty
-                  ? const Text(
+              // ─── 教練選擇區塊 ───
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '指定教練：',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 如果還在載入或完全沒資料
+                  if (_allCoaches.isEmpty)
+                    const Text(
                       '載入教練中或無教練資料',
                       style: TextStyle(color: Colors.grey),
                     )
-                  : Wrap(
-                      spacing: 8,
-                      children: _allCoaches.map((coach) {
-                        final coachId = coach['id'] as String;
-                        final coachName = coach['full_name'] ?? '未命名';
-                        final isSelected = _selectedCoachIds.contains(coachId);
+                  else
+                    Wrap(
+                      spacing: 8.0,
+                      runSpacing: 4.0, // 換行後的間距
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        // 1. 顯示「已選擇」的教練 (InputChip)
+                        ..._selectedCoachIds.map((id) {
+                          // 找到對應的教練資料
+                          final coach = _allCoaches.firstWhere(
+                            (c) => c['id'] == id,
+                            orElse: () => {'full_name': '未知教練'},
+                          );
 
-                        return ChoiceChip(
-                          label: Text(coachName),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            setState(() {
-                              if (selected) {
-                                _selectedCoachIds.add(coachId);
-                              } else {
-                                _selectedCoachIds.remove(coachId);
-                              }
-                              _updateCapacity(); // 連動人數
-                            });
-                          },
-                        );
-                      }).toList(),
+                          return InputChip(
+                            avatar: CircleAvatar(
+                              backgroundColor: Colors.blue.shade100,
+                              child: Text(
+                                coach['full_name'].substring(0, 1), // 取首字當頭像
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.blue.shade800,
+                                ),
+                              ),
+                            ),
+                            label: Text(coach['full_name']),
+                            onDeleted: () {
+                              // 點擊 X 移除
+                              setState(() {
+                                _selectedCoachIds.remove(id);
+                                _updateCapacity(); // 連動人數
+                              });
+                            },
+                            backgroundColor: Colors.blue.shade50,
+                            deleteIconColor: Colors.blue.shade300,
+                          );
+                        }),
+
+                        // 2. 顯示「+ 新增教練」按鈕 (只有當還有未選教練時才顯示)
+                        if (_selectedCoachIds.length < _allCoaches.length)
+                          if (widget.category == 'personal' &&
+                              _selectedCoachIds.isNotEmpty)
+                            const SizedBox.shrink()
+                          else
+                            ActionChip(
+                              avatar: const Icon(
+                                Icons.add,
+                                size: 18,
+                                color: Colors.grey,
+                              ),
+                              label: const Text('新增教練'),
+                              backgroundColor: Colors.white,
+                              side: BorderSide(
+                                color: Colors.grey.shade300,
+                              ), // 邊框樣式
+                              onPressed: () => _showAddCoachDialog(context),
+                            ),
+                      ],
                     ),
-              const SizedBox(height: 16),
+                ],
+              ),
 
-              Row(
+              const SizedBox(height: 16),
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _locationController,
-                      decoration: const InputDecoration(
-                        labelText: '桌次 / 地點',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
+                  // 1. 地點輸入框
+                  TextField(
+                    controller: _locationController,
+                    decoration: const InputDecoration(
+                      labelText: '桌次 / 地點',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(
+                        Icons.place_outlined,
+                      ), // 加個 icon 增加識別度(可選)
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextField(
-                      controller: _capacityController,
-                      decoration: const InputDecoration(
-                        labelText: '人數上限',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        suffixText: '人',
+
+                  const SizedBox(height: 16), // 上下間距
+                  // 2. 人數上限輸入框 (按鈕整合在右側)
+                  TextField(
+                    controller: _capacityController,
+                    // 允許使用者直接點擊輸入數字
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: '人數上限',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.group_outlined),
+
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 減號按鈕
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle_outline),
+                            color: Colors.grey,
+                            // 記得改回我們剛才定義的 _manualAdjustCapacity
+                            onPressed: () => _manualAdjustCapacity(-1),
+                          ),
+
+                          // 加號按鈕
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline),
+                            color: Colors.blue,
+                            onPressed: () => _manualAdjustCapacity(1),
+                          ),
+                        ],
                       ),
-                      keyboardType: TextInputType.number,
                     ),
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
               // 預覽文字
               if (_dateRange != null && _selectedWeekdays.isNotEmpty)
