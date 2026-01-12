@@ -412,6 +412,43 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     );
   }
 
+  void _showAddCoachDialog(BuildContext context) {
+    // 1. 過濾出「尚未選擇」的教練
+    final availableCoaches = _allCoaches.where((coach) {
+      final coachId = coach['id'] as String;
+      return !_selectedCoachIds.contains(coachId);
+    }).toList();
+
+    if (availableCoaches.isEmpty) return;
+
+    // 2. 顯示清單對話框
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return SimpleDialog(
+          title: const Text('選擇要加入的教練'),
+          children: availableCoaches.map((coach) {
+            return SimpleDialogOption(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              child: Text(
+                coach['full_name'] ?? '未命名',
+                style: const TextStyle(fontSize: 16),
+              ),
+              onPressed: () {
+                // 3. 點選後加入清單並更新 UI
+                setState(() {
+                  _selectedCoachIds.add(coach['id']);
+                  _recalcCapacity(); // 連動人數
+                });
+                Navigator.pop(ctx); // 關閉對話框
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   Widget _buildSettingsView() {
     void _adjustCapacity(int amount) {
       // 1. 嘗試將目前文字轉為整數，若為空或格式錯誤則預設為 0
@@ -431,12 +468,86 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 時間設定
           _buildTimeRow('開始時間', _startDateTime, () => _pickDateTime(true)),
           const SizedBox(height: 16),
           _buildTimeRow('結束時間', _endDateTime, () => _pickDateTime(false)),
           const SizedBox(height: 24),
+          // ─── 教練選擇區塊 ───
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '指定教練：',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+
+              // 如果還在載入或完全沒資料
+              if (_allCoaches.isEmpty)
+                const Text('載入教練中或無教練資料', style: TextStyle(color: Colors.grey))
+              else
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 4.0, // 換行後的間距
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    // 1. 顯示「已選擇」的教練 (InputChip)
+                    ..._selectedCoachIds.map((id) {
+                      // 找到對應的教練資料
+                      final coach = _allCoaches.firstWhere(
+                        (c) => c['id'] == id,
+                        orElse: () => {'full_name': '未知教練'},
+                      );
+
+                      return InputChip(
+                        avatar: CircleAvatar(
+                          backgroundColor: Colors.blue.shade100,
+                          child: Text(
+                            coach['full_name'].substring(0, 1), // 取首字當頭像
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                        ),
+                        label: Text(coach['full_name']),
+                        onDeleted: () {
+                          // 點擊 X 移除
+                          setState(() {
+                            _selectedCoachIds.remove(id);
+                            _recalcCapacity(); // 連動人數
+                          });
+                        },
+                        backgroundColor: Colors.blue.shade50,
+                        deleteIconColor: Colors.blue.shade300,
+                      );
+                    }),
+
+                    // 2. 顯示「+ 新增教練」按鈕 (只有當還有未選教練時才顯示)
+                    if (_selectedCoachIds.length < _allCoaches.length)
+                      if (widget.category == 'personal' &&
+                          _selectedCoachIds.isNotEmpty)
+                        const SizedBox.shrink()
+                      else
+                        ActionChip(
+                          avatar: const Icon(
+                            Icons.add,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
+                          label: const Text('新增教練'),
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: Colors.grey.shade300), // 邊框樣式
+                          onPressed: () => _showAddCoachDialog(context),
+                        ),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 32),
           // 地點與人數
           TextField(
             controller: _locationController,
@@ -477,26 +588,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
             ),
           ),
           const SizedBox(height: 24),
-          // 教練
-          const Align(alignment: Alignment.centerLeft, child: Text('教練分配')),
-          Wrap(
-            spacing: 8,
-            children: _allCoaches.map((c) {
-              final id = c['id'] as String;
-              final selected = _selectedCoachIds.contains(id);
-              return FilterChip(
-                label: Text(c['full_name'] ?? '未命名'),
-                selected: selected,
-                onSelected: (val) => setState(() {
-                  val
-                      ? _selectedCoachIds.add(id)
-                      : _selectedCoachIds.remove(id);
-                  _recalcCapacity();
-                }),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 32),
+
           SizedBox(
             width: double.infinity,
             height: 48,
