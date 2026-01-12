@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart'; // 確保能存取 Repository
+import 'package:flutter/services.dart';
 
 class BatchSessionDialog extends StatefulWidget {
   final String courseId;
@@ -72,6 +73,22 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       int count = _selectedCoachIds.isEmpty ? 1 : _selectedCoachIds.length;
       _capacityController.text = (count * 4).toString();
     }
+  }
+
+  void _manualAdjustCapacity(int change) {
+    // 1. 取得當前輸入框的數字，如果是空的就當作 0
+    int currentValue = int.tryParse(_capacityController.text) ?? 0;
+
+    // 2. 計算新數值
+    int newValue = currentValue + change;
+
+    // 3. 防止變成負數
+    if (newValue < 0) newValue = 0;
+
+    // 4. 更新畫面
+    setState(() {
+      _capacityController.text = newValue.toString();
+    });
   }
 
   // 預覽功能：計算會產生多少堂課
@@ -293,36 +310,56 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                       }).toList(),
                     ),
               const SizedBox(height: 16),
-
-              Row(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _locationController,
-                      decoration: const InputDecoration(
-                        labelText: '桌次 / 地點',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
+                  // 1. 地點輸入框
+                  TextField(
+                    controller: _locationController,
+                    decoration: const InputDecoration(
+                      labelText: '桌次 / 地點',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(
+                        Icons.place_outlined,
+                      ), // 加個 icon 增加識別度(可選)
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextField(
-                      controller: _capacityController,
-                      decoration: const InputDecoration(
-                        labelText: '人數上限',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        suffixText: '人',
+
+                  const SizedBox(height: 16), // 上下間距
+                  // 2. 人數上限輸入框 (按鈕整合在右側)
+                  TextField(
+                    controller: _capacityController,
+                    // 允許使用者直接點擊輸入數字
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: '人數上限',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.group_outlined),
+
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 減號按鈕
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle_outline),
+                            color: Colors.grey,
+                            // 記得改回我們剛才定義的 _manualAdjustCapacity
+                            onPressed: () => _manualAdjustCapacity(-1),
+                          ),
+
+                          // 加號按鈕
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline),
+                            color: Colors.blue,
+                            onPressed: () => _manualAdjustCapacity(1),
+                          ),
+                        ],
                       ),
-                      keyboardType: TextInputType.number,
                     ),
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
               // 預覽文字
               if (_dateRange != null && _selectedWeekdays.isNotEmpty)

@@ -443,6 +443,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
             decoration: const InputDecoration(
               labelText: '地點',
               border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.place_outlined),
             ),
           ),
           const SizedBox(height: 16),
@@ -451,8 +452,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
             decoration: InputDecoration(
               labelText: '人數上限',
               border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.group_outlined),
               suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min, // 這一行非常重要！讓 Row 只佔據最小寬度
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // 減號按鈕
                   IconButton(
