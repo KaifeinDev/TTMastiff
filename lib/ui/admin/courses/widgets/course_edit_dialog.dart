@@ -130,6 +130,20 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
 
   @override
   Widget build(BuildContext context) {
+    void _adjustPrice(int amount) {
+      // 1. 嘗試將目前文字轉為整數，若為空或格式錯誤則預設為 0
+      int currentValue = int.tryParse(_priceController.text) ?? 0;
+
+      // 2. 計算新數值
+      int newValue = currentValue + amount;
+
+      // 3. 避免價格變成負數
+      if (newValue < 0) newValue = 0;
+
+      // 4. 更新 Controller 顯示
+      _priceController.text = newValue.toString();
+    }
+
     return AlertDialog(
       title: Text(widget.course == null ? '新增課程模板' : '編輯課程模板'),
       content: SingleChildScrollView(
@@ -175,11 +189,32 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
                 TextFormField(
                   controller: _priceController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: '預設價格',
                     border: OutlineInputBorder(),
                     prefixText: '\$ ',
                     filled: true,
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min, // 這一行非常重要！讓 Row 只佔據最小寬度
+                      children: [
+                        // 減號按鈕
+                        IconButton(
+                          icon: const Icon(
+                            Icons.remove_circle_outline,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () => _adjustPrice(-50), // 假設一次減 50 元
+                        ),
+                        // 加號按鈕
+                        IconButton(
+                          icon: const Icon(
+                            Icons.add_circle_outline,
+                            color: Colors.blue,
+                          ),
+                          onPressed: () => _adjustPrice(50), // 假設一次加 50 元
+                        ),
+                      ],
+                    ),
                   ),
                   validator: (v) => v!.isEmpty ? '請輸入價格' : null,
                 ),
