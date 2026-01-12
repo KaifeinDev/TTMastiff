@@ -175,6 +175,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final pinController = TextEditingController();
     bool isLoading = false;
 
+    void _adjustCreditAmount(int delta) {
+      final currentAmount = int.tryParse(amountController.text) ?? 0; // 預設為 0
+      final newAmount = (currentAmount + delta);
+      amountController.text = newAmount.toString();
+    }
+
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -184,6 +190,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const SizedBox(height: 12),
+
                 TextField(
                   controller: amountController,
                   keyboardType: TextInputType.number,
@@ -193,6 +201,26 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8.0, // 按鈕之間的水平間距
+                  runSpacing: 4.0, // 換行後的垂直間距
+                  children: [100, 500, 1000].map((amount) {
+                    return ActionChip(
+                      label: Text('+$amount'),
+                      backgroundColor: Colors.blue.shade50, // 淡淡的藍色背景
+                      labelStyle: TextStyle(color: Colors.blue.shade700),
+                      onPressed: () {
+                        // 邏輯：取得當前數值，加上按鈕面額
+                        final current =
+                            int.tryParse(amountController.text) ?? 0;
+                        final total = current + amount;
+                        amountController.text = total.toString();
+                      },
+                    );
+                  }).toList(),
+                ),
+
                 const SizedBox(height: 12),
                 TextField(
                   controller: descriptionController,
