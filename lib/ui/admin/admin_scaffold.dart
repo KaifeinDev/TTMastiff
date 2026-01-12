@@ -15,6 +15,8 @@ class _AdminScaffoldState extends State<AdminScaffold> {
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isDesktop = screenWidth > 900;
 
+    final currentPath = GoRouterState.of(context).uri.toString();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('TTMastiff 球館管理系統'),
@@ -41,7 +43,10 @@ class _AdminScaffoldState extends State<AdminScaffold> {
             child: Container(
               color: Colors.grey.shade100, // 背景色淡灰，突顯內容
               padding: const EdgeInsets.all(24),
-              child: widget.child,
+              child: KeyedSubtree(
+                key: ValueKey(currentPath),
+                child: widget.child,
+              ),
             ),
           ),
         ],

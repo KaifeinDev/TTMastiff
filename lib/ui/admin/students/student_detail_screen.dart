@@ -13,17 +13,17 @@ import '../../../core/utils/util.dart';
 import 'package:ttmastiff/data/services/booking_repository.dart';
 
 class StudentDetailScreen extends StatefulWidget {
-  final StudentModel student;
-  final String? parentPhone;
-  final String? parentName;
-  final List<BookingModel> bookings;
+  final String studentId;
+  final StudentModel? initialStudent;
+  final String? initialParentName;
+  final String? initialParentPhone;
 
   const StudentDetailScreen({
     super.key,
-    required this.student,
-    this.parentPhone,
-    this.parentName,
-    required this.bookings,
+    required this.studentId,
+    this.initialStudent,
+    this.initialParentName,
+    this.initialParentPhone,
   });
 
   @override
@@ -36,23 +36,94 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   static final _timeFormat = DateFormat('HH:mm');
 
   // 用來顯示即時點數
+  StudentModel? _student;
+  String? _parentName;
+  String? _parentPhone;
+  List<BookingModel> _bookings = [];
   int _parentCredits = 0;
-  late List<BookingModel> _bookings;
+
   bool _isLoadingCredits = true;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _bookings = widget.bookings;
-    _loadParentCredits();
+    _initData();
     BookingRepository.bookingRefreshSignal.addListener(_refreshAllData);
   }
 
-  Future<void> _loadParentCredits() async {
+  @override
+  void dispose() {
+    // 🔥 務必移除監聽，防止記憶體洩漏
+    BookingRepository.bookingRefreshSignal.removeListener(_refreshAllData);
+    super.dispose();
+  }
+
+  Future<void> _initData() async {
+    if (widget.initialStudent != null) {
+      _student = widget.initialStudent;
+      _parentName = widget.initialParentName;
+      _parentPhone = widget.initialParentPhone;
+
+      // 有資料就不用全頁 Loading，可以直接顯示內容
+      if (mounted) setState(() => _isLoading = false);
+    }
+    await _fetchAllData();
+  }
+
+  Future<void> _fetchAllData() async {
     try {
-      final credits = await creditRepository.getCurrentCredit(
-        widget.student.parentId,
-      );
+      // 這裡採用「並行執行」但「分開處理結果」的策略，比較安全
+      final futures = <Future>[];
+
+      // A. 必定要執行的任務
+      futures.add(_fetchLatestBookings());
+      futures.add(_loadParentCredits());
+
+      // B. 只有當 _student 是 null (例如直接輸入網址) 才需要去抓學生資料
+      //    或者你想要強制更新學生資料也可以放進來
+      if (_student == null) {
+        // 假設 studentRepository 有這個方法回傳 Map
+        futures.add(
+          studentRepository.fetchStudentAndParentProfile(widget.studentId),
+        );
+      }
+
+      final results = await Future.wait(futures);
+
+      // C. 處理學生資料回傳 (如果有的話)
+      // 判斷邏輯：如果 _student 原本是 null，那 futures 最後一個一定是 fetchProfile 的結果
+      if (_student == null && results.isNotEmpty) {
+        // 取出最後一個結果
+        final profileData = results.last as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _student = profileData['student'];
+            _parentName = profileData['parentName'];
+            _parentPhone = profileData['parentPhone'];
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadParentCredits() async {
+    final targetParentId =
+        _student?.parentId ?? widget.initialStudent?.parentId;
+
+    if (targetParentId == null) return;
+
+    try {
+      final credits = await creditRepository.getCurrentCredit(targetParentId);
       if (mounted) {
         setState(() {
           _parentCredits = credits;
@@ -60,30 +131,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         });
       }
     } catch (e) {
-      print('讀取點數失敗: $e');
-      if (mounted) setState(() => _isLoadingCredits = false);
+      debugPrint('讀取點數失敗: $e');
     }
-  }
-
-  Future<void> _refreshAllData() async {
-    if (!mounted) return;
-
-    // 如果想要顯示 Loading 圈圈可以把這行打開，
-    // 但通常為了體驗順暢，我們會「靜默更新」(背景更新)
-    // setState(() => _isLoading = true);
-
-    await Future.wait([
-      _loadParentCredits(), // 重抓點數
-      _fetchLatestBookings(), // 重抓列表
-    ]);
-
-    // setState(() => _isLoading = false);
   }
 
   Future<void> _fetchLatestBookings() async {
     try {
       final newBookings = await bookingRepository.fetchBookingsByStudentId(
-        widget.student.id,
+        widget.studentId,
       );
 
       if (mounted) {
@@ -101,8 +156,20 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     }
   }
 
+  Future<void> _refreshAllData() async {
+    if (!mounted) return;
+
+    await Future.wait([
+      _loadParentCredits(), // 重抓點數
+      _fetchLatestBookings(), // 重抓列表
+    ]);
+  }
+
   // 顯示儲值 Dialog
   void _showTopUpDialog(BuildContext context) {
+    // 防呆：如果資料還沒載入完，不能開 Dialog
+    if (_student == null) return;
+
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
     final pinController = TextEditingController();
@@ -113,7 +180,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: Text('儲值點數 (${widget.parentName ?? "家長"})'), // 顯示家長名字
+            title: Text('儲值點數 (${_parentName ?? "家長"})'), // 顯示家長名字
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -132,7 +199,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   decoration: InputDecoration(
                     labelText: '備註 (選填)',
                     // 自動帶入學生姓名，方便以後查帳知道是為了誰儲值的
-                    hintText: '例如：學生 ${widget.student.name} 現金繳費',
+                    hintText: '例如：學生 ${_student!.name} 現金繳費',
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -190,12 +257,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
                           // 1. 呼叫 Repository 進行儲值
                           final newBalance = await creditRepository.addCredit(
-                            userId: widget.student.parentId, // 存入 Profile
+                            userId: _student!.parentId, // 存入 Profile
                             amount: amount,
                             pin: pinText,
                             // 備註若為空，自動補上學生名字
                             description: descriptionController.text.isEmpty
-                                ? '${widget.student.name}${widget.student.isPrimary == false ? ' / ${widget.parentName}' : ''} 儲值 ${amount}'
+                                ? '${_student!.name}${_student!.isPrimary == false ? ' / ${_parentName}' : ''} 儲值 ${amount}'
                                 : descriptionController.text,
                           );
 
@@ -247,11 +314,11 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isSelf = widget.student.isPrimary == true;
+    final isSelf = _student!.isPrimary == true;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.student.name),
+        title: Text(_student!.name),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -278,8 +345,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                         child: Row(
                           children: [
                             StudentAvatar(
-                              avatarUrl: widget.student.avatarUrl,
-                              name: widget.student.name,
+                              avatarUrl: _student!.avatarUrl,
+                              name: _student!.name,
                               radius: 32,
                             ),
                             const SizedBox(width: 12),
@@ -288,7 +355,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    widget.student.name,
+                                    _student!.name,
                                     style: const TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
@@ -306,8 +373,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        widget.student.birthDate
-                                            .toDateWithAge(),
+                                        _student!.birthDate.toDateWithAge(),
                                         style: TextStyle(
                                           color: Colors.grey.shade600,
                                           fontSize: 16,
@@ -400,23 +466,23 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   StudentInfoRow(
                     icon: Icons.phone,
                     label: isSelf ? '電話' : '家長電話',
-                    value: widget.parentPhone ?? '未提供',
+                    value: _parentPhone ?? '未提供',
                   ),
                   if (!isSelf) ...[
                     const SizedBox(height: 12),
                     StudentInfoRow(
                       icon: Icons.person,
                       label: '家長姓名',
-                      value: widget.parentName ?? '未提供',
+                      value: _parentName ?? '未提供',
                     ),
                   ],
-                  if (widget.student.medical_note != null &&
-                      widget.student.medical_note!.isNotEmpty) ...[
+                  if (_student!.medical_note != null &&
+                      _student!.medical_note!.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     StudentInfoRow(
                       icon: Icons.medical_information,
                       label: '醫療備註',
-                      value: widget.student.medical_note!,
+                      value: _student!.medical_note!,
                     ),
                   ],
                 ],

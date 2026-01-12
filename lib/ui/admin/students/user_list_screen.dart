@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -10,7 +11,6 @@ import '../../../data/models/course_model.dart';
 import '../../../data/models/session_model.dart';
 import '../../../data/models/booking_model.dart';
 import '../../../core/utils/util.dart';
-import 'student_detail_screen.dart';
 
 class UserListScreen extends StatefulWidget {
   const UserListScreen({super.key});
@@ -119,8 +119,12 @@ class _UserListScreenState extends State<UserListScreen> {
       final results = await _studentRepo.fetchStudentsByFilter(
         courseId: _selectedCourse?.id,
         sessionId: _selectedSession?.id,
-        name: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        name: _nameController.text.trim().isEmpty
+            ? null
+            : _nameController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
         includeBookings: true, // 列表頁就包含報名課程，詳情頁直接使用
       );
 
@@ -161,9 +165,9 @@ class _UserListScreenState extends State<UserListScreen> {
               children: [
                 Text(
                   '篩選條件',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
 
@@ -218,7 +222,10 @@ class _UserListScreenState extends State<UserListScreen> {
                         child: Text('全部場次'),
                       ),
                       ..._sessions.map((session) {
-                        final dateFormat = DateFormat('MM/dd (E) HH:mm', 'zh_TW');
+                        final dateFormat = DateFormat(
+                          'MM/dd (E) HH:mm',
+                          'zh_TW',
+                        );
                         return DropdownMenuItem<SessionModel>(
                           value: session,
                           child: Text(
@@ -285,117 +292,118 @@ class _UserListScreenState extends State<UserListScreen> {
             ),
           ),
 
-              // 學員列表
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _studentDataList.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.people_outline,
-                                  size: 64,
-                                  color: Colors.grey.shade300,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  '目前還沒有學員報名這堂課！',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
+          // 學員列表
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _studentDataList.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 64,
+                          color: Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '目前還沒有學員報名這堂課！',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _studentDataList.length,
+                    itemBuilder: (context, index) {
+                      final studentData = _studentDataList[index];
+                      final student = studentData['student'] as StudentModel;
+                      final parentPhone = studentData['parentPhone'] as String?;
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage: student.avatarUrl != null
+                                ? NetworkImage(student.avatarUrl!)
+                                : null,
+                            child: student.avatarUrl == null
+                                ? Text(
+                                    student.name.isNotEmpty
+                                        ? student.name[0]
+                                        : '?',
+                                    style: const TextStyle(fontSize: 20),
+                                  )
+                                : null,
+                          ),
+                          title: Text(
+                            student.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _studentDataList.length,
-                            itemBuilder: (context, index) {
-                              final studentData = _studentDataList[index];
-                              final student = studentData['student'] as StudentModel;
-                              final parentPhone = studentData['parentPhone'] as String?;
-                              
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundImage: student.avatarUrl != null
-                                        ? NetworkImage(student.avatarUrl!)
-                                        : null,
-                                    child: student.avatarUrl == null
-                                        ? Text(
-                                            student.name.isNotEmpty
-                                                ? student.name[0]
-                                                : '?',
-                                            style: const TextStyle(fontSize: 20),
-                                          )
-                                        : null,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.cake_outlined,
+                                    size: 16,
+                                    color: Colors.grey.shade600,
                                   ),
-                                  title: Text(
-                                    student.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    student.birthDate.toDateWithAge(),
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 14,
                                     ),
                                   ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.cake_outlined,
-                                            size: 16,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            student.birthDate.toDateWithAge(),
-                                            style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
+                                ],
+                              ),
+                              if (parentPhone != null &&
+                                  parentPhone.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.phone_outlined,
+                                      size: 16,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      parentPhone,
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 14,
                                       ),
-                                      if (parentPhone != null && parentPhone.isNotEmpty) ...[
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.phone_outlined,
-                                              size: 16,
-                                              color: Colors.grey.shade600,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              parentPhone,
-                                              style: TextStyle(
-                                                color: Colors.grey.shade600,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () {
-                                    _showStudentDetail(studentData);
-                                  },
+                                    ),
+                                  ],
                                 ),
-                              );
-                            },
+                              ],
+                            ],
                           ),
-              ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            _showStudentDetail(studentData);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
     );
@@ -407,7 +415,7 @@ class _UserListScreenState extends State<UserListScreen> {
     final parentPhone = studentData['parentPhone'] as String?;
     final parentName = studentData['parentName'] as String?;
     final bookingsRaw = studentData['bookings'] as List?;
-    
+
     // 安全地解析 bookings，添加錯誤處理
     final List<BookingModel> bookings = [];
     if (bookingsRaw != null) {
@@ -418,7 +426,7 @@ class _UserListScreenState extends State<UserListScreen> {
             print('⚠️ 警告：booking ${bookingData['id']} 缺少 sessions 數據');
             continue;
           }
-          
+
           final booking = BookingModel.fromJson(bookingData);
           bookings.add(booking);
         } catch (e) {
@@ -427,22 +435,21 @@ class _UserListScreenState extends State<UserListScreen> {
           // 繼續處理其他 booking，不中斷整個流程
         }
       }
-      
+
       // 按時間排序（最新的在前）
-      bookings.sort((a, b) => b.session.startTime.compareTo(a.session.startTime));
+      bookings.sort(
+        (a, b) => b.session.startTime.compareTo(a.session.startTime),
+      );
     }
 
     // 直接導航到詳情頁
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => StudentDetailScreen(
-          student: student,
-          parentPhone: parentPhone,
-          parentName: parentName,
-          bookings: bookings,
-        ),
-      ),
+    context.go(
+      '/admin/users/${student.id}', // 對應剛剛設定的 path
+      extra: {
+        'student': student,
+        'parentName': parentName,
+        'parentPhone': parentPhone,
+      },
     );
   }
 }
