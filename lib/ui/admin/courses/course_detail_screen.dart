@@ -266,14 +266,59 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 4),
-                              Text(
-                                '${DateFormat('HH:mm').format(start)} - ${DateFormat('HH:mm').format(end)}',
+                              Text.rich(
+                                TextSpan(
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 12,
+                                  ),
+                                  children: [
+                                    const TextSpan(
+                                      text: '時間: ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text:
+                                          '${DateFormat('HH:mm').format(start)} - ${DateFormat('HH:mm').format(end)}',
+                                    ),
+                                  ],
+                                ),
                               ),
-                              Text(
-                                '桌次: ${s.location ?? "未定"} | 名額: ${s.maxCapacity}',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 12,
+                              const SizedBox(height: 4),
+                              Text.rich(
+                                TextSpan(
+                                  // 這裡設定原本的基礎樣式 (灰色、12號字)
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                  children: [
+                                    // 1. 桌次標籤 (粗體)
+                                    const TextSpan(
+                                      text: '桌次: ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    // 2. 桌次內容 (繼承基礎樣式)
+                                    TextSpan(text: '${s.location ?? "未定"}'),
+                                    // 3. 分隔線
+                                    const TextSpan(text: ' | '),
+                                    // 4. 名額標籤 (粗體)
+                                    const TextSpan(
+                                      text: '名額: ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    // 5. 名額內容 (繼承基礎樣式)
+                                    TextSpan(text: '${s.maxCapacity}'),
+                                  ],
                                 ),
                               ),
                             ],
