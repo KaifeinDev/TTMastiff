@@ -21,9 +21,11 @@ import 'ui/admin/students/user_list_screen.dart';
 // 原本的 course_manage_screen.dart 建議改名為 course_list_screen.dart
 import '../ui/admin/courses/course_list_screen.dart';
 import '../ui/admin/courses/course_detail_screen.dart';
+import '../ui/admin/students/student_detail_screen.dart';
 
 // --- 4. Model ---
 import 'data/models/course_model.dart';
+import 'data/models/student_model.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -106,13 +108,14 @@ final appRouter = GoRouter(
               path: '/profile',
               builder: (context, state) => const ProfileScreen(),
               routes: [
-            // 這就是 /profile/transactions
-            GoRoute(
-              path: 'transactions', 
-              parentNavigatorKey: _rootNavigatorKey, // 🌟 關鍵：加上這行，新頁面會蓋過 Bottom Bar
-              builder: (context, state) => const TransactionHistoryScreen(),
-            ),
-          ],
+                // 這就是 /profile/transactions
+                GoRoute(
+                  path: 'transactions',
+                  parentNavigatorKey:
+                      _rootNavigatorKey, // 🌟 關鍵：加上這行，新頁面會蓋過 Bottom Bar
+                  builder: (context, state) => const TransactionHistoryScreen(),
+                ),
+              ],
             ),
           ],
         ),
@@ -164,6 +167,28 @@ final appRouter = GoRouter(
           path: '/admin/users',
           pageBuilder: (context, state) =>
               const NoTransitionPage(child: UserListScreen()),
+          routes: [
+            // 學生詳情頁
+            GoRoute(
+              path: ':studentId',
+              builder: (context, state) {
+                final studentId = state.pathParameters['studentId']!;
+                final extraMap = state.extra as Map<String, dynamic>?;
+
+                // 3. 從 Map 中取出資料 (如果 extraMap 是 null，這些也會是 null)
+                final studentData = extraMap?['student'] as StudentModel?;
+                final parentName = extraMap?['parentName'] as String?;
+                final parentPhone = extraMap?['parentPhone'] as String?;
+
+                return StudentDetailScreen(
+                  studentId: studentId,
+                  initialStudent: studentData,
+                  initialParentName: parentName,
+                  initialParentPhone: parentPhone,
+                );
+              },
+            ),
+          ],
         ),
       ],
     ),
