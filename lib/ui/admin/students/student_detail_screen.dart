@@ -10,6 +10,7 @@ import 'widgets/student_status_chip.dart';
 import 'widgets/student_avatar.dart';
 import '../courses/widgets/session_edit_dialog.dart';
 import '../../../core/utils/util.dart';
+import 'package:ttmastiff/data/services/booking_repository.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final StudentModel student;
@@ -36,12 +37,15 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   // 用來顯示即時點數
   int _parentCredits = 0;
+  late List<BookingModel> _bookings;
   bool _isLoadingCredits = true;
 
   @override
   void initState() {
     super.initState();
+    _bookings = widget.bookings;
     _loadParentCredits();
+    BookingRepository.bookingRefreshSignal.addListener(_refreshAllData);
   }
 
   Future<void> _loadParentCredits() async {
@@ -58,6 +62,42 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     } catch (e) {
       print('讀取點數失敗: $e');
       if (mounted) setState(() => _isLoadingCredits = false);
+    }
+  }
+
+  Future<void> _refreshAllData() async {
+    if (!mounted) return;
+
+    // 如果想要顯示 Loading 圈圈可以把這行打開，
+    // 但通常為了體驗順暢，我們會「靜默更新」(背景更新)
+    // setState(() => _isLoading = true);
+
+    await Future.wait([
+      _loadParentCredits(), // 重抓點數
+      _fetchLatestBookings(), // 重抓列表
+    ]);
+
+    // setState(() => _isLoading = false);
+  }
+
+  Future<void> _fetchLatestBookings() async {
+    try {
+      final newBookings = await bookingRepository.fetchBookingsByStudentId(
+        widget.student.id,
+      );
+
+      if (mounted) {
+        setState(() {
+          _bookings = newBookings; // 更新列表
+        });
+      }
+    } catch (e) {
+      debugPrint('刷新預約失敗: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('資料刷新失敗: $e')));
+      }
     }
   }
 
@@ -386,14 +426,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           const SizedBox(height: 24),
           // 報名課程列表
           Text(
-            '報名課程 (${widget.bookings.length})',
+            '報名課程 (${_bookings.length})',
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
 
-          if (widget.bookings.isEmpty)
+          if (_bookings.isEmpty)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(32),
@@ -406,7 +446,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ),
             )
           else
-            ...widget.bookings.map((booking) {
+            ..._bookings.map((booking) {
               final session = booking.session;
               final course = session.course;
               return Card(
