@@ -97,34 +97,5 @@ class CreditRepository {
     }
   }
 
-  // 系統退款專用 (不需要 PIN 碼)
-  Future<void> processRefund({
-    required String userId,
-    required int amount,
-    required String bookingId,
-    // 新增詳細資訊參數
-    required String courseName,
-    required String sessionInfo,
-    required String studentName,
-    required String studentId,
-  }) async {
-    try {
-      await _client.rpc(
-        'process_refund',
-        params: {
-          'target_user_id': userId,
-          'amount_to_refund': amount,
-          'booking_uuid': bookingId,
-          // 傳入新參數
-          'course_name': courseName,
-          'session_info': sessionInfo,
-          'student_name': studentName,
-          'student_id': studentId,
-        },
-      );
-    } catch (e) {
-      // 錯誤處理保持原樣，或視需求優化
-      throw Exception('退款失敗: $e');
-    }
-  }
+ 
 }

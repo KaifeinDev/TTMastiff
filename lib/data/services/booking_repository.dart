@@ -1,14 +1,16 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/booking_model.dart';
 import 'credit_repository.dart';
+import 'transaction_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class BookingRepository {
   final SupabaseClient _supabase;
   final CreditRepository _creditRepo;
+  final TransactionRepository _transactionRepo;
   static final RefreshSignal bookingRefreshSignal = RefreshSignal();
-  BookingRepository(this._supabase, this._creditRepo);
+  BookingRepository(this._supabase, this._creditRepo, this._transactionRepo);
 
   ///// 批量建立預約 (支援多位學生 x 多個場次)
   /// 邏輯：建立預約 -> 嘗試扣款 -> 若扣款失敗則回滾(刪除預約)
@@ -250,7 +252,7 @@ class BookingRepository {
 
       // 3. 執行退費 (傳入 bookingId)
       if (paidAmount > 0) {
-        await _creditRepo.processRefund(
+        await _transactionRepo.processRefund(
           userId: userId,
           amount: paidAmount,
           studentName: studentName,

@@ -22,6 +22,7 @@ import 'ui/admin/students/user_list_screen.dart';
 import '../ui/admin/courses/course_list_screen.dart';
 import '../ui/admin/courses/course_detail_screen.dart';
 import '../ui/admin/students/student_detail_screen.dart';
+import '../ui/admin/transactions/admin_transaction_screen.dart';
 
 // --- 4. Model ---
 import 'data/models/course_model.dart';
@@ -39,6 +40,7 @@ final appRouter = GoRouter(
     if (authManager.isLoading) return null;
     final isLoggedIn = authManager.currentUser != null;
     final isAdmin = authManager.isAdmin;
+    final isCoach = authManager.isCoach;
     final location = state.matchedLocation;
     final isLoggingIn = location == '/login' || location == '/register';
 
@@ -47,10 +49,10 @@ final appRouter = GoRouter(
 
     // 規則 2: 已登入 -> 根據身分分流
     if (isLoggedIn && isLoggingIn)
-      return isAdmin ? '/admin/dashboard' : '/home';
+      return isAdmin || isCoach ? '/admin/dashboard' : '/home';
 
     // 規則 3: 一般用戶闖入後台 -> 踢回 /home
-    if (isLoggedIn && location.startsWith('/admin') && !isAdmin) {
+    if (isLoggedIn && location.startsWith('/admin') && !isAdmin && !isCoach) {
       print('⛔ 權限不足：一般使用者嘗試進入後台');
       return '/home';
     }
@@ -189,6 +191,11 @@ final appRouter = GoRouter(
               },
             ),
           ],
+        ),
+        GoRoute(
+          path: '/admin/transactions',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: AdminTransactionScreen()),
         ),
       ],
     ),
