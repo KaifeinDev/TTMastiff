@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ttmastiff/data/models/session_model.dart';
 import '../models/transaction_model.dart';
+import 'package:intl/intl.dart';
 
 class CreditRepository {
   final SupabaseClient _client;
@@ -59,7 +61,10 @@ class CreditRepository {
     required String userId,
     required int cost,
     required String bookingId,
-    required String courseName, // 用於備註
+    required String courseName,
+    required String sessionInfo,
+    required String studentName,
+    required String studentId,
   }) async {
     try {
       // 呼叫 Supabase RPC
@@ -70,6 +75,9 @@ class CreditRepository {
           'cost_amount': cost,
           'booking_uuid': bookingId,
           'course_name': courseName,
+          'session_info': sessionInfo,
+          'student_name': studentName,
+          'student_id': studentId,
         },
       );
 
@@ -93,8 +101,12 @@ class CreditRepository {
   Future<void> processRefund({
     required String userId,
     required int amount,
-    required String description,
-    String? bookingId, // 新增這個參數，讓交易紀錄能連結回去
+    required String bookingId,
+    // 新增詳細資訊參數
+    required String courseName,
+    required String sessionInfo,
+    required String studentName,
+    required String studentId,
   }) async {
     try {
       await _client.rpc(
@@ -102,12 +114,17 @@ class CreditRepository {
         params: {
           'target_user_id': userId,
           'amount_to_refund': amount,
-          'description_text': description,
           'booking_uuid': bookingId,
+          // 傳入新參數
+          'course_name': courseName,
+          'session_info': sessionInfo,
+          'student_name': studentName,
+          'student_id': studentId,
         },
       );
     } catch (e) {
-      throw Exception('退款失敗: $e'); // 這裡會捕捉到 SQL 拋出的 Access Denied
+      // 錯誤處理保持原樣，或視需求優化
+      throw Exception('退款失敗: $e');
     }
   }
 }
