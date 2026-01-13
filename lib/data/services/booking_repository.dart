@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/booking_model.dart';
 import 'credit_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class BookingRepository {
   final SupabaseClient _supabase;
@@ -22,8 +23,20 @@ class BookingRepository {
     // 1. 查詢課程資訊 (包含 max_capacity)
     final List<dynamic> sessionsData = await _supabase
         .from('sessions')
-        .select('id, max_capacity, courses(title)') // 記得抓取 max_capacity
+        .select(
+          'id, max_capacity, start_time, courses(title)',
+        ) // 記得抓取 max_capacity
         .filter('id', 'in', sessionIds);
+
+    final List<dynamic> studentsData = await _supabase
+        .from('students')
+        .select('id, name')
+        .filter('id', 'in', studentIds);
+
+    // 建立 Map: { studentId: studentName }
+    final Map<String, String> studentNameMap = {
+      for (var s in studentsData) s['id'] as String: s['name'] as String,
+    };
 
     // 建立 Map 方便查找: { sessionId: SessionData }
     final Map<String, dynamic> sessionInfoMap = {
@@ -32,10 +45,15 @@ class BookingRepository {
 
     // 雙重迴圈：遍歷所有選中的學生
     for (final studentId in studentIds) {
+      final String studentName = studentNameMap[studentId] ?? '未知學生';
       for (final sessionId in sessionIds) {
         final sessionData = sessionInfoMap[sessionId];
         final String courseName = sessionData['courses']['title'] ?? '課程';
         final int maxCapacity = sessionData['max_capacity'] ?? 0;
+        final DateTime startTime = DateTime.parse(sessionData['start_time']);
+        final String sessionTimeStr = DateFormat(
+          'MM/dd HH:mm',
+        ).format(startTime.toLocal());
 
         // 🔥 [新增] 滿班檢查 (Capacity Check)
         // 檢查目前該場次 "已確認 (confirmed)" 的報名人數
@@ -84,6 +102,9 @@ class BookingRepository {
                 cost: price_snapshot,
                 bookingId: bookingId,
                 courseName: courseName,
+                sessionInfo: sessionTimeStr,
+                studentName: studentName,
+                studentId: studentId,
               );
             } catch (e) {
               // 💥 扣款失敗，狀態改回 cancelled (Rollback)
@@ -122,6 +143,9 @@ class BookingRepository {
               cost: price_snapshot,
               bookingId: newBookingId,
               courseName: courseName,
+              sessionInfo: sessionTimeStr,
+              studentName: studentName,
+              studentId: studentId,
             );
           } catch (e) {
             // 💥 扣款失敗，物理刪除預約 (Rollback)
@@ -192,15 +216,29 @@ class BookingRepository {
       // 1. 查詢預約資訊
       final booking = await _supabase
           .from('bookings')
-          .select('user_id, price_snapshot, status, sessions(courses(title))')
+          .select(
+            'user_id, student_id, price_snapshot, status, sessions(courses(title), start_time), students(name)',
+          )
           .eq('id', bookingId)
           .single();
 
       final String currentStatus = booking['status'];
       final int paidAmount = booking['price_snapshot'] ?? 0;
       final String userId = booking['user_id'];
+      final String studentId = booking['student_id'];
+
+      final String studentName = booking['students'] != null
+          ? booking['students']['name']
+          : '未知學生';
+
       final String courseTitle =
           booking['sessions']?['courses']?['title'] ?? '課程';
+      final DateTime startTime = DateTime.parse(
+        booking['sessions']?['start_time'],
+      );
+      final String sessionTimeStr = DateFormat(
+        'MM/dd HH:mm',
+      ).format(startTime.toLocal());
 
       if (currentStatus == 'cancelled') return;
 
@@ -210,12 +248,15 @@ class BookingRepository {
           .update({'status': 'cancelled'})
           .eq('id', bookingId);
 
-      // 3. 🔥 執行退費 (傳入 bookingId)
+      // 3. 執行退費 (傳入 bookingId)
       if (paidAmount > 0) {
         await _creditRepo.processRefund(
           userId: userId,
           amount: paidAmount,
-          description: '取消報名退費: $courseTitle',
+          studentName: studentName,
+          sessionInfo: sessionTimeStr,
+          courseName: courseTitle,
+          studentId: studentId,
           bookingId: bookingId, // 傳入 ID 以建立關聯
         );
       }
@@ -270,8 +311,7 @@ class BookingRepository {
   }
 
   /// 3. 幫學生新增預約 (管理員手動加入)
-  /// 3. 幫學生新增預約 (管理員手動加入)
-  /// 🔥 修改：加入滿班檢查、復活舊單邏輯、以及自動扣款
+  /// 修改：加入滿班檢查、復活舊單邏輯、以及自動扣款
   Future<void> createBooking({
     required String sessionId,
     required String studentId,
@@ -281,12 +321,23 @@ class BookingRepository {
     // 1. 查詢課程資訊 (為了拿到 課程名稱 和 最大容量)
     final sessionData = await _supabase
         .from('sessions')
-        .select('id, max_capacity, courses(title)')
+        .select('id, max_capacity, start_time,courses(title)')
         .eq('id', sessionId)
         .single();
 
+    final studentData = await _supabase
+        .from('students')
+        .select('name')
+        .eq('id', studentId)
+        .single();
+    final String studentName = studentData['name'] ?? '未知學生';
+
     final String courseName = sessionData['courses']['title'] ?? '課程';
     final int maxCapacity = sessionData['max_capacity'] ?? 0;
+    final DateTime startTime = DateTime.parse(sessionData['start_time']);
+    final String sessionTimeStr = DateFormat(
+      'MM/dd HH:mm',
+    ).format(startTime.toLocal());
 
     // 2. 滿班檢查
     final int currentCount = await _supabase
@@ -335,6 +386,9 @@ class BookingRepository {
             cost: priceSnapshot,
             bookingId: bookingId,
             courseName: courseName,
+            sessionInfo: sessionTimeStr,
+            studentName: studentName,
+            studentId: studentId,
           );
         } catch (e) {
           // 💥 扣款失敗，狀態改回 cancelled (Rollback)
@@ -372,6 +426,9 @@ class BookingRepository {
           cost: priceSnapshot,
           bookingId: newBookingId,
           courseName: courseName,
+          sessionInfo: sessionTimeStr,
+          studentName: studentName,
+          studentId: studentId,
         );
       } catch (e) {
         // 💥 扣款失敗，物理刪除剛建立的預約 (Rollback)
