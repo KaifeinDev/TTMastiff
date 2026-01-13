@@ -14,6 +14,7 @@ class AuthManager extends ChangeNotifier {
   // 給外部讀取的屬性
   User? get currentUser => _authRepository.currentUser;
   bool get isAdmin => _userRole == 'admin';
+  bool get isCoach => _userRole == 'coach';
   bool get isLoading => _isLoading;
   bool _manualLoginInProgress = false;
 

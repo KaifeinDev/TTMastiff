@@ -47,8 +47,12 @@ Future<void> main() async {
     coachRepository = CoachRepository(client);
     courseRepository = CourseRepository(client);
     creditRepository = CreditRepository(client);
-    bookingRepository = BookingRepository(client, creditRepository);
     transactionRepository = TransactionRepository(client);
+    bookingRepository = BookingRepository(
+      client,
+      creditRepository,
+      transactionRepository,
+    );
     studentRepository = StudentRepository(client);
 
     // 5. 🔥 啟動監聽並檢查權限 (這會決定使用者一進去是 Home 還是 Admin)
