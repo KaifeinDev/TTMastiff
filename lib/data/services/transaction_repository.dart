@@ -102,6 +102,10 @@ class TransactionRepository {
     // 對帳狀態篩選
     if (isReconciled != null) {
       query = query.eq('is_reconciled', isReconciled);
+      if (!isReconciled) {
+        // 未入庫
+        query = query.eq('is_reconciled', isReconciled).eq('type', 'topup');
+      }
     }
 
     // 排序：最新的在最上面
