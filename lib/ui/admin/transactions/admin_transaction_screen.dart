@@ -484,12 +484,12 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                             _buildFilterChip('全部', null),
                             const SizedBox(width: 8),
                             _buildFilterChip(
-                              '未對帳 (欠款)',
+                              '待收款',
                               false,
                               isAlert: true,
                             ), // 加個顏色強調
                             const SizedBox(width: 8),
-                            _buildFilterChip('已對帳 (入庫)', true),
+                            _buildFilterChip('已入庫)', true),
                           ],
                         ),
                       ),
