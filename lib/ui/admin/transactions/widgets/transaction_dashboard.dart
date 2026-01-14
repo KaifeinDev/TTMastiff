@@ -23,7 +23,7 @@ class TransactionDashboard extends StatelessWidget {
       child: Row(
         children: [
           _buildStatCard(
-            title: '未收帳款',
+            title: '待收款',
             amount: currencyFormat.format(pendingCash),
             bgColor: Colors.red.shade50,
             textColor: Colors.red.shade700,
@@ -31,7 +31,7 @@ class TransactionDashboard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           _buildStatCard(
-            title: '已入庫',
+            title: '已收款',
             amount: currencyFormat.format(settledCash),
             bgColor: Colors.green.shade50,
             textColor: Colors.green.shade700,

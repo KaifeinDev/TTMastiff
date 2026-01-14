@@ -114,19 +114,23 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
   Future<void> _executeReconcile(List<String> ids) async {
     // 雙重保險：如果不是 Admin，前端直接擋下
     if (!_isAdmin || ids.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
     try {
       await transactionRepository.reconcileTransactions(ids);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('對帳完成！')));
-        _loadData(); // 重整
+        await _loadData(); // 重整
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('對帳失敗: $e')));
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -135,17 +139,19 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
   void _showRefundDialog(TransactionModel tx) {
     // 只有 Admin 能看到並執行這個函數，但再次檢查較安全
     if (!_isAdmin) return;
-
+    final currencyFormat = NumberFormat("#,##0", "en_US");
     final reasonController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('確認退款'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('即將退還 \$${tx.amount} 給 ${tx.userFullName ?? '用戶'}'),
+            Text(
+              '即將退還 \$${currencyFormat.format(tx.amount)} 給 ${tx.userFullName ?? '用戶'}',
+            ),
             const SizedBox(height: 8),
             const Text(
               '⚠️ 注意：退款後此交易將標記為作廢，並產生一筆新的負向交易紀錄。',
@@ -164,28 +170,36 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('取消'),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // 關閉 Dialog
+              Navigator.pop(dialogContext); // 關閉 Dialog
+              setState(() => _isLoading = true);
+
               try {
-                await transactionRepository.refundGeneralTransaction(
-                  originalTransactionId: tx.id,
+                await transactionRepository.refundCashTransaction(
+                  transactionId: tx.id,
                   reason: reasonController.text,
                 );
                 if (mounted) {
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(const SnackBar(content: Text('已執行退款')));
-                  _loadData(); // 重整
+                  await _loadData(); // 重整
                 }
               } catch (e) {
-                if (mounted)
+                if (mounted) {
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(SnackBar(content: Text('退款失敗: $e')));
+                }
+              } finally {
+                // 無論成功失敗，確保停止轉圈
+                if (mounted) {
+                  setState(() => _isLoading = false);
+                }
               }
             },
             child: const Text('確認退款', style: TextStyle(color: Colors.red)),
@@ -196,23 +210,26 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
   }
 
   // --- Logic: 快速切換日期 ---
-  void _setDateRange(int daysAgo) {
+  // type: 0=今天, 1=本週, 2=本月
+  void _setDateRange(int type) {
     final now = DateTime.now();
-    // 確保只取日期部分 (00:00:00)
     final todayStart = DateTime(now.year, now.month, now.day);
 
     setState(() {
-      if (daysAgo == 0) {
-        // 今天
+      if (type == 0) {
+        // [今天]
         _dateRange = DateTimeRange(start: todayStart, end: todayStart);
-      } else if (daysAgo == 7) {
-        // 本週 (簡易版：過去7天)
-        final start = todayStart.subtract(const Duration(days: 6));
-        _dateRange = DateTimeRange(start: start, end: todayStart);
+      } else if (type == 1) {
+        // [本週] (週一 ~ 今天)
+        // DateTime.weekday: 1=週一, 7=週日
+        // 如果今天是週三(3)，就要減去 2 天回到週一
+        final daysFromMonday = now.weekday - 1;
+        final startOfWeek = todayStart.subtract(Duration(days: daysFromMonday));
+        _dateRange = DateTimeRange(start: startOfWeek, end: todayStart);
       } else {
-        // 本月 (本月1號 ~ 今天)
-        final start = DateTime(now.year, now.month, 1);
-        _dateRange = DateTimeRange(start: start, end: todayStart);
+        // [本月] (1號 ~ 今天)
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        _dateRange = DateTimeRange(start: startOfMonth, end: todayStart);
       }
     });
     _loadData();
@@ -220,6 +237,14 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isSameDay =
+        _dateRange.start.year == _dateRange.end.year &&
+        _dateRange.start.month == _dateRange.end.month &&
+        _dateRange.start.day == _dateRange.end.day;
+
+    final dateText = isSameDay
+        ? DateFormat('yyyy/MM/dd').format(_dateRange.start) // 同一天
+        : '${DateFormat('yyyy/MM/dd').format(_dateRange.start)} - ${DateFormat('MM/dd').format(_dateRange.end)}'; // 不同天
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
@@ -437,7 +462,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                                       fit: BoxFit.scaleDown,
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        '${DateFormat('yyyy/MM/dd').format(_dateRange.start)} - ${DateFormat('MM/dd').format(_dateRange.end)}',
+                                        dateText,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15,
@@ -468,7 +493,16 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                                   horizontal: 8,
                                 ),
                               ),
-                              _buildActionButton('本月', () => _setDateRange(30)),
+                              _buildActionButton('本週', () => _setDateRange(1)),
+                              Container(
+                                width: 1,
+                                height: 14,
+                                color: Colors.grey.shade300,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                              _buildActionButton('本月', () => _setDateRange(2)),
                             ],
                           ),
                         ],
@@ -489,7 +523,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                               isAlert: true,
                             ), // 加個顏色強調
                             const SizedBox(width: 8),
-                            _buildFilterChip('已入庫)', true),
+                            _buildFilterChip('已收款', true),
                           ],
                         ),
                       ),
@@ -504,6 +538,8 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
+                : _transactions.isEmpty
+                ? _buildEmptyState()
                 : LayoutBuilder(
                     builder: (context, constraints) {
                       if (constraints.maxWidth > 800) {
@@ -609,6 +645,43 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
+      ),
+    );
+  }
+
+  // --- UI: 空白狀態 ---
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.manage_search, // 或 Icons.inbox_outlined
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '目前沒有相關紀錄',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '試著調整日期範圍或篩選條件',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+          ),
+        ],
       ),
     );
   }

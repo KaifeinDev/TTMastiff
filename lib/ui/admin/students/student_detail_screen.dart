@@ -185,6 +185,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
+          final currencyFormat = NumberFormat("#,##0", "en_US");
           return AlertDialog(
             title: Text('儲值點數 (${_parentName ?? "家長"})'), // 顯示家長名字
             content: Column(
@@ -290,7 +291,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                             pin: pinText,
                             // 備註若為空，自動補上學生名字
                             description: descriptionController.text.isEmpty
-                                ? '${_student!.name}${_student!.isPrimary == false ? ' / ${_parentName}' : ''} 儲值 ${amount}'
+                                ? '儲值 ${currencyFormat.format(amount)}'
                                 : descriptionController.text,
                           );
 
