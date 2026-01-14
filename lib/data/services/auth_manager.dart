@@ -14,6 +14,7 @@ class AuthManager extends ChangeNotifier {
   // 給外部讀取的屬性
   User? get currentUser => _authRepository.currentUser;
   bool get isAdmin => _userRole == 'admin';
+  bool get isCoach => _userRole == 'coach';
   bool get isLoading => _isLoading;
   bool _manualLoginInProgress = false;
 
@@ -25,7 +26,8 @@ class AuthManager extends ChangeNotifier {
       final Session? session = data.session;
 
       if (event == AuthChangeEvent.signedIn ||
-          event == AuthChangeEvent.initialSession) {
+          event == AuthChangeEvent.initialSession ||
+          event == AuthChangeEvent.tokenRefreshed) {
         if (session != null) {
           // 已登入 -> 去查 Role
           await _updateUserRole(session.user.id);
@@ -40,9 +42,18 @@ class AuthManager extends ChangeNotifier {
         notifyListeners();
       }
     });
+    final session = Supabase.instance.client.auth.currentSession;
 
     // 如果啟動時已經有 User (沒觸發監聽)，手動查一次
-    if (currentUser != null) {
+    if (session != null) {
+      if (session.isExpired) {
+        // ⚠️ 關鍵：Token 過期了！
+        // 我們 "不要" 在這裡設 isLoading = false。
+        // 保持 isLoading = true，讓上面的 listen 去等待 'tokenRefreshed' 或 'signedOut' 事件。
+        print("⏳ Token 已過期，正在等待背景刷新...");
+        return;
+      }
+
       await _updateUserRole(currentUser!.id);
       _isLoading = false;
       notifyListeners();
