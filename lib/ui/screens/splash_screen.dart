@@ -1,0 +1,41 @@
+// lib/ui/screens/splash_screen.dart
+import 'package:flutter/material.dart';
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white, // 或配合你的 App 主題色
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 這裡可以放你的 Logo 圖片
+            // Image.asset('assets/images/logo.png', width: 150),
+            const Icon(
+              Icons.sports_tennis,
+              size: 80,
+              color: Colors.blueAccent,
+            ), // 暫時用 Icon 代替
+            const SizedBox(height: 24),
+            const Text(
+              'TTMastiff 球館系統',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 48),
+            // 載入指示器
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            const Text('身分驗證中...', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+}

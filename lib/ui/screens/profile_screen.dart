@@ -433,6 +433,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       listenable: authManager,
       builder: (context, child) {
         final bool isAdmin = authManager.isAdmin;
+        final bool isCoach = authManager.isCoach;
         return Scaffold(
           appBar: AppBar(
             title: const Text('我的檔案'),
@@ -566,7 +567,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
 
                         const SizedBox(height: 16),
-                        if (isAdmin) ...[
+                        if (isAdmin || isCoach) ...[
                           Card(
                             elevation: 4,
                             shadowColor: Colors.red.withOpacity(0.3),
