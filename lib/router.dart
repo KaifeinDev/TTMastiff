@@ -11,6 +11,7 @@ import 'ui/screens/my_bookings_screen.dart';
 import 'ui/screens/profile_screen.dart';
 import 'ui/screens/scaffold_with_nav_bar.dart';
 import 'ui/screens/transaction_history_screen.dart';
+import 'ui/screens/splash_screen.dart';
 
 // --- 2. 管理後台頁面 ---
 import '../ui/admin/admin_scaffold.dart';
@@ -37,18 +38,22 @@ final appRouter = GoRouter(
 
   // 路由守衛 (Redirect Logic) - 保持不變
   redirect: (context, state) {
-    if (authManager.isLoading) return null;
+    if (authManager.isLoading) {
+      return '/splash';
+    }
+    final isSplash = state.matchedLocation == '/splash';
     final isLoggedIn = authManager.currentUser != null;
     final isAdmin = authManager.isAdmin;
     final isCoach = authManager.isCoach;
     final location = state.matchedLocation;
     final isLoggingIn = location == '/login' || location == '/register';
 
+    if (isSplash && !isLoggedIn) return '/login';
     // 規則 1: 未登入 -> 踢回 /login
     if (!isLoggedIn && !isLoggingIn) return '/login';
 
     // 規則 2: 已登入 -> 根據身分分流
-    if (isLoggedIn && isLoggingIn)
+    if (isLoggedIn && isLoggingIn || isSplash)
       return isAdmin || isCoach ? '/admin/dashboard' : '/home';
 
     // 規則 3: 一般用戶闖入後台 -> 踢回 /home
@@ -61,6 +66,7 @@ final appRouter = GoRouter(
   },
 
   routes: [
+    GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
     GoRoute(path: '/', redirect: (context, state) => '/login'),
 
     // --- Auth 區域 ---
