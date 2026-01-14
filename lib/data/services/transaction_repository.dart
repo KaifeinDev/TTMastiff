@@ -67,12 +67,15 @@ class TransactionRepository {
     // reconciler:profiles!reconciled_by(full_name)
     //   -> 透過 reconciled_by 關聯 profiles 表，別名取為 reconciler (選用，若想顯示誰對帳的)
 
-    var query = _client.from('transactions').select('''
+    var query = _client
+        .from('transactions')
+        .select('''
       *,
       user:profiles!user_id(full_name),
       operator:profiles!performed_by(full_name),
       reconciler:profiles!reconciled_by(full_name)
-    ''');
+    ''')
+        .eq('type', 'topup'); // 只查儲值交易
 
     // --- 篩選條件 ---
 
@@ -101,11 +104,7 @@ class TransactionRepository {
 
     // 對帳狀態篩選
     if (isReconciled != null) {
-      query = query.eq('is_reconciled', isReconciled);
-      if (!isReconciled) {
-        // 未入庫
-        query = query.eq('is_reconciled', isReconciled).eq('type', 'topup');
-      }
+      query = query.eq('is_reconciled', isReconciled).eq('status', 'valid');
     }
 
     // 排序：最新的在最上面
@@ -133,23 +132,25 @@ class TransactionRepository {
     }
   }
 
-  /// 3. 通用退款 (針對儲值錯誤或商品退款)
-  /// 呼叫 SQL 函數 `refund_general_transaction`
-  Future<void> refundGeneralTransaction({
-    required String originalTransactionId,
+  /// 3. 現金退款 (針對儲值錯誤或商品退款)
+  Future<void> refundCashTransaction({
+    required String transactionId, // 建議改名為 transactionId，因為我們是直接操作該筆交易
     required String reason,
   }) async {
     try {
       await _client.rpc(
-        'refund_general_transaction',
+        'refund_cash_transaction', // 🔥 對應新的 SQL 函數名稱
         params: {
-          'original_txn_id': originalTransactionId,
+          // 🔥 這裡的 key 必須跟 SQL 函數的參數名稱一模一樣
+          'target_transaction_id': transactionId,
           'refund_reason': reason,
         },
       );
     } on PostgrestException catch (e) {
-      // 捕捉 SQL 中拋出的錯誤 (例如餘額不足)
+      // 捕捉 SQL 中拋出的錯誤 (例如：餘額不足、已被退款過...)
       throw Exception('退款失敗: ${e.message}');
+    } catch (e) {
+      throw Exception('發生未預期的錯誤: $e');
     }
   }
 }

@@ -5,6 +5,7 @@ class TransactionModel {
   final String userId;
   final String type; // 'topup', 'payment', 'refund_general', etc.
   final int amount;
+
   final String? description;
   final String? relatedBookingId;
   final String? performedBy; // 經手人 ID
@@ -15,9 +16,6 @@ class TransactionModel {
   final DateTime? reconciledAt;
   final String? reconciledBy; // 對帳人 ID
 
-  // 退款關聯
-  final String? originalTransactionId;
-
   // --- 擴充顯示欄位 (透過 Join 查詢取得，不寫入 DB) ---
   // 注意：根據你的 ER 圖，profiles 表的欄位是 'full_name'
   final String? userFullName; // 客戶姓名 (user_id -> profiles.full_name)
@@ -25,6 +23,7 @@ class TransactionModel {
   final String?
   reconcilerFullName; // 對帳人姓名 (reconciled_by -> profiles.full_name)
   final String status;
+  final DateTime? updatedAt;
 
   TransactionModel({
     required this.id,
@@ -39,11 +38,11 @@ class TransactionModel {
     this.isReconciled = false,
     this.reconciledAt,
     this.reconciledBy,
-    this.originalTransactionId,
     this.userFullName,
     this.operatorFullName,
     this.reconcilerFullName,
-    required this.status
+    required this.status,
+    this.updatedAt,
   });
 
   /// 從 Supabase JSON 轉為 Dart 物件
@@ -70,7 +69,6 @@ class TransactionModel {
       // 外鍵與關聯
       relatedBookingId: json['related_booking_id'] as String?,
       performedBy: json['performed_by'] as String?,
-      originalTransactionId: json['original_transaction_id'] as String?,
 
       // JSONB
       metadata: json['metadata'] != null
@@ -90,6 +88,9 @@ class TransactionModel {
       operatorFullName: extractName(json['operator']),
       reconcilerFullName: extractName(json['reconciler']),
       status: json['status'] ?? 'valid',
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at']).toLocal()
+          : null,
     );
   }
 
@@ -107,8 +108,8 @@ class TransactionModel {
       'is_reconciled': isReconciled,
       'reconciled_at': reconciledAt?.toIso8601String(),
       'reconciled_by': reconciledBy,
-      'original_transaction_id': originalTransactionId,
       'status': status,
+      'updated_at': updatedAt,
     };
   }
 
