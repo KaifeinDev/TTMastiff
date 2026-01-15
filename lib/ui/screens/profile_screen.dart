@@ -315,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bool isPrimary = student.isPrimary;
     final nameController = TextEditingController(text: student.name);
     final noteController = TextEditingController(
-      text: student.medical_note ?? '',
+      text: student.medicalNote ?? '',
     );
 
     showDialog(
@@ -810,8 +810,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               final student = _students[index];
                               final isSelf = student.isPrimary;
                               final hasNote =
-                                  student.medical_note != null &&
-                                  student.medical_note!.isNotEmpty;
+                                  student.medicalNote != null &&
+                                  student.medicalNote!.isNotEmpty;
 
                               return Card(
                                 elevation: 0,
@@ -911,7 +911,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         children: [
                                           if (hasNote)
                                             Tooltip(
-                                              message: student.medical_note,
+                                              message: student.medicalNote,
                                               child: Icon(
                                                 Icons.medical_information,
                                                 size: 20,
