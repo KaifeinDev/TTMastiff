@@ -43,10 +43,10 @@ Future<void> main() async {
     // 4. 🔥 初始化 AuthManager (狀態層)
     authManager = AuthManager(authRepository);
 
-    sessionRepository = SessionRepository(client);
     coachRepository = CoachRepository(client);
     courseRepository = CourseRepository(client);
     creditRepository = CreditRepository(client);
+    sessionRepository = SessionRepository(client, creditRepository);
     transactionRepository = TransactionRepository(client);
     bookingRepository = BookingRepository(
       client,

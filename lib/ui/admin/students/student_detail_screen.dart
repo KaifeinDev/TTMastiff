@@ -175,12 +175,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final pinController = TextEditingController();
     bool isLoading = false;
 
-    void _adjustCreditAmount(int delta) {
-      final currentAmount = int.tryParse(amountController.text) ?? 0; // 預設為 0
-      final newAmount = (currentAmount + delta);
-      amountController.text = newAmount.toString();
-    }
-
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
