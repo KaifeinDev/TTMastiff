@@ -6,7 +6,7 @@ class StudentModel {
   final bool isPrimary; // 🌟 新增：用來判斷是否為「本人」
   final String level;   // 🌟 新增：程度 (對應 DB V3)
   final DateTime birthDate; // 🌟 新增：生日
-  final String? medical_note; // 🌟 新增：醫療備註
+  final String? medicalNote; // 🌟 新增：醫療備註
 
   StudentModel({
     required this.id, 
@@ -15,7 +15,7 @@ class StudentModel {
     this.avatarUrl,
     required this.isPrimary,
     this.level = 'beginner',
-    this.medical_note,
+    this.medicalNote,
     required this.birthDate,
   });
 
@@ -29,7 +29,7 @@ class StudentModel {
       isPrimary: json['is_primary'] ?? false, 
       level: json['level'] ?? 'beginner',
       birthDate: DateTime.parse(json['birth_date'] as String), 
-      medical_note: json['medical_note'],
+      medicalNote: json['medical_note'],
     );
   }
 }

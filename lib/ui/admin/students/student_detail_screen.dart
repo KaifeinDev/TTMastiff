@@ -515,13 +515,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     label: isSelf ? '電話' : '電話',
                     value: _parentPhone ?? '未提供',
                   ),
-                  if (_student!.medical_note != null &&
-                      _student!.medical_note!.isNotEmpty) ...[
+                  if (_student!.medicalNote != null &&
+                      _student!.medicalNote!.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     StudentInfoRow(
                       icon: Icons.medical_information,
                       label: '醫療備註',
-                      value: _student!.medical_note!,
+                      value: _student!.medicalNote!,
                     ),
                   ],
                 ],
