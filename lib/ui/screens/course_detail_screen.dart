@@ -106,23 +106,48 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     try {
       // 這裡呼叫 Repository 進行批量寫入
       // 注意：實際實作 BookingRepository 時，建議要能處理不同 Session 不同價格的情況
-      await bookingRepository.createBatchBooking(
+      final result = await bookingRepository.createBatchBooking(
         sessionIds: _selectedSessionIds.toList(),
         studentIds: _selectedStudentIds.toList(),
         // 這裡傳入課程原價作為快照，或是後端會再驗證一次價格
-        price_snapshot: _course!.price,
+        priceSnapshot: _course!.price,
       );
+      final successCount = result['success'] ?? 0;
+      final skippedCount = result['skipped'] ?? 0;
+      final totalCost = result['totalCost'] ?? 0;
 
       if (mounted) {
+        String message = '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
+        Color snackBarColor;
+
+        if (successCount > 0) {
+          // A. 有成功新增 (綠色)
+          snackBarColor = Colors.green;
+          message = '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
+
+          if (skippedCount > 0) {
+            message += '\n(另有 $skippedCount 堂因重複而略過)';
+          }
+        } else {
+          // B. 全部都是重複，沒有任何變動 (灰色)
+          snackBarColor = Colors.grey.shade700;
+          message = '沒有新增任何報名\n(所有選擇的項目皆已報名過)';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '報名成功！\n共 ${_selectedSessionIds.length} 堂課 x ${_selectedStudentIds.length} 位學員，總計 \$$_totalCost',
-            ),
-            backgroundColor: Colors.green,
+            content: Text(message),
+            backgroundColor: snackBarColor,
+            duration: const Duration(seconds: 3),
           ),
         );
-        Navigator.pop(context); // 回到上一頁
+        // 清空選擇 & 刷新資料
+        setState(() {
+          _selectedStudentIds.clear();
+          _selectedSessionIds.clear();
+        });
+        _loadData();
+        // Navigator.pop(context); // 回到上一頁
       }
     } catch (e) {
       if (mounted) {
@@ -130,6 +155,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('報名失敗: $e'), backgroundColor: Colors.red),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBooking = false;
+        });
       }
     }
   }
