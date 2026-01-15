@@ -627,7 +627,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '\$${booking.price_snapshot}',
+                              '\$${booking.priceSnapshot}',
                               style: TextStyle(
                                 color: Colors.grey.shade600,
                                 fontSize: 14,
