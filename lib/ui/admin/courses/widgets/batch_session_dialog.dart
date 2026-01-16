@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart'; // 確保能存取 Repository
+import 'package:ttmastiff/data/models/table_model.dart';
 import 'package:flutter/services.dart';
 
 class BatchSessionDialog extends StatefulWidget {
@@ -31,11 +32,14 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
   // 教練資料 (配合 Repository 目前回傳 List<Map>)
   List<Map<String, dynamic>> _allCoaches = [];
   final List<String> _selectedCoachIds = [];
+  List<TableModel> _tables = [];
+  List<String> _selectedTableIds = [];
+  bool _isLoadingTables = true;
 
   final TextEditingController _capacityController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController(
-    text: '第1桌',
-  );
+  // final TextEditingController _locationController = TextEditingController(
+  //   text: '第1桌',
+  // );
 
   bool _isLoading = false;
 
@@ -43,13 +47,14 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
   void initState() {
     super.initState();
     _fetchCoaches();
+    _loadTables();
     _updateCapacity(); // 初始化人數
   }
 
   @override
   void dispose() {
     _capacityController.dispose();
-    _locationController.dispose();
+    // _locationController.dispose();
     super.dispose();
   }
 
@@ -61,6 +66,28 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       }
     } catch (e) {
       debugPrint('Error fetching coaches: $e');
+    }
+  }
+
+  Future<void> _loadTables() async {
+    try {
+      final tables = await tableRepository.getTables();
+      // 只顯示啟用中的桌子
+      final activeTables = tables.where((t) => t.isActive).toList();
+
+      if (mounted) {
+        setState(() {
+          _tables = activeTables;
+          _isLoadingTables = false;
+          // 預設選第一張桌子
+          // if (_tables.isNotEmpty) {
+          //   _selectedTableId = _tables.first.id;
+          // }
+        });
+      }
+    } catch (e) {
+      debugPrint('載入桌次失敗: $e');
+      if (mounted) setState(() => _isLoadingTables = false);
     }
   }
 
@@ -125,10 +152,19 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       return;
     }
 
+    // if (_selectedTableIds == null) {
+    //   ScaffoldMessenger.of(
+    //     context,
+    //   ).showSnackBar(const SnackBar(content: Text('請選擇桌次')));
+    //   return;
+    // }
+
     setState(() => _isLoading = true);
 
     try {
       List<Map<String, dynamic>> sessionsPayload = [];
+      bool conflictFound = false;
+      String conflictDateStr = '';
 
       // 確保從日期的 00:00:00 開始計算
       DateTime currentDay = DateTime(
@@ -165,6 +201,24 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
             widget.defaultEndTime.minute,
           );
 
+          final conflict = await sessionRepository.checkDetailConflict(
+            startTime: start,
+            endTime: end,
+            tableIds: _selectedTableIds,
+            coachIds: _selectedCoachIds, // 傳入選到的教練列表
+            courseId: widget.courseId,
+          );
+
+          if (conflict.hasConflict) {
+            // 根據衝突類型，你可以決定要 break 還是 continue
+            // 這裡示範：記錄錯誤並中斷
+            conflictFound = true;
+            // 組合詳細錯誤訊息
+            conflictDateStr =
+                '${DateFormat('MM/dd HH:mm').format(start)}\n原因：${conflict.message}';
+            break;
+          }
+
           // 處理跨日問題 (如果結束時間比開始時間早，代表跨日)
           final finalEnd = end.isBefore(start)
               ? end.add(const Duration(days: 1))
@@ -174,12 +228,34 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
             'start_time': start.toUtc().toIso8601String(),
             'end_time': finalEnd.toUtc().toIso8601String(),
             'coach_ids': _selectedCoachIds, // Supabase 支援直接傳 List
-            'location': _locationController.text,
+            // 選擇性：也可以把桌名寫入 location 欄位當作備份
+            // 'location': _tables.firstWhere((t) => t.id == _selectedTableId).name,
+            'table_ids': _selectedTableIds,
             'max_capacity': int.tryParse(_capacityController.text) ?? 4,
             'price': widget.defaultPrice,
           });
         }
         currentDay = currentDay.add(const Duration(days: 1));
+      }
+      if (conflictFound) {
+        // 使用 Dialog 顯示詳細錯誤，比 SnackBar 更清楚
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('排程衝突'),
+            content: Text(
+              conflictDateStr,
+              style: const TextStyle(fontSize: 16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('確定'),
+              ),
+            ],
+          ),
+        );
+        return; // 中斷
       }
 
       // 批次寫入 DB
@@ -303,14 +379,47 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     ),
                 ],
               ),
-              const Divider(height: 30),
 
-              // 3. 該批次場次的設定
+              const SizedBox(height: 16),
               const Text(
-                '場次詳細設定',
+                '選擇桌次 (可多選)',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+
+              _isLoadingTables
+                  ? const LinearProgressIndicator()
+                  : Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Wrap(
+                        spacing: 8.0,
+                        children: _tables.map((table) {
+                          final isSelected = _selectedTableIds.contains(
+                            table.id,
+                          );
+                          return FilterChip(
+                            label: Text(table.name),
+                            selected: isSelected,
+                            onSelected: (bool selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedTableIds.add(table.id);
+                                } else {
+                                  _selectedTableIds.remove(table.id);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+
+              const SizedBox(height: 16),
 
               // ─── 教練選擇區塊 ───
               Column(
@@ -390,24 +499,24 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                 ],
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. 地點輸入框
-                  TextField(
-                    controller: _locationController,
-                    decoration: const InputDecoration(
-                      labelText: '桌次 / 地點',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(
-                        Icons.place_outlined,
-                      ), // 加個 icon 增加識別度(可選)
-                    ),
-                  ),
+                  // 地點輸入框
+                  // TextField(
+                  //   controller: _locationController,
+                  //   decoration: const InputDecoration(
+                  //     labelText: '桌次 / 地點',
+                  //     border: OutlineInputBorder(),
+                  //     prefixIcon: Icon(
+                  //       Icons.place_outlined,
+                  //     ), // 加個 icon 增加識別度(可選)
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 16), // 上下間距
 
-                  const SizedBox(height: 16), // 上下間距
-                  // 2. 人數上限輸入框 (按鈕整合在右側)
+                  // 人數上限輸入框 (按鈕整合在右側)
                   TextField(
                     controller: _capacityController,
                     // 允許使用者直接點擊輸入數字

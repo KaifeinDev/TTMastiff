@@ -1,4 +1,5 @@
 import 'course_model.dart'; // 記得 import 剛剛改好的 CourseModel
+import 'table_model.dart';
 
 /// 定義教練模型 (對應 public.profiles)
 class CoachModel {
@@ -28,6 +29,8 @@ class SessionModel {
   final String? location;
   final int maxCapacity;
   final CourseModel? course;
+  final List<String> tableIds;
+  final List<TableModel> tables;
 
   /// Session 專屬價格 (若為 null 則繼承 Course 價格)
   final int? _sessionPrice;
@@ -45,6 +48,8 @@ class SessionModel {
     this.location,
     required this.maxCapacity,
     this.course,
+    this.tableIds = const [],
+    this.tables = const [],
     int? sessionPrice,
     this.coachIds = const [],
     this.coaches = const [],
@@ -85,6 +90,20 @@ class SessionModel {
     } else {
       count = _parseCount(bookingsData); // ✅ 列表模式：用 count 欄位
     }
+    List<String> parsedTableIds = [];
+    if (json['table_ids'] != null && json['table_ids'] is List) {
+      parsedTableIds = (json['table_ids'] as List)
+          .where((e) => e != null) // 關鍵：過濾掉 null 元素
+          .map((e) => e.toString()) // 確保轉為 String
+          .toList();
+    }
+
+    List<TableModel> parsedTables = [];
+    if (json['tables'] != null && json['tables'] is List) {
+      parsedTables = (json['tables'] as List)
+          .map((t) => TableModel.fromJson(t))
+          .toList();
+    }
 
     return SessionModel(
       id: json['id'],
@@ -101,6 +120,8 @@ class SessionModel {
       course: json['courses'] != null
           ? CourseModel.fromJson(json['courses'])
           : null,
+      tableIds: parsedTableIds,
+      tables: parsedTables,
 
       // 讀取 DB 的 uuid[] 陣列
       coachIds: List<String>.from(json['coach_ids'] ?? []),
@@ -129,25 +150,40 @@ class SessionModel {
 
   // copyWith 方法
   SessionModel copyWith({
+    String? id,
+    String? courseId,
+    DateTime? startTime,
+    DateTime? endTime,
+    String? location,
+    int? maxCapacity,
+    CourseModel? course,
+    List<String>? tableIds,
+    List<TableModel>? tables,
+    int? sessionPrice,
+    List<String>? coachIds,
     List<CoachModel>? coaches,
     int? bookingsCount,
-    List<String>? coachIds,
-    CourseModel? course,
-    List<String>? names,
+    List<String>? studentNames, // 參數名稱建議統一，原本叫 names 容易混淆
   }) {
     return SessionModel(
-      id: id,
-      courseId: courseId,
-      startTime: startTime,
-      endTime: endTime,
-      location: location,
-      maxCapacity: maxCapacity,
-      course: course,
-      sessionPrice: _sessionPrice,
+      id: id ?? this.id,
+      courseId: courseId ?? this.courseId,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      location: location ?? this.location,
+      maxCapacity: maxCapacity ?? this.maxCapacity,
+
+      course: course ?? this.course,
+      tableIds: tableIds ?? this.tableIds,
+      tables: tables ?? this.tables,
+
+      sessionPrice: sessionPrice ?? _sessionPrice,
+
+      // 5. 列表與統計
       coachIds: coachIds ?? this.coachIds,
       coaches: coaches ?? this.coaches,
       bookingsCount: bookingsCount ?? this.bookingsCount,
-      studentNames: names ?? this.studentNames,
+      studentNames: studentNames ?? this.studentNames,
     );
   }
 
@@ -184,4 +220,10 @@ class SessionModel {
 
   /// 判斷是否額滿
   bool get isFull => bookingsCount >= maxCapacity;
+
+  // 取得所有桌名的字串 (例如 "A桌、B桌")
+  String get tableNames {
+    if (tables.isEmpty) return '未指定';
+    return tables.map((t) => t.name).join('、');
+  }
 }

@@ -12,6 +12,7 @@ import 'package:ttmastiff/data/services/booking_repository.dart';
 import 'package:ttmastiff/data/services/credit_repository.dart';
 import 'package:ttmastiff/data/services/transaction_repository.dart';
 import 'package:ttmastiff/data/services/student_repository.dart';
+import 'package:ttmastiff/data/services/table_repository.dart';
 
 import 'router.dart';
 
@@ -24,6 +25,7 @@ late final BookingRepository bookingRepository;
 late final CreditRepository creditRepository;
 late final TransactionRepository transactionRepository;
 late final StudentRepository studentRepository;
+late final TableRepository tableRepository;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +56,7 @@ Future<void> main() async {
       transactionRepository,
     );
     studentRepository = StudentRepository(client);
+    tableRepository = TableRepository(client);
 
     // 5. 🔥 啟動監聽並檢查權限 (這會決定使用者一進去是 Home 還是 Admin)
     await authManager.init();
@@ -75,9 +78,28 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'TTMastiff 球館系統',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.white,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blueAccent,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
       ),
+      // 🔥 新增：深色主題
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        // 深色模式下的背景色通常不是純黑，而是深灰
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        cardColor: const Color(0xFF1E1E1E),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blueAccent,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      themeMode: ThemeMode.system,
+
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
