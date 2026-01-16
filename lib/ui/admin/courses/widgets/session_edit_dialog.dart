@@ -77,18 +77,25 @@ class _SessionEditDialogState extends State<SessionEditDialog>
 
   Future<void> _loadTables() async {
     try {
-      final tables = await tableRepository.getTables();
-      // 只顯示啟用中的桌子
-      final activeTables = tables.where((t) => t.isActive).toList();
+      // 1. 取得所有桌子 (包含停用的)
+      final allTables = await tableRepository.getTables();
+
+      // 2. 取得這堂課目前紀錄的 tableId
+      final currentTableId = widget.session.tableId;
+
+      // 3. 過濾邏輯：
+      // 保留「啟用中」的桌子 OR 「這堂課原本選中的」桌子
+      // 這樣可以確保即使桌子被停用，編輯這堂課時依然能看到它顯示在選單上，而不是空白或報錯
+      final displayTables = allTables.where((t) {
+        return t.isActive || (currentTableId != null && t.id == currentTableId);
+      }).toList();
 
       if (mounted) {
         setState(() {
-          _tables = activeTables;
+          _tables = displayTables;
           _isLoadingTables = false;
-          // 預設選第一張桌子
-          // if (_tables.isNotEmpty) {
-          //   _selectedTableId = _tables.first.id;
-          // }
+          // 注意：不需要在這裡設定 _selectedTableId
+          // 因為 initState 已經用 widget.session.tableId 設定好了
         });
       }
     } catch (e) {
@@ -282,8 +289,39 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   }
 
   Future<void> _submitSettings() async {
+    // if (_selectedTableId == null) {
+    //   ScaffoldMessenger.of(
+    //     context,
+    //   ).showSnackBar(const SnackBar(content: Text('請選擇桌次')));
+    //   return;
+    // }
     setState(() => _isSavingSettings = true);
     try {
+      // 撞期檢查
+      final conflict = await sessionRepository.checkDetailConflict(
+        startTime: _startDateTime,
+        endTime: _endDateTime,
+        tableId: _selectedTableId,
+        coachIds: _selectedCoachIds,
+        courseId: widget.session.courseId,
+        excludeSessionId: widget.session.id, // 排除自己
+      );
+
+      if (conflict.hasConflict) {
+        if (mounted) {
+          // 顯示具體錯誤原因
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('無法儲存：${conflict.message}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating, // 浮動樣式比較好看
+            ),
+          );
+        }
+        return; // 中斷
+      }
+
       // 🔥 使用全域 sessionRepository
       await sessionRepository.updateSession(
         sessionId: widget.session.id,
@@ -296,10 +334,11 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('錯誤: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isSavingSettings = false);
     }
@@ -554,26 +593,38 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           // ),
           _isLoadingTables
               ? const Center(child: CircularProgressIndicator())
-              : DropdownButtonFormField<String>(
-                  value: _selectedTableId,
-                  decoration: const InputDecoration(
+              : DropdownButtonFormField<String?>(
+                  initialValue: _selectedTableId,
+                  decoration: InputDecoration(
                     labelText: '選擇桌次/場地',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.table_restaurant),
                   ),
-                  items: _tables.map((table) {
-                    return DropdownMenuItem(
-                      value: table.id,
-                      child: Text(table.name),
-                    );
-                  }).toList(),
+                  items: [
+                    // 🔥 選項 A: 未指定 (No Table)
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('未指定 (無桌次)'),
+                    ),
+                    // 🔥 選項 B: 資料庫抓來的桌子
+                    ..._tables.map((table) {
+                      return DropdownMenuItem<String?>(
+                        value: table.id,
+                        child: Text(
+                          table.isActive ? table.name : '${table.name} (已停用)',
+                          style: TextStyle(
+                            color: table.isActive ? Colors.black : Colors.red,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                   onChanged: (value) {
                     setState(() => _selectedTableId = value);
                   },
                   // 驗證：必選
-                  validator: (val) => val == null ? '請選擇桌次' : null,
+                  // validator: (val) => val == null ? '請選擇桌次' : null,
                 ),
-
           const SizedBox(height: 16),
 
           // ─── 教練選擇區塊 ───

@@ -2,6 +2,28 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/session_model.dart';
 import 'credit_repository.dart';
+import 'package:flutter/material.dart';
+
+enum ConflictType {
+  none, // 無衝突
+  tableOccupied, // 桌次已被佔用
+  coachBusy, // 教練該時段已有課
+  courseDuplicate, // 同課程同時間重複 (選用)
+}
+
+class ConflictResult {
+  final ConflictType type;
+  final String? message; // 顯示給使用者的詳細訊息
+  final String? conflictSessionId; // 撞到哪一堂課
+
+  ConflictResult({
+    this.type = ConflictType.none,
+    this.message,
+    this.conflictSessionId,
+  });
+
+  bool get hasConflict => type != ConflictType.none;
+}
 
 class SessionRepository {
   final SupabaseClient _supabase;
@@ -154,5 +176,87 @@ class SessionRepository {
     // 執行物理刪除 (僅限未來場次)
     // DB 設定了 ON DELETE CASCADE，所以 bookings 會自動消失
     await _supabase.from('sessions').delete().eq('id', sessionId);
+  }
+
+  /// 詳細檢查撞期邏輯
+  Future<ConflictResult> checkDetailConflict({
+    required DateTime startTime,
+    required DateTime endTime,
+    required String? tableId, // 欲排的桌次
+    required List<String> coachIds, // 欲排的教練 ID 列表
+    required String courseId,
+    String? excludeSessionId, // 排除自己 (編輯模式用)
+  }) async {
+    // 1. 強制轉 UTC，確保與資料庫標準一致
+    // 邏輯：搜尋「所有」與此時段重疊的 Session
+    // Overlap: (Existing.Start < New.End) AND (Existing.End > New.Start)
+    final startStr = startTime.toUtc().toIso8601String();
+    final endStr = endTime.toUtc().toIso8601String();
+
+    debugPrint('🔍 檢查區間(UTC): $startStr ~ $endStr');
+
+    var query = _supabase.from('sessions').select('''
+      id, 
+      table_id, 
+      coach_ids, 
+      start_time, 
+      end_time,
+      tables(name),
+      courses(title)
+    ''');
+
+    // 2. 時間重疊查詢 (先抓大範圍，再過濾)
+    final List<dynamic> candidates = await query
+        .lt('start_time', endStr)
+        .gt('end_time', startStr);
+
+    // 3. 在 Dart 端逐筆檢查衝突原因
+    for (var session in candidates) {
+      // 排除自己
+      if (excludeSessionId != null && session['id'] == excludeSessionId) {
+        continue;
+      }
+
+      final existingTableId = session['table_id'];
+      final existingCourseId = session['course_id'];
+      final List<dynamic> existingCoachIds = session['coach_ids'] ?? [];
+      final courseName = session['courses']?['title'] ?? '未知課程';
+      final tableName = session['tables']?['name'] ?? '未知桌次';
+
+      // 檢查 1 : 同課程重複
+      // 只要是同一門課 (courseId 相同)，不管在哪一桌，都不能重疊
+      if (existingCourseId == courseId) {
+        return ConflictResult(
+          type: ConflictType.courseDuplicate,
+          message: '課程 "$courseName" 於該時段已有其他場次 (不可同時開兩場)',
+          conflictSessionId: session['id'],
+        );
+      }
+
+      // 檢查 2: 桌次衝突
+      if (tableId != null && existingTableId == tableId) {
+        return ConflictResult(
+          type: ConflictType.tableOccupied,
+          message: '該時段 "$tableName" 已有安排 "$courseName"',
+          conflictSessionId: session['id'],
+        );
+      }
+
+      // 檢查 3: 教練衝突 (如果有指定教練)
+      // 檢查新舊教練名單是否有交集
+      final hasCommonCoach = coachIds.any(
+        (id) => existingCoachIds.contains(id),
+      );
+      if (hasCommonCoach) {
+        return ConflictResult(
+          type: ConflictType.coachBusy,
+          message: '教練於該時段已有其他課程 ($courseName)',
+          conflictSessionId: session['id'],
+        );
+      }
+    }
+
+    // ✅ 通過所有檢查
+    return ConflictResult(type: ConflictType.none);
   }
 }

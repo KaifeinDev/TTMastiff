@@ -139,29 +139,43 @@ class SessionModel {
 
   // copyWith 方法
   SessionModel copyWith({
-    List<CoachModel>? coaches,
-    int? bookingsCount,
-    List<String>? coachIds,
+    String? id,
+    String? courseId,
+    DateTime? startTime,
+    DateTime? endTime,
+    String? location,
+    int? maxCapacity,
     CourseModel? course,
-    List<String>? names,
     String? tableId,
     TableModel? table,
+    int? sessionPrice,
+    List<String>? coachIds,
+    List<CoachModel>? coaches,
+    int? bookingsCount,
+    List<String>? studentNames, // 參數名稱建議統一，原本叫 names 容易混淆
   }) {
     return SessionModel(
-      id: id,
-      courseId: courseId,
-      startTime: startTime,
-      endTime: endTime,
-      location: location,
-      maxCapacity: maxCapacity,
-      course: course,
-      tableId: tableId,
-      table: table,
-      sessionPrice: _sessionPrice,
+      // 1. 基礎欄位 (原本沒寫的，建議補上)
+      id: id ?? this.id,
+      courseId: courseId ?? this.courseId,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      location: location ?? this.location,
+      maxCapacity: maxCapacity ?? this.maxCapacity,
+
+      course: course ?? this.course,
+      // 3. 這些您原本寫對了
+      tableId: tableId ?? this.tableId,
+      table: table ?? this.table,
+
+      // 4. 價格
+      sessionPrice: sessionPrice ?? _sessionPrice,
+
+      // 5. 列表與統計
       coachIds: coachIds ?? this.coachIds,
       coaches: coaches ?? this.coaches,
       bookingsCount: bookingsCount ?? this.bookingsCount,
-      studentNames: names ?? this.studentNames,
+      studentNames: studentNames ?? this.studentNames,
     );
   }
 

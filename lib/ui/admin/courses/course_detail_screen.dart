@@ -65,6 +65,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
       final sessions = await sessionRepository.getSessionsByCourse(
         widget.courseId,
       );
+      print(sessions[0].tableId);
 
       final coachesList = await coachRepository.getCoaches();
       final coachMap = {
@@ -347,7 +348,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
-                          s.location ?? "未定",
+                          s.table?.name ?? '待定',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade800,
