@@ -54,7 +54,8 @@ class SessionRepository {
           bookings (
              status,
              students (name) 
-          )
+          ),
+          tables (*)
         ''')
         .eq('course_id', courseId)
         .order('start_time');
@@ -67,6 +68,7 @@ class SessionRepository {
     required String sessionId,
     List<String>? coachIds,
     String? location,
+    String? tableId,
     int? maxCapacity,
     DateTime? startTime,
     DateTime? endTime,
@@ -74,6 +76,7 @@ class SessionRepository {
     final Map<String, dynamic> updates = {};
     if (coachIds != null) updates['coach_ids'] = coachIds;
     if (location != null) updates['location'] = location;
+    if (tableId != null) updates['table_id'] = tableId;
     if (maxCapacity != null) updates['max_capacity'] = maxCapacity;
     if (startTime != null) updates['start_time'] = startTime.toIso8601String();
     if (endTime != null) updates['end_time'] = endTime.toIso8601String();

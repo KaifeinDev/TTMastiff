@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart'; // 確保能存取 Repository
+import 'package:ttmastiff/data/models/table_model.dart';
 import 'package:flutter/services.dart';
 
 class BatchSessionDialog extends StatefulWidget {
@@ -31,11 +32,14 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
   // 教練資料 (配合 Repository 目前回傳 List<Map>)
   List<Map<String, dynamic>> _allCoaches = [];
   final List<String> _selectedCoachIds = [];
+  List<TableModel> _tables = [];
+  String? _selectedTableId;
+  bool _isLoadingTables = true;
 
   final TextEditingController _capacityController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController(
-    text: '第1桌',
-  );
+  // final TextEditingController _locationController = TextEditingController(
+  //   text: '第1桌',
+  // );
 
   bool _isLoading = false;
 
@@ -43,13 +47,14 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
   void initState() {
     super.initState();
     _fetchCoaches();
+    _loadTables();
     _updateCapacity(); // 初始化人數
   }
 
   @override
   void dispose() {
     _capacityController.dispose();
-    _locationController.dispose();
+    // _locationController.dispose();
     super.dispose();
   }
 
@@ -61,6 +66,28 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       }
     } catch (e) {
       debugPrint('Error fetching coaches: $e');
+    }
+  }
+
+  Future<void> _loadTables() async {
+    try {
+      final tables = await tableRepository.getTables();
+      // 只顯示啟用中的桌子
+      final activeTables = tables.where((t) => t.isActive).toList();
+
+      if (mounted) {
+        setState(() {
+          _tables = activeTables;
+          _isLoadingTables = false;
+          // 預設選第一張桌子
+          // if (_tables.isNotEmpty) {
+          //   _selectedTableId = _tables.first.id;
+          // }
+        });
+      }
+    } catch (e) {
+      debugPrint('載入桌次失敗: $e');
+      if (mounted) setState(() => _isLoadingTables = false);
     }
   }
 
@@ -125,6 +152,13 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       return;
     }
 
+    if (_selectedTableId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請選擇桌次')));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -174,7 +208,9 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
             'start_time': start.toUtc().toIso8601String(),
             'end_time': finalEnd.toUtc().toIso8601String(),
             'coach_ids': _selectedCoachIds, // Supabase 支援直接傳 List
-            'location': _locationController.text,
+            // 選擇性：也可以把桌名寫入 location 欄位當作備份
+            // 'location': _tables.firstWhere((t) => t.id == _selectedTableId).name,
+            'table_id': _selectedTableId,
             'max_capacity': int.tryParse(_capacityController.text) ?? 4,
             'price': widget.defaultPrice,
           });
@@ -303,14 +339,32 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     ),
                 ],
               ),
-              const Divider(height: 30),
 
-              // 3. 該批次場次的設定
-              const Text(
-                '場次詳細設定',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+
+              _isLoadingTables
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<String>(
+                      value: _selectedTableId,
+                      decoration: const InputDecoration(
+                        labelText: '選擇桌次/場地',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.table_restaurant),
+                      ),
+                      items: _tables.map((table) {
+                        return DropdownMenuItem(
+                          value: table.id,
+                          child: Text(table.name),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() => _selectedTableId = value);
+                      },
+                      // 驗證：必選
+                      validator: (val) => val == null ? '請選擇桌次' : null,
+                    ),
+
+              const SizedBox(height: 16),
 
               // ─── 教練選擇區塊 ───
               Column(
@@ -390,24 +444,24 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                 ],
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. 地點輸入框
-                  TextField(
-                    controller: _locationController,
-                    decoration: const InputDecoration(
-                      labelText: '桌次 / 地點',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(
-                        Icons.place_outlined,
-                      ), // 加個 icon 增加識別度(可選)
-                    ),
-                  ),
+                  // 地點輸入框
+                  // TextField(
+                  //   controller: _locationController,
+                  //   decoration: const InputDecoration(
+                  //     labelText: '桌次 / 地點',
+                  //     border: OutlineInputBorder(),
+                  //     prefixIcon: Icon(
+                  //       Icons.place_outlined,
+                  //     ), // 加個 icon 增加識別度(可選)
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 16), // 上下間距
 
-                  const SizedBox(height: 16), // 上下間距
-                  // 2. 人數上限輸入框 (按鈕整合在右側)
+                  // 人數上限輸入框 (按鈕整合在右側)
                   TextField(
                     controller: _capacityController,
                     // 允許使用者直接點擊輸入數字
