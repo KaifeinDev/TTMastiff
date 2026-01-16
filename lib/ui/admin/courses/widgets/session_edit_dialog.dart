@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 // 🔥 引入 main.dart 裡的全域變數
 import 'package:ttmastiff/main.dart';
@@ -9,6 +8,7 @@ import 'package:ttmastiff/main.dart';
 import '../../../../data/models/session_model.dart';
 import '../../../../data/models/booking_model.dart';
 import '../../../../data/models/student_model.dart';
+import '../../../../data/models/table_model.dart';
 import 'student_search_dialog.dart';
 
 class SessionEditDialog extends StatefulWidget {
@@ -34,13 +34,17 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   bool _isLoadingRoster = false;
 
   // Tab 2: 場次設定變數
-  final _locationController = TextEditingController();
+  // final _locationController = TextEditingController();
   final _capacityController = TextEditingController();
   List<Map<String, dynamic>> _allCoaches = [];
   List<String> _selectedCoachIds = [];
   late DateTime _startDateTime;
   late DateTime _endDateTime;
   bool _isSavingSettings = false;
+
+  List<TableModel> _tables = [];
+  List<String> _selectedTableIds = [];
+  bool _isLoadingTables = true;
 
   @override
   void initState() {
@@ -49,23 +53,54 @@ class _SessionEditDialogState extends State<SessionEditDialog>
 
     // 初始化 Tab 2 資料
     final s = widget.session;
-    _locationController.text = s.location ?? '';
+    // _locationController.text = s.location ?? '';
     _capacityController.text = s.maxCapacity.toString();
     _selectedCoachIds = List<String>.from(s.coachIds);
     _startDateTime = s.startTime;
     _endDateTime = s.endTime;
+    _selectedTableIds = List.from(widget.session.tableIds);
 
     // 載入資料 (使用全域變數)
     _fetchCoaches();
     _fetchRoster();
+    _loadTables();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _locationController.dispose();
+    // _locationController.dispose();
     _capacityController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTables() async {
+    try {
+      // 1. 取得所有桌子 (包含停用的)
+      final allTables = await tableRepository.getTables();
+
+      // 2. 取得這堂課目前紀錄的 tableId
+      final currentTableId = widget.session.tableIds;
+
+      // 3. 過濾邏輯：
+      // 保留「啟用中」的桌子 OR 「這堂課原本選中的」桌子
+      // 這樣可以確保即使桌子被停用，編輯這堂課時依然能看到它顯示在選單上，而不是空白或報錯
+      final displayTables = allTables.where((t) {
+        return t.isActive || (currentTableId != null && t.id == currentTableId);
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _tables = displayTables;
+          _isLoadingTables = false;
+          // 注意：不需要在這裡設定 _selectedTableId
+          // 因為 initState 已經用 widget.session.tableId 設定好了
+        });
+      }
+    } catch (e) {
+      debugPrint('載入桌次失敗: $e');
+      if (mounted) setState(() => _isLoadingTables = false);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -253,23 +288,56 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   }
 
   Future<void> _submitSettings() async {
+    // if (_selectedTableId == null) {
+    //   ScaffoldMessenger.of(
+    //     context,
+    //   ).showSnackBar(const SnackBar(content: Text('請選擇桌次')));
+    //   return;
+    // }
     setState(() => _isSavingSettings = true);
     try {
+      // 撞期檢查
+      final conflict = await sessionRepository.checkDetailConflict(
+        startTime: _startDateTime,
+        endTime: _endDateTime,
+        tableIds: _selectedTableIds,
+        coachIds: _selectedCoachIds,
+        courseId: widget.session.courseId,
+        excludeSessionId: widget.session.id, // 排除自己
+      );
+
+      if (conflict.hasConflict) {
+        if (mounted) {
+          // 顯示具體錯誤原因
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('無法儲存：${conflict.message}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating, // 浮動樣式比較好看
+            ),
+          );
+        }
+        return; // 中斷
+      }
+
       // 🔥 使用全域 sessionRepository
       await sessionRepository.updateSession(
         sessionId: widget.session.id,
         coachIds: _selectedCoachIds,
-        location: _locationController.text,
+        // location: _locationController.text,
+        tableIds: _selectedTableIds,
         maxCapacity: int.tryParse(_capacityController.text),
         startTime: _startDateTime.toUtc(),
         endTime: _endDateTime.toUtc(),
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('錯誤: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isSavingSettings = false);
     }
@@ -501,6 +569,11 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       _capacityController.text = newValue.toString();
     }
 
+    final selectedTableNames = _tables
+        .where((t) => _selectedTableIds.contains(t.id))
+        .map((t) => t.name)
+        .join('、');
+
     // 這裡放入原本的 Settings UI，並在 submit 時呼叫 sessionRepository.updateSession
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -511,7 +584,80 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           _buildTimeRow('開始時間', _startDateTime, () => _pickDateTime(true)),
           const SizedBox(height: 16),
           _buildTimeRow('結束時間', _endDateTime, () => _pickDateTime(false)),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              const Icon(Icons.table_restaurant, size: 20, color: Colors.grey),
+              const SizedBox(width: 8),
+              const Text('桌次安排', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Spacer(),
+              Text(
+                selectedTableNames.isEmpty ? '未指定' : selectedTableNames,
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          // 地點與人數
+          // TextField(
+          //   controller: _locationController,
+          //   decoration: const InputDecoration(
+          //     labelText: '地點',
+          //     border: OutlineInputBorder(),
+          //     prefixIcon: Icon(Icons.place_outlined),
+          //   ),
+          // ),
+          _isLoadingTables
+              ? const Center(child: CircularProgressIndicator())
+              : Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _tables.isEmpty
+                      ? const Text('無可用桌次資料')
+                      : Wrap(
+                          spacing: 8.0,
+                          runSpacing: 4.0,
+                          children: _tables.map((table) {
+                            final isSelected = _selectedTableIds.contains(
+                              table.id,
+                            );
+                            return FilterChip(
+                              label: Text(table.name),
+                              selected: isSelected,
+                              selectedColor: Colors.blue.shade100,
+                              checkmarkColor: Colors.blue.shade700,
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? Colors.blue.shade900
+                                    : Colors.black87,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                              onSelected: (bool selected) {
+                                setState(() {
+                                  if (selected) {
+                                    _selectedTableIds.add(table.id);
+                                  } else {
+                                    _selectedTableIds.remove(table.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                ),
+          const SizedBox(height: 16),
+
           // ─── 教練選擇區塊 ───
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,17 +730,8 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                 ),
             ],
           ),
-          const SizedBox(height: 32),
-          // 地點與人數
-          TextField(
-            controller: _locationController,
-            decoration: const InputDecoration(
-              labelText: '地點',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.place_outlined),
-            ),
-          ),
-          const SizedBox(height: 16),
+
+          const SizedBox(height: 24),
           TextField(
             controller: _capacityController,
             decoration: InputDecoration(

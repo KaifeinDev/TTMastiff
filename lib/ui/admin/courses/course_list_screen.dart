@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart'; // 取得 adminRepository
 import 'widgets/course_edit_dialog.dart';
 

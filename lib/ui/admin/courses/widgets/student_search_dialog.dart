@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/main.dart'; // 確保能取得 supabase
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/student_model.dart';
 

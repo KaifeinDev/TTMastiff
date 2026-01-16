@@ -337,6 +337,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final isSelf = _student!.isPrimary == true;
 
     return Scaffold(
