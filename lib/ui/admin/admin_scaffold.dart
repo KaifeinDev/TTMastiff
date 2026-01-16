@@ -89,6 +89,13 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           textColor: textColor,
           iconColor: iconColor,
         ),
+        _AdminMenuItem(
+          icon: Icons.receipt_long, // 推薦使用 receipt_long 或 attach_money
+          title: '新增桌次',
+          route: '/admin/tables', // 對應 router 中的 path
+          textColor: textColor,
+          iconColor: iconColor,
+        ),
       ],
     );
   }

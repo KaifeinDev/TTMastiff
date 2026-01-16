@@ -1,4 +1,5 @@
 import 'course_model.dart'; // 記得 import 剛剛改好的 CourseModel
+import 'table_model.dart';
 
 /// 定義教練模型 (對應 public.profiles)
 class CoachModel {
@@ -28,6 +29,8 @@ class SessionModel {
   final String? location;
   final int maxCapacity;
   final CourseModel? course;
+  final String? tableId;
+  final TableModel? table;
 
   /// Session 專屬價格 (若為 null 則繼承 Course 價格)
   final int? _sessionPrice;
@@ -45,6 +48,8 @@ class SessionModel {
     this.location,
     required this.maxCapacity,
     this.course,
+    this.tableId,
+    this.table,
     int? sessionPrice,
     this.coachIds = const [],
     this.coaches = const [],
@@ -101,6 +106,11 @@ class SessionModel {
       course: json['courses'] != null
           ? CourseModel.fromJson(json['courses'])
           : null,
+      tableId: json['table_id'],
+      // 如果 Supabase select 有 join tables (*)，則解析它
+      table: json['tables'] != null
+          ? TableModel.fromJson(json['tables'])
+          : null,
 
       // 讀取 DB 的 uuid[] 陣列
       coachIds: List<String>.from(json['coach_ids'] ?? []),
@@ -134,6 +144,8 @@ class SessionModel {
     List<String>? coachIds,
     CourseModel? course,
     List<String>? names,
+    String? tableId,
+    TableModel? table,
   }) {
     return SessionModel(
       id: id,
@@ -143,6 +155,8 @@ class SessionModel {
       location: location,
       maxCapacity: maxCapacity,
       course: course,
+      tableId: tableId,
+      table: table,
       sessionPrice: _sessionPrice,
       coachIds: coachIds ?? this.coachIds,
       coaches: coaches ?? this.coaches,

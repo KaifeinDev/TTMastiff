@@ -12,6 +12,7 @@ import 'package:ttmastiff/data/services/booking_repository.dart';
 import 'package:ttmastiff/data/services/credit_repository.dart';
 import 'package:ttmastiff/data/services/transaction_repository.dart';
 import 'package:ttmastiff/data/services/student_repository.dart';
+import 'package:ttmastiff/data/services/table_repository.dart';
 
 import 'router.dart';
 
@@ -24,6 +25,7 @@ late final BookingRepository bookingRepository;
 late final CreditRepository creditRepository;
 late final TransactionRepository transactionRepository;
 late final StudentRepository studentRepository;
+late final TableRepository tableRepository;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +56,7 @@ Future<void> main() async {
       transactionRepository,
     );
     studentRepository = StudentRepository(client);
+    tableRepository = TableRepository(client);
 
     // 5. 🔥 啟動監聽並檢查權限 (這會決定使用者一進去是 Home 還是 Admin)
     await authManager.init();
