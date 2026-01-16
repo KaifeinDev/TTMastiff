@@ -239,7 +239,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     final courseName = meta['course_name'] as String?;
     final studentName = meta['student_name'] as String?;
     final sessionInfo = meta['session_info'] as String?;
-    final refundReason = meta['refund_reason'] as String?;
+    final reason = meta['refund_reason'] as String?;
 
     // 2. 判斷類型與狀態
     final type = item.type; // topup, payment, refund_credit
@@ -251,7 +251,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     if (type == 'payment') {
       displayTitle = courseName ?? '課程報名';
     } else if (type == 'refund_credit') {
-      displayTitle = '取消預約退還';
+      displayTitle = '$reason 退款';
     } else if (type == 'topup') {
       displayTitle = '點數儲值';
     } else {

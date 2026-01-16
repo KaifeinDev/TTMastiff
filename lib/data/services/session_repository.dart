@@ -1,9 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 import '../models/session_model.dart';
+import 'credit_repository.dart';
 
 class SessionRepository {
   final SupabaseClient _supabase;
-  SessionRepository(this._supabase);
+  final CreditRepository _creditRepo;
+  SessionRepository(this._supabase, this._creditRepo);
 
   // 📅 抓取特定日期的所有課程
   Future<List<SessionModel>> fetchSessionsByDate(DateTime date) async {
@@ -45,7 +48,14 @@ class SessionRepository {
   Future<List<SessionModel>> getSessionsByCourse(String courseId) async {
     final data = await _supabase
         .from('sessions')
-        .select('*')
+        .select('''
+          *,
+          courses (*),
+          bookings (
+             status,
+             students (name) 
+          )
+        ''')
         .eq('course_id', courseId)
         .order('start_time');
 
@@ -73,6 +83,73 @@ class SessionRepository {
 
   // 刪除單一場次
   Future<void> deleteSession(String sessionId) async {
+    final sessionData = await _supabase
+        .from('sessions')
+        .select('*, courses(title)')
+        .eq('id', sessionId)
+        .single();
+    final DateTime endTime = DateTime.parse(sessionData['end_time']).toLocal();
+    final DateTime startTime = DateTime.parse(
+      sessionData['start_time'],
+    ).toLocal();
+    final String courseTitle = sessionData['courses']['title'] ?? '未知課程';
+    final String sessionTimeStr = DateFormat('MM/dd HH:mm').format(startTime);
+    final DateTime now = DateTime.now();
+
+    // ⛔ [新增保護] 如果是歷史場次 (已結束)，禁止刪除
+    if (endTime.isBefore(now)) {
+      throw Exception('無法刪除歷史場次！\n已結束的課程屬於公司營運歷史，禁止刪除。');
+    }
+
+    // 判斷是否需要退款
+    // 邏輯：如果課程還沒結束 (endTime 在現在之後)，則視為「取消」，需要退款
+    final bool shouldRefund = endTime.isAfter(DateTime.now());
+
+    if (shouldRefund) {
+      // 找出所有「已確認 (confirmed)」的預約，並關聯學生資料
+      final List<dynamic> bookings = await _supabase
+          .from('bookings')
+          .select('*, students(id, name)')
+          .eq('session_id', sessionId)
+          .eq('status', 'confirmed'); // 只退款有效訂單
+
+      if (bookings.isNotEmpty) {
+        print('正在為 Session $sessionId 執行退款，共 ${bookings.length} 筆...');
+
+        // 4. 逐筆退款
+        // 雖然是迴圈，但 processRefund 是 RPC 交易，安全性足夠。
+        // 量大時可考慮寫新的 Batch Refund RPC，但目前單堂課人數少，這樣做 OK。
+        for (final booking in bookings) {
+          final int amount = booking['price_snapshot'] ?? 0;
+          final String userId = booking['user_id'];
+          final String bookingId = booking['id'];
+          final studentData = booking['students'];
+          final String studentName = studentData?['name'] ?? '未知學生';
+          final String studentId = studentData?['id'] ?? '';
+
+          if (amount > 0) {
+            try {
+              await _creditRepo.processRefund(
+                userId: userId,
+                amount: amount,
+                bookingId: bookingId,
+                courseName: courseTitle,
+                sessionInfo: sessionTimeStr,
+                studentName: studentName,
+                studentId: studentId,
+                reason: '課程取消',
+              );
+            } catch (e) {
+              print('退款失敗 (User: $userId): $e');
+              // 這裡可以選擇是否中斷，或是繼續退別人的
+              // 建議 log 下來，繼續執行，以免卡住刪除流程
+            }
+          }
+        }
+      }
+    }
+    // 執行物理刪除 (僅限未來場次)
+    // DB 設定了 ON DELETE CASCADE，所以 bookings 會自動消失
     await _supabase.from('sessions').delete().eq('id', sessionId);
   }
 }

@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:ttmastiff/main.dart';
 
-import '../../../data/services/student_repository.dart';
-import '../../../data/services/course_repository.dart';
-import '../../../data/services/session_repository.dart';
 import '../../../data/models/student_model.dart';
 import '../../../data/models/course_model.dart';
 import '../../../data/models/session_model.dart';
@@ -20,10 +17,6 @@ class UserListScreen extends StatefulWidget {
 }
 
 class _UserListScreenState extends State<UserListScreen> {
-  late final StudentRepository _studentRepo;
-  late final CourseRepository _courseRepo;
-  late final SessionRepository _sessionRepo;
-
   // 篩選狀態
   List<CourseModel> _courses = [];
   CourseModel? _selectedCourse;
@@ -40,9 +33,6 @@ class _UserListScreenState extends State<UserListScreen> {
   @override
   void initState() {
     super.initState();
-    _studentRepo = StudentRepository(Supabase.instance.client);
-    _courseRepo = CourseRepository(Supabase.instance.client);
-    _sessionRepo = SessionRepository(Supabase.instance.client);
     _loadCourses();
   }
 
@@ -55,7 +45,7 @@ class _UserListScreenState extends State<UserListScreen> {
 
   Future<void> _loadCourses() async {
     try {
-      final courses = await _courseRepo.getCourses();
+      final courses = await courseRepository.getCourses();
       if (mounted) {
         setState(() {
           _courses = courses;
@@ -79,7 +69,7 @@ class _UserListScreenState extends State<UserListScreen> {
 
     try {
       // 查詢該課程的所有場次
-      final sessions = await _sessionRepo.getSessionsByCourse(courseId);
+      final sessions = await sessionRepository.getSessionsByCourse(courseId);
       if (mounted) {
         setState(() {
           _sessions = sessions;
@@ -116,7 +106,7 @@ class _UserListScreenState extends State<UserListScreen> {
 
     try {
       // 查詢時就包含完整資訊（包括報名課程）
-      final results = await _studentRepo.fetchStudentsByFilter(
+      final results = await studentRepository.fetchStudentsByFilter(
         courseId: _selectedCourse?.id,
         sessionId: _selectedSession?.id,
         name: _nameController.text.trim().isEmpty
