@@ -152,17 +152,19 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       return;
     }
 
-    if (_selectedTableId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('請選擇桌次')));
-      return;
-    }
+    // if (_selectedTableId == null) {
+    //   ScaffoldMessenger.of(
+    //     context,
+    //   ).showSnackBar(const SnackBar(content: Text('請選擇桌次')));
+    //   return;
+    // }
 
     setState(() => _isLoading = true);
 
     try {
       List<Map<String, dynamic>> sessionsPayload = [];
+      bool conflictFound = false;
+      String conflictDateStr = '';
 
       // 確保從日期的 00:00:00 開始計算
       DateTime currentDay = DateTime(
@@ -199,6 +201,24 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
             widget.defaultEndTime.minute,
           );
 
+          final conflict = await sessionRepository.checkDetailConflict(
+            startTime: start,
+            endTime: end,
+            tableId: _selectedTableId,
+            coachIds: _selectedCoachIds, // 傳入選到的教練列表
+            courseId: widget.courseId,
+          );
+
+          if (conflict.hasConflict) {
+            // 根據衝突類型，你可以決定要 break 還是 continue
+            // 這裡示範：記錄錯誤並中斷
+            conflictFound = true;
+            // 組合詳細錯誤訊息
+            conflictDateStr =
+                '${DateFormat('MM/dd HH:mm').format(start)}\n原因：${conflict.message}';
+            break;
+          }
+
           // 處理跨日問題 (如果結束時間比開始時間早，代表跨日)
           final finalEnd = end.isBefore(start)
               ? end.add(const Duration(days: 1))
@@ -216,6 +236,26 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
           });
         }
         currentDay = currentDay.add(const Duration(days: 1));
+      }
+      if (conflictFound) {
+        // 使用 Dialog 顯示詳細錯誤，比 SnackBar 更清楚
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('排程衝突'),
+            content: Text(
+              conflictDateStr,
+              style: const TextStyle(fontSize: 16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('確定'),
+              ),
+            ],
+          ),
+        );
+        return; // 中斷
       }
 
       // 批次寫入 DB
