@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 // 🔥 引入 main.dart 裡的全域變數
 import 'package:ttmastiff/main.dart';
