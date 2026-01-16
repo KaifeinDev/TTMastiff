@@ -58,12 +58,32 @@ class _CourseListScreenState extends State<CourseListScreen> {
   }
 
   // 刪除課程 (選擇性功能，若需要可加上)
+  // 刪除課程 (前端邏輯 - 嚴格規範版)
   Future<void> _deleteCourse(String courseId) async {
+    // 1. 第一道防線：刪除確認對話框
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('刪除課程'),
-        content: const Text('確定要刪除此課程模板嗎？相關的歷史場次可能會失去關聯。'),
+        title: const Text('⚠️ 確認刪除課程？'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('您即將刪除此課程模板。'),
+            SizedBox(height: 12),
+            Text(
+              '這將會導致：\n'
+              '1. 所有「已結束」的歷史場次資料將被連帶清除。\n'
+              '2. 歷史交易紀錄會被保留 (但失去課程連結)。',
+              style: TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '若尚有「未結束」的未來場次，系統將會阻止刪除。',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -72,21 +92,72 @@ class _CourseListScreenState extends State<CourseListScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('刪除'),
+            child: const Text('確認刪除'),
           ),
         ],
       ),
     );
 
-    if (confirm == true) {
-      try {
-        await courseRepository.deleteCourse(courseId); // 需在 repo 實作
-        _fetchCourses();
-      } catch (e) {
-        if (mounted)
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('刪除失敗: $e')));
+    if (confirm != true) return;
+
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    try {
+      // 呼叫後端 Repo 進行刪除 (這裡會觸發我們剛寫的防護檢查)
+      await courseRepository.deleteCourse(courseId);
+
+      // 成功處理
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('課程已成功刪除'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // 刷新列表
+        await _fetchCourses();
+      }
+    } catch (e) {
+      // 失敗 (使用 Dialog 顯示詳細錯誤)
+      if (mounted) {
+        // 處理錯誤訊息字串 (去掉 "Exception: " 字頭讓畫面好看點)
+        final String errorMessage = e.toString().replaceAll('Exception: ', '');
+
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade700),
+                const SizedBox(width: 8),
+                const Text('無法刪除'),
+              ],
+            ),
+            // 這裡顯示 Repository 拋出的詳細指導文字
+            content: Text(
+              errorMessage,
+              style: const TextStyle(fontSize: 15, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('我了解了'), // 引導使用者去處理場次
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      // 不管成功或失敗，都要解除鎖定
+      if (mounted) {
+        setState(() {
+          _isLoading = false; // 🔓 解除鎖定
+        });
       }
     }
   }
