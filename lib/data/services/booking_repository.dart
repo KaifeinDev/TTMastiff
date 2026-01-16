@@ -19,8 +19,8 @@ class BookingRepository {
     required List<String> studentIds,
     required int priceSnapshot,
   }) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('未登入使用者');
+    final adminId = _supabase.auth.currentUser?.id;
+    if (adminId == null) throw Exception('未登入使用者');
 
     // 1. 查詢課程資訊 (包含 max_capacity)
     final List<dynamic> sessionsData = await _supabase
@@ -30,13 +30,22 @@ class BookingRepository {
 
     final List<dynamic> studentsData = await _supabase
         .from('students')
-        .select('id, name')
+        .select('id, name, parent_id')
         .filter('id', 'in', studentIds);
 
     // 建立 Map 加速查找
-    final Map<String, String> studentNameMap = {
-      for (var s in studentsData) s['id'] as String: s['name'] as String,
-    };
+    final Map<String, String> studentOwnerMap = {};
+    final Map<String, String> studentNameMap = {};
+
+    for (var s in studentsData) {
+      final sId = s['id'] as String;
+      studentNameMap[sId] = s['name'] as String;
+      // 確保資料庫有 user_id，如果沒有可能是孤兒資料
+      if (s['parent_id'] != null) {
+        studentOwnerMap[sId] = s['parent_id'] as String;
+      }
+    }
+
     final Map<String, dynamic> sessionInfoMap = {
       for (var s in sessionsData) s['id'] as String: s,
     };
@@ -49,6 +58,12 @@ class BookingRepository {
     // 2. 雙重迴圈處理
     for (final studentId in studentIds) {
       final String studentName = studentNameMap[studentId] ?? '未知學生';
+      final String? targetUserId = studentOwnerMap[studentId];
+      if (targetUserId == null) {
+        print('錯誤：學生 $studentName ($studentId) 沒有綁定使用者(user_id)，無法扣款。');
+        // 可以選擇拋出錯誤或是跳過
+        continue;
+      }
 
       for (final sessionId in sessionIds) {
         final sessionData = sessionInfoMap[sessionId];
@@ -108,7 +123,7 @@ class BookingRepository {
             // 2. 嘗試扣款
             try {
               await _creditRepo.payForBooking(
-                userId: userId,
+                userId: targetUserId,
                 cost: priceSnapshot,
                 bookingId: bookingId,
                 courseName: courseName,
@@ -138,7 +153,7 @@ class BookingRepository {
               .insert({
                 'session_id': sessionId,
                 'student_id': studentId,
-                'user_id': userId,
+                'user_id': targetUserId,
                 'status': 'confirmed',
                 'attendance_status': 'pending',
                 'price_snapshot': priceSnapshot,
@@ -153,7 +168,7 @@ class BookingRepository {
           // 2. 執行扣款
           try {
             await _creditRepo.payForBooking(
-              userId: userId,
+              userId: targetUserId,
               cost: priceSnapshot,
               bookingId: newBookingId,
               courseName: courseName,

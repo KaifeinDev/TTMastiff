@@ -8,7 +8,7 @@ class CoachRepository {
     final data = await _supabase
         .from('profiles')
         .select('id, full_name')
-        .eq('role', 'coach');
+        .or('role.eq.coach,role.eq.admin');
     return List<Map<String, dynamic>>.from(data);
   }
 }

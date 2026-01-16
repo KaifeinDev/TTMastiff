@@ -9,6 +9,7 @@ import '../../../../data/models/session_model.dart';
 // 引入 Widgets
 import 'widgets/batch_session_dialog.dart';
 import 'widgets/session_edit_dialog.dart';
+import 'widgets/batch_enroll_dialog.dart';
 
 class AdminCourseDetailScreen extends StatefulWidget {
   final String courseId;
@@ -177,6 +178,31 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
     }
   }
 
+  Future<void> _showBatchEnrollDialog() async {
+    if (_upcomingSessions.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('沒有未來的場次可供報名')));
+      return;
+    }
+
+    final result = await showDialog(
+      context: context,
+      barrierDismissible: false, // 避免誤觸關閉
+      builder: (context) => BatchEnrollDialog(
+        courseId: widget.courseId,
+        courseTitle: _courseData.title,
+        pricePerSession: _courseData.price,
+        upcomingSessions: _upcomingSessions, // 只傳入未來場次
+      ),
+    );
+
+    // 如果有成功報名，刷新頁面資料 (更新人數)
+    if (result == true) {
+      await _refreshData();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading && widget.initialData == null) {
@@ -192,6 +218,15 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
           backgroundColor: Colors.white,
           elevation: 0,
           foregroundColor: Colors.black, // 標題黑色
+          actions: [
+            // 🔥 新增：AppBar 上的批次報名按鈕
+            IconButton(
+              icon: const Icon(Icons.person_add_alt_1_outlined), // 加入學生的圖示
+              tooltip: '批次幫學生報名',
+              onPressed: _showBatchEnrollDialog, // 綁定事件
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: _openBatchGenerator,
@@ -241,6 +276,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
     // 處理教練名字 (若有)
     final coachNames = s.coachIds.map((id) => _coachMap[id] ?? '未知').join(', ');
     final hasCoach = s.coachIds.isNotEmpty;
+    final hasStudents = s.studentNames.isNotEmpty;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -436,8 +472,86 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
           ),
 
           // ─── 3. 底部操作按鈕 (僅非歷史紀錄顯示) ───
+          if (hasStudents) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50.withOpacity(0.3), // 淡淡的背景色區隔
+                border: Border(top: BorderSide(color: Colors.grey.shade100)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.people_alt,
+                        size: 14,
+                        color: Colors.blue.shade300,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '已報名學員 (${s.studentNames.length})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  // 使用 Wrap 自動換行顯示學生名字
+                  Wrap(
+                    spacing: 8.0, // 水平間距
+                    runSpacing: 4.0, // 垂直間距
+                    children: s.studentNames.map((name) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.blue.shade100),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade800,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (!isHistory) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.grey.shade100)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Icon(Icons.people_alt, size: 14, color: Colors.grey.shade300),
+                  const SizedBox(width: 6),
+                  Text(
+                    '尚無學員報名',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (!isHistory) ...[
-            const Divider(height: 1), // 加上分隔線區隔按鈕區
+            const Divider(height: 1), // 分隔線
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
