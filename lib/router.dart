@@ -24,6 +24,7 @@ import '../ui/admin/courses/course_list_screen.dart';
 import '../ui/admin/courses/course_detail_screen.dart';
 import '../ui/admin/students/student_detail_screen.dart';
 import '../ui/admin/transactions/admin_transaction_screen.dart';
+import '../ui/admin/table_management_screen.dart';
 
 // --- 4. Model ---
 import 'data/models/course_model.dart';
@@ -202,6 +203,11 @@ final appRouter = GoRouter(
           path: '/admin/transactions',
           pageBuilder: (context, state) =>
               const NoTransitionPage(child: AdminTransactionScreen()),
+        ),
+        GoRoute(
+          path: '/admin/tables',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: TableManagementScreen()),
         ),
       ],
     ),
