@@ -87,13 +87,19 @@ class SessionRepository {
     ).toLocal();
     final String courseTitle = sessionData['courses']['title'] ?? '未知課程';
     final String sessionTimeStr = DateFormat('MM/dd HH:mm').format(startTime);
+    final DateTime now = DateTime.now();
 
-    // 2. 判斷是否需要退款
+    // ⛔ [新增保護] 如果是歷史場次 (已結束)，禁止刪除
+    if (endTime.isBefore(now)) {
+      throw Exception('無法刪除歷史場次！\n已結束的課程屬於公司營運歷史，禁止刪除。');
+    }
+
+    // 判斷是否需要退款
     // 邏輯：如果課程還沒結束 (endTime 在現在之後)，則視為「取消」，需要退款
     final bool shouldRefund = endTime.isAfter(DateTime.now());
 
     if (shouldRefund) {
-      // 3. 找出所有「已確認 (confirmed)」的預約，並關聯學生資料
+      // 找出所有「已確認 (confirmed)」的預約，並關聯學生資料
       final List<dynamic> bookings = await _supabase
           .from('bookings')
           .select('*, students(id, name)')
@@ -134,11 +140,8 @@ class SessionRepository {
           }
         }
       }
-    } else {
-      print('課程已結束，僅刪除資料不執行退款。');
     }
-
-    // 5. 最後執行物理刪除
+    // 執行物理刪除 (僅限未來場次)
     // DB 設定了 ON DELETE CASCADE，所以 bookings 會自動消失
     await _supabase.from('sessions').delete().eq('id', sessionId);
   }

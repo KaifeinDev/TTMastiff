@@ -34,7 +34,7 @@ class CourseModel {
       defaultEndTime: (json['default_end_time'] as String).toDateTimeFromTime(),
       imageUrl: json['image_url'],
       category: json['category'] ?? 'group',
-      isPublished: json['is_published'] ?? true,
+      isPublished: json['is_published'] ?? false,
     );
   }
 }
