@@ -43,7 +43,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   bool _isSavingSettings = false;
 
   List<TableModel> _tables = [];
-  String? _selectedTableId;
+  List<String> _selectedTableIds = [];
   bool _isLoadingTables = true;
 
   @override
@@ -58,7 +58,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     _selectedCoachIds = List<String>.from(s.coachIds);
     _startDateTime = s.startTime;
     _endDateTime = s.endTime;
-    _selectedTableId = widget.session.tableId;
+    _selectedTableIds = List.from(widget.session.tableIds);
 
     // 載入資料 (使用全域變數)
     _fetchCoaches();
@@ -80,7 +80,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       final allTables = await tableRepository.getTables();
 
       // 2. 取得這堂課目前紀錄的 tableId
-      final currentTableId = widget.session.tableId;
+      final currentTableId = widget.session.tableIds;
 
       // 3. 過濾邏輯：
       // 保留「啟用中」的桌子 OR 「這堂課原本選中的」桌子
@@ -300,7 +300,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       final conflict = await sessionRepository.checkDetailConflict(
         startTime: _startDateTime,
         endTime: _endDateTime,
-        tableId: _selectedTableId,
+        tableIds: _selectedTableIds,
         coachIds: _selectedCoachIds,
         courseId: widget.session.courseId,
         excludeSessionId: widget.session.id, // 排除自己
@@ -326,7 +326,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         sessionId: widget.session.id,
         coachIds: _selectedCoachIds,
         // location: _locationController.text,
-        tableId: _selectedTableId,
+        tableIds: _selectedTableIds,
         maxCapacity: int.tryParse(_capacityController.text),
         startTime: _startDateTime.toUtc(),
         endTime: _endDateTime.toUtc(),
@@ -569,6 +569,11 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       _capacityController.text = newValue.toString();
     }
 
+    final selectedTableNames = _tables
+        .where((t) => _selectedTableIds.contains(t.id))
+        .map((t) => t.name)
+        .join('、');
+
     // 這裡放入原本的 Settings UI，並在 submit 時呼叫 sessionRepository.updateSession
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -581,6 +586,22 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           _buildTimeRow('結束時間', _endDateTime, () => _pickDateTime(false)),
           const SizedBox(height: 16),
 
+          Row(
+            children: [
+              const Icon(Icons.table_restaurant, size: 20, color: Colors.grey),
+              const SizedBox(width: 8),
+              const Text('桌次安排', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Spacer(),
+              Text(
+                selectedTableNames.isEmpty ? '未指定' : selectedTableNames,
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
           // 地點與人數
           // TextField(
           //   controller: _locationController,
@@ -592,37 +613,48 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           // ),
           _isLoadingTables
               ? const Center(child: CircularProgressIndicator())
-              : DropdownButtonFormField<String?>(
-                  initialValue: _selectedTableId,
-                  decoration: InputDecoration(
-                    labelText: '選擇桌次/場地',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.table_restaurant),
+              : Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  items: [
-                    // 🔥 選項 A: 未指定 (No Table)
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('未指定 (無桌次)'),
-                    ),
-                    // 🔥 選項 B: 資料庫抓來的桌子
-                    ..._tables.map((table) {
-                      return DropdownMenuItem<String?>(
-                        value: table.id,
-                        child: Text(
-                          table.isActive ? table.name : '${table.name} (已停用)',
-                          style: TextStyle(
-                            color: table.isActive ? Colors.black : Colors.red,
-                          ),
+                  child: _tables.isEmpty
+                      ? const Text('無可用桌次資料')
+                      : Wrap(
+                          spacing: 8.0,
+                          runSpacing: 4.0,
+                          children: _tables.map((table) {
+                            final isSelected = _selectedTableIds.contains(
+                              table.id,
+                            );
+                            return FilterChip(
+                              label: Text(table.name),
+                              selected: isSelected,
+                              selectedColor: Colors.blue.shade100,
+                              checkmarkColor: Colors.blue.shade700,
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? Colors.blue.shade900
+                                    : Colors.black87,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                              onSelected: (bool selected) {
+                                setState(() {
+                                  if (selected) {
+                                    _selectedTableIds.add(table.id);
+                                  } else {
+                                    _selectedTableIds.remove(table.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
                         ),
-                      );
-                    }),
-                  ],
-                  onChanged: (value) {
-                    setState(() => _selectedTableId = value);
-                  },
-                  // 驗證：必選
-                  // validator: (val) => val == null ? '請選擇桌次' : null,
                 ),
           const SizedBox(height: 16),
 
