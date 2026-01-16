@@ -9,6 +9,7 @@ import 'package:ttmastiff/main.dart';
 import '../../../../data/models/session_model.dart';
 import '../../../../data/models/booking_model.dart';
 import '../../../../data/models/student_model.dart';
+import '../../../../data/models/table_model.dart';
 import 'student_search_dialog.dart';
 
 class SessionEditDialog extends StatefulWidget {
@@ -34,13 +35,17 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   bool _isLoadingRoster = false;
 
   // Tab 2: 場次設定變數
-  final _locationController = TextEditingController();
+  // final _locationController = TextEditingController();
   final _capacityController = TextEditingController();
   List<Map<String, dynamic>> _allCoaches = [];
   List<String> _selectedCoachIds = [];
   late DateTime _startDateTime;
   late DateTime _endDateTime;
   bool _isSavingSettings = false;
+
+  List<TableModel> _tables = [];
+  String? _selectedTableId;
+  bool _isLoadingTables = true;
 
   @override
   void initState() {
@@ -49,23 +54,47 @@ class _SessionEditDialogState extends State<SessionEditDialog>
 
     // 初始化 Tab 2 資料
     final s = widget.session;
-    _locationController.text = s.location ?? '';
+    // _locationController.text = s.location ?? '';
     _capacityController.text = s.maxCapacity.toString();
     _selectedCoachIds = List<String>.from(s.coachIds);
     _startDateTime = s.startTime;
     _endDateTime = s.endTime;
+    _selectedTableId = widget.session.tableId;
 
     // 載入資料 (使用全域變數)
     _fetchCoaches();
     _fetchRoster();
+    _loadTables();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _locationController.dispose();
+    // _locationController.dispose();
     _capacityController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTables() async {
+    try {
+      final tables = await tableRepository.getTables();
+      // 只顯示啟用中的桌子
+      final activeTables = tables.where((t) => t.isActive).toList();
+
+      if (mounted) {
+        setState(() {
+          _tables = activeTables;
+          _isLoadingTables = false;
+          // 預設選第一張桌子
+          // if (_tables.isNotEmpty) {
+          //   _selectedTableId = _tables.first.id;
+          // }
+        });
+      }
+    } catch (e) {
+      debugPrint('載入桌次失敗: $e');
+      if (mounted) setState(() => _isLoadingTables = false);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -259,7 +288,8 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       await sessionRepository.updateSession(
         sessionId: widget.session.id,
         coachIds: _selectedCoachIds,
-        location: _locationController.text,
+        // location: _locationController.text,
+        tableId: _selectedTableId,
         maxCapacity: int.tryParse(_capacityController.text),
         startTime: _startDateTime.toUtc(),
         endTime: _endDateTime.toUtc(),
@@ -511,7 +541,41 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           _buildTimeRow('開始時間', _startDateTime, () => _pickDateTime(true)),
           const SizedBox(height: 16),
           _buildTimeRow('結束時間', _endDateTime, () => _pickDateTime(false)),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // 地點與人數
+          // TextField(
+          //   controller: _locationController,
+          //   decoration: const InputDecoration(
+          //     labelText: '地點',
+          //     border: OutlineInputBorder(),
+          //     prefixIcon: Icon(Icons.place_outlined),
+          //   ),
+          // ),
+          _isLoadingTables
+              ? const Center(child: CircularProgressIndicator())
+              : DropdownButtonFormField<String>(
+                  value: _selectedTableId,
+                  decoration: const InputDecoration(
+                    labelText: '選擇桌次/場地',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.table_restaurant),
+                  ),
+                  items: _tables.map((table) {
+                    return DropdownMenuItem(
+                      value: table.id,
+                      child: Text(table.name),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedTableId = value);
+                  },
+                  // 驗證：必選
+                  validator: (val) => val == null ? '請選擇桌次' : null,
+                ),
+
+          const SizedBox(height: 16),
+
           // ─── 教練選擇區塊 ───
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,17 +648,8 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                 ),
             ],
           ),
-          const SizedBox(height: 32),
-          // 地點與人數
-          TextField(
-            controller: _locationController,
-            decoration: const InputDecoration(
-              labelText: '地點',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.place_outlined),
-            ),
-          ),
-          const SizedBox(height: 16),
+
+          const SizedBox(height: 24),
           TextField(
             controller: _capacityController,
             decoration: InputDecoration(
