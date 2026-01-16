@@ -121,6 +121,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    onSubmitted: (value) {
+                      _handleLogin();
+                    },
                     decoration: InputDecoration(
                       labelText: '密碼',
                       border: const OutlineInputBorder(),

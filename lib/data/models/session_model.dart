@@ -35,6 +35,7 @@ class SessionModel {
   final List<String> coachIds;
   final List<CoachModel> coaches;
   final int bookingsCount;
+  final List<String> studentNames;
 
   SessionModel({
     required this.id,
@@ -48,9 +49,43 @@ class SessionModel {
     this.coachIds = const [],
     this.coaches = const [],
     this.bookingsCount = 0,
+    required this.studentNames,
   }) : _sessionPrice = sessionPrice;
 
   factory SessionModel.fromJson(Map<String, dynamic> json) {
+    final bookingsData = json['bookings'];
+
+    // 提取學生名字 (只抓 confirmed 的)
+    List<String> names = [];
+
+    // 判斷 bookingsData 是否為 List 且包含資料 (避免 null 或空)
+    if (bookingsData is List) {
+      names = bookingsData
+          .where(
+            (b) =>
+                b is Map && b['status'] == 'confirmed' && b['students'] != null,
+          )
+          .map((b) => b['students']['name'] as String)
+          .toList();
+    }
+    int count = 0;
+
+    // 判斷是否為詳細資料模式 (檢查第一筆資料是否有 students 欄位)
+    bool isDetailedList = false;
+    if (bookingsData is List &&
+        bookingsData.isNotEmpty &&
+        bookingsData.first is Map) {
+      if (bookingsData.first.containsKey('students')) {
+        isDetailedList = true;
+      }
+    }
+
+    if (isDetailedList) {
+      count = names.length; // ✅ 詳細模式：人數 = 名單長度
+    } else {
+      count = _parseCount(bookingsData); // ✅ 列表模式：用 count 欄位
+    }
+
     return SessionModel(
       id: json['id'],
       courseId: json['course_id'],
@@ -75,9 +110,10 @@ class SessionModel {
 
       // ⚠️ 關鍵修正：處理 Supabase 的 Count 回傳格式
       // 如果是用 .select('*, bookings(count)')，格式會是 { "bookings": [{"count": 5}] }
-      bookingsCount: _parseCount(json['bookings']),
+      bookingsCount: count,
 
       sessionPrice: json['price'],
+      studentNames: names,
     );
   }
 
@@ -97,6 +133,7 @@ class SessionModel {
     int? bookingsCount,
     List<String>? coachIds,
     CourseModel? course,
+    List<String>? names,
   }) {
     return SessionModel(
       id: id,
@@ -110,10 +147,15 @@ class SessionModel {
       coachIds: coachIds ?? this.coachIds,
       coaches: coaches ?? this.coaches,
       bookingsCount: bookingsCount ?? this.bookingsCount,
+      studentNames: names ?? this.studentNames,
     );
   }
 
   // Getters
+  int get remainingCapacity {
+    final remaining = maxCapacity - bookingsCount;
+    return remaining < 0 ? 0 : remaining; // 避免負數顯示
+  }
 
   String get courseTitle => course?.title ?? '未命名課程';
   String? get description => course?.description;

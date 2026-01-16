@@ -30,9 +30,10 @@ class CourseRepository {
     try {
       final response = await _supabase
           .from('sessions')
-          .select('*, courses(*)') // 這裡只需要 course 資訊
+          .select('*, courses!inner(*)') // 這裡只需要 course 資訊
           .gte('start_time', start.toIso8601String())
-          .lte('start_time', end.toIso8601String());
+          .lte('start_time', end.toIso8601String())
+          .eq('courses.is_published', true);
 
       final sessions = (response as List)
           .map((e) => SessionModel.fromJson(e))
@@ -249,15 +250,48 @@ class CourseRepository {
     courseRefreshSignal.notify();
   }
 
-  /// 刪除課程模板
+  // 切換課程的 上架/下架 (封存) 狀態
+  Future<void> toggleCoursePublishStatus(
+    String courseId,
+    bool currentStatus,
+  ) async {
+    try {
+      await _supabase
+          .from('courses')
+          .update({'is_published': !currentStatus}) // 反轉狀態
+          .eq('id', courseId);
+
+      // 通知 UI 刷新
+      courseRefreshSignal.notify();
+    } catch (e) {
+      throw Exception('更新課程狀態失敗: $e');
+    }
+  }
+
+  // 刪除課程模板
   Future<void> deleteCourse(String courseId) async {
+    // 1. 檢查是否有任何場次 (包含過去與未來)
+    final int totalSessions = await _supabase
+        .from('sessions')
+        .count(CountOption.exact)
+        .eq('course_id', courseId);
+
+    // ⛔ 只要有任何紀錄，就禁止物理刪除，引導使用者去「下架」
+    if (totalSessions > 0) {
+      throw Exception(
+        '無法刪除課程！\n'
+        '此課程包含 $totalSessions 筆場次資料 (含歷史紀錄)。\n\n'
+        '為了保留帳務與出席歷史，請使用「下架 (封存)」功能來隱藏此課程，\n'
+        '而非直接刪除。',
+      );
+    }
+
+    // 2. 只有完全乾淨的空殼課程，才允許物理刪除
     try {
       await _supabase.from('courses').delete().eq('id', courseId);
       courseRefreshSignal.notify();
     } catch (e) {
-      // 這裡可能會捕捉到 Foreign Key Constraint 錯誤
-      // 實際專案中，可能需要先檢查是否有現存 Session，或者由資料庫 CASCADE 處理
-      throw Exception('刪除課程失敗: $e');
+      throw Exception('刪除失敗: $e');
     }
   }
 }

@@ -1,7 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:ttmastiff/data/models/session_model.dart';
-import '../models/transaction_model.dart';
-import 'package:intl/intl.dart';
 
 class CreditRepository {
   final SupabaseClient _client;
@@ -97,5 +94,35 @@ class CreditRepository {
     }
   }
 
- 
+  Future<void> processRefund({
+    required String userId, // 對應 target_user_id
+    required int amount, // 對應 amount_to_refund
+    required String bookingId, // 對應 booking_uuid
+    required String courseName, // 對應 course_name
+    required String sessionInfo, // 對應 session_info
+    required String studentName, // 對應 student_name
+    required String studentId, // 對應 student_id
+    String reason = '預約取消',
+  }) async {
+    try {
+      await _client.rpc(
+        'process_refund', // 呼叫資料庫中的函數名稱
+        params: {
+          'target_user_id': userId,
+          'amount_to_refund': amount,
+          'booking_uuid': bookingId,
+          'course_name': courseName,
+          'session_info': sessionInfo,
+          'student_name': studentName,
+          'student_id': studentId,
+          'refund_reason': reason,
+        },
+      );
+    } on PostgrestException catch (e) {
+      // 捕捉 SQL 拋出的錯誤
+      throw Exception('退款執行失敗: ${e.message}');
+    } catch (e) {
+      throw Exception('未預期的錯誤: $e');
+    }
+  }
 }
