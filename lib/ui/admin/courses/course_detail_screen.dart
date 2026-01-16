@@ -65,7 +65,6 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
       final sessions = await sessionRepository.getSessionsByCourse(
         widget.courseId,
       );
-      print(sessions[0].tableId);
 
       final coachesList = await coachRepository.getCoaches();
       final coachMap = {
@@ -342,19 +341,18 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                     border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.place, size: 12, color: Colors.grey.shade500),
+                      Icon(
+                        Icons.table_restaurant,
+                        size: 14,
+                        color: Colors.grey.shade600,
+                      ),
                       const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          s.table?.name ?? '待定',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade800,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                      Text(
+                        s.tableNames, // ✅ 自動顯示 "A桌、B桌" 或 "未指定"
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 13,
                         ),
                       ),
                     ],

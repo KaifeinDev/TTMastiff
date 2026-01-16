@@ -33,7 +33,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
   List<Map<String, dynamic>> _allCoaches = [];
   final List<String> _selectedCoachIds = [];
   List<TableModel> _tables = [];
-  String? _selectedTableId;
+  List<String> _selectedTableIds = [];
   bool _isLoadingTables = true;
 
   final TextEditingController _capacityController = TextEditingController();
@@ -152,7 +152,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       return;
     }
 
-    // if (_selectedTableId == null) {
+    // if (_selectedTableIds == null) {
     //   ScaffoldMessenger.of(
     //     context,
     //   ).showSnackBar(const SnackBar(content: Text('請選擇桌次')));
@@ -204,7 +204,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
           final conflict = await sessionRepository.checkDetailConflict(
             startTime: start,
             endTime: end,
-            tableId: _selectedTableId,
+            tableIds: _selectedTableIds,
             coachIds: _selectedCoachIds, // 傳入選到的教練列表
             courseId: widget.courseId,
           );
@@ -230,7 +230,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
             'coach_ids': _selectedCoachIds, // Supabase 支援直接傳 List
             // 選擇性：也可以把桌名寫入 location 欄位當作備份
             // 'location': _tables.firstWhere((t) => t.id == _selectedTableId).name,
-            'table_id': _selectedTableId,
+            'table_ids': _selectedTableIds,
             'max_capacity': int.tryParse(_capacityController.text) ?? 4,
             'price': widget.defaultPrice,
           });
@@ -381,27 +381,42 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
               ),
 
               const SizedBox(height: 16),
+              const Text(
+                '選擇桌次 (可多選)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
 
               _isLoadingTables
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<String>(
-                      value: _selectedTableId,
-                      decoration: const InputDecoration(
-                        labelText: '選擇桌次/場地',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.table_restaurant),
+                  ? const LinearProgressIndicator()
+                  : Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      items: _tables.map((table) {
-                        return DropdownMenuItem(
-                          value: table.id,
-                          child: Text(table.name),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() => _selectedTableId = value);
-                      },
-                      // 驗證：必選
-                      validator: (val) => val == null ? '請選擇桌次' : null,
+                      child: Wrap(
+                        spacing: 8.0,
+                        children: _tables.map((table) {
+                          final isSelected = _selectedTableIds.contains(
+                            table.id,
+                          );
+                          return FilterChip(
+                            label: Text(table.name),
+                            selected: isSelected,
+                            onSelected: (bool selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedTableIds.add(table.id);
+                                } else {
+                                  _selectedTableIds.remove(table.id);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
                     ),
 
               const SizedBox(height: 16),
