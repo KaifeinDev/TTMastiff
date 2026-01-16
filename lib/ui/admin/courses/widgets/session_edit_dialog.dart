@@ -9,6 +9,7 @@ import 'package:ttmastiff/main.dart';
 import '../../../../data/models/session_model.dart';
 import '../../../../data/models/booking_model.dart';
 import '../../../../data/models/student_model.dart';
+import 'student_search_dialog.dart';
 
 class SessionEditDialog extends StatefulWidget {
   final SessionModel session;
@@ -125,36 +126,72 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     }
   }
 
-  void _showAddStudentDialog() {
-    showDialog(
+  Future<void> _showAddStudentDialog() async {
+    final existingIds = _roster.map((booking) => booking.studentId).toSet();
+    final StudentModel? selectedStudent = await showDialog<StudentModel>(
       context: context,
-      builder: (context) => _StudentSearchDialog(
-        onStudentSelected: (student) async {
-          final messenger = ScaffoldMessenger.of(context);
-          try {
-            // 🔥 使用全域 bookingRepository 幫學生報名
-            await bookingRepository.createBooking(
-              sessionId: widget.session.id,
-              studentId: student.id,
-              userId: student.parentId,
-              priceSnapshot: widget.session.displayPrice,
-            );
-
-            messenger.showSnackBar(
-              SnackBar(content: Text('已加入學員: ${student.name}')),
-            );
-
-            if (mounted) {
-              _fetchRoster(); // 刷新名單
-            }
-          } catch (e) {
-            messenger.showSnackBar(
-              SnackBar(content: Text('加入失敗: $e'), backgroundColor: Colors.red),
-            );
-          }
-        },
-      ),
+      builder: (context) =>
+          StudentSearchDialog(existingStudentIds: existingIds),
     );
+    if (selectedStudent != null) {
+      // 呼叫下面定義的函式
+      await _executeEnrollment(selectedStudent);
+    }
+  }
+
+  Future<void> _executeEnrollment(StudentModel student) async {
+    setState(() => _isLoadingRoster = true);
+
+    try {
+      // 🔥 重點：直接呼叫 repository 的批次報名，但只傳入一筆資料
+      // 這樣我們就不用重寫「檢查名額、扣點數、寫入DB」的複雜邏輯
+      final result = await bookingRepository.createBatchBooking(
+        sessionIds: [widget.session.id], // 當前場次 ID
+        studentIds: [student.id], // 選到的學生 ID
+        priceSnapshot: widget.session.displayPrice, // 當前價格
+      );
+
+      final successCount = result['success'] as int;
+
+      if (mounted) {
+        if (successCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('已成功幫 ${student.name} 完成報名與扣款'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // 報名成功後，刷新名單
+          _fetchRoster();
+        } else {
+          // 可能是重複報名或被略過
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('加入失敗：該學員可能已報名或餘額不足')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        // 顯示錯誤 (例如：額滿、餘額不足)
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('無法加入'),
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('確定'),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingRoster = false);
+      }
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -617,83 +654,6 @@ class _SessionEditDialogState extends State<SessionEditDialog>
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// 簡單的學生搜尋 Dialog
-class _StudentSearchDialog extends StatefulWidget {
-  final Function(StudentModel) onStudentSelected;
-  const _StudentSearchDialog({required this.onStudentSelected});
-
-  @override
-  State<_StudentSearchDialog> createState() => _StudentSearchDialogState();
-}
-
-class _StudentSearchDialogState extends State<_StudentSearchDialog> {
-  final _searchController = TextEditingController();
-  List<StudentModel> _results = [];
-  bool _searching = false;
-
-  Future<void> _search() async {
-    setState(() => _searching = true);
-    try {
-      // 這裡直接用 Supabase Client 搜尋，或者你在 StudentRepository 補上 searchStudent 方法
-      // 假設簡單搜尋名字
-      final res = await Supabase.instance.client
-          .from('students')
-          .select()
-          .ilike('name', '%${_searchController.text}%')
-          .limit(5);
-      setState(() {
-        _results = (res as List).map((e) => StudentModel.fromJson(e)).toList();
-      });
-    } finally {
-      setState(() => _searching = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('搜尋學生'),
-      content: SizedBox(
-        width: 300,
-        height: 300,
-        child: Column(
-          children: [
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: '輸入姓名...',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: _search,
-                ),
-              ),
-              onSubmitted: (_) => _search(),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: _searching
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      itemCount: _results.length,
-                      itemBuilder: (context, index) {
-                        final s = _results[index];
-                        return ListTile(
-                          title: Text(s.name),
-                          onTap: () {
-                            Navigator.pop(context);
-                            widget.onStudentSelected(s);
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
       ),
     );
   }

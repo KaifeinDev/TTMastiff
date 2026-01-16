@@ -48,7 +48,14 @@ class SessionRepository {
   Future<List<SessionModel>> getSessionsByCourse(String courseId) async {
     final data = await _supabase
         .from('sessions')
-        .select('*')
+        .select('''
+          *,
+          courses (*),
+          bookings (
+             status,
+             students (name) 
+          )
+        ''')
         .eq('course_id', courseId)
         .order('start_time');
 
