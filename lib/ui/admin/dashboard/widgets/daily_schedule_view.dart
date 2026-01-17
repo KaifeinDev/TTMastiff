@@ -222,17 +222,17 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                         fontSize: 18, // 字體加大
                       ),
                     ),
-                    if (_selectedDate.day == DateTime.now().day)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 8.0),
-                        child: Text(
-                          '(今天)',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                    // if (_selectedDate.day == DateTime.now().day)
+                    //   const Padding(
+                    //     padding: EdgeInsets.only(left: 8.0),
+                    //     child: Text(
+                    //       '(今天)',
+                    //       style: TextStyle(
+                    //         color: Colors.blue,
+                    //         fontWeight: FontWeight.bold,
+                    //       ),
+                    //     ),
+                    //   ),
                   ],
                 ),
               ),
