@@ -233,59 +233,110 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
       return names[day - 1];
     }
 
+    final platform = Theme.of(context).platform;
+    final bool isMobile =
+        platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+
     return Column(
       children: [
         // --- 頂部：日期控制列 ---
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: Colors.white,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () => _changeDate(-1),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ), // 左右間距稍微縮小一點
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 2,
+                offset: const Offset(0, 2),
               ),
-              InkWell(
-                onTap: _pickDate,
+            ],
+          ),
+          child: Row(
+            children: [
+              // 1. 左側：回到今天按鈕
+              IconButton(
+                icon: const Icon(
+                  Icons.today_outlined,
+                  color: Colors.blue,
+                ), // 用藍色凸顯功能
+                tooltip: '回到今天',
+                onPressed: () {
+                  setState(() => _selectedDate = DateTime.now());
+                  _loadData();
+                },
+              ),
+
+              // 2. 中間：日期切換區 (使用 Expanded 佔滿剩餘空間並置中)
+              Expanded(
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center, // 讓 < 日期 > 嚴格置中
                   children: [
-                    const Icon(Icons.calendar_today, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${_selectedDate.year}/${_selectedDate.month}/${_selectedDate.day} (${_weekdayName(_selectedDate.weekday)})',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18, // 字體加大
+                    // 左箭頭
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () => _changeDate(-1),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(), // 緊湊模式
+                      visualDensity: VisualDensity.compact,
+                    ),
+
+                    // 日期文字 (彈性縮放)
+                    Flexible(
+                      child: InkWell(
+                        onTap: _pickDate,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4.0,
+                            vertical: 8.0,
+                          ),
+                          child: FittedBox(
+                            // 確保文字過長時自動縮小，不跑版
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              children: [
+                                // Icon 可以視情況隱藏，這裡留著增加識別度
+                                // const Icon(Icons.calendar_month, size: 16, color: Colors.grey),
+                                // const SizedBox(width: 4),
+                                Text(
+                                  '${_selectedDate.year}/${_selectedDate.month}/${_selectedDate.day} (${_weekdayName(_selectedDate.weekday)})',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18, // 主標題字體
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    // if (_selectedDate.day == DateTime.now().day)
-                    //   const Padding(
-                    //     padding: EdgeInsets.only(left: 8.0),
-                    //     child: Text(
-                    //       '(今天)',
-                    //       style: TextStyle(
-                    //         color: Colors.blue,
-                    //         fontWeight: FontWeight.bold,
-                    //       ),
-                    //     ),
-                    //   ),
+
+                    // 右箭頭
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () => _changeDate(1),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ],
                 ),
               ),
+
+              // 3. 右側：刷新按鈕
               IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: () => _changeDate(1),
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh, size: 20),
-                onPressed: _loadData,
+                icon: const Icon(Icons.refresh),
                 tooltip: '刷新',
+                onPressed: _loadData,
               ),
             ],
           ),
         ),
-
         // --- 2. 核心排程表 (Excel 佈局) ---
         Expanded(
           child: LayoutBuilder(
@@ -401,97 +452,121 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
 
                         // B-2. 右下角核心內容區 (雙向捲動)
                         Expanded(
-                          child: SingleChildScrollView(
-                            controller: _contentVertCtrl,
-                            scrollDirection: Axis.vertical,
-                            physics: const ClampingScrollPhysics(),
-                            child: SingleChildScrollView(
-                              controller: _contentHorizCtrl,
-                              scrollDirection: Axis.horizontal,
-                              physics: const ClampingScrollPhysics(),
-                              child: SizedBox(
-                                width:
-                                    totalWidth, // 這裡指的是內容的總寬 (tables * width)
-                                height: totalHeight,
-                                child: Stack(
-                                  children: [
-                                    // 背景格線
-                                    Column(
-                                      children: List.generate(
-                                        totalHours,
-                                        (i) => Container(
-                                          height: _hourHeight,
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              bottom: BorderSide(
-                                                color: Colors.grey.shade100,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Row(
-                                      children: _tables
-                                          .map(
-                                            (_) => Container(
-                                              width: _tableColumnWidth,
-                                              decoration: BoxDecoration(
-                                                border: Border(
-                                                  right: BorderSide(
-                                                    color: Colors.grey.shade100,
+                          child: ScrollConfiguration(
+                            behavior: ScrollConfiguration.of(
+                              context,
+                            ).copyWith(scrollbars: false),
+                            child: Scrollbar(
+                              controller: _contentHorizCtrl, // 綁定水平控制器
+                              thumbVisibility: !isMobile, // 強制顯示
+                              thickness: isMobile ? 0.0 : 10.0,
+                              notificationPredicate: (notif) =>
+                                  notif.depth == 1,
+                              child: Scrollbar(
+                                controller: _contentVertCtrl, // 綁定垂直控制器
+                                thumbVisibility: !isMobile,
+                                thickness: isMobile ? 0.0 : 10.0,
+                                // 垂直捲動條監聽直接子元件 (depth == 0)
+                                notificationPredicate: (notif) =>
+                                    notif.depth == 0,
+                                child: SingleChildScrollView(
+                                  controller: _contentVertCtrl,
+                                  scrollDirection: Axis.vertical,
+                                  physics: const ClampingScrollPhysics(),
+                                  child: SingleChildScrollView(
+                                    controller: _contentHorizCtrl,
+                                    scrollDirection: Axis.horizontal,
+                                    physics: const ClampingScrollPhysics(),
+                                    child: SizedBox(
+                                      width:
+                                          totalWidth, // 這裡指的是內容的總寬 (tables * width)
+                                      height: totalHeight,
+                                      child: Stack(
+                                        children: [
+                                          // 背景格線
+                                          Column(
+                                            children: List.generate(
+                                              totalHours,
+                                              (i) => Container(
+                                                height: _hourHeight,
+                                                decoration: BoxDecoration(
+                                                  border: Border(
+                                                    bottom: BorderSide(
+                                                      color:
+                                                          Colors.grey.shade100,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
                                             ),
-                                          )
-                                          .toList(),
-                                    ),
-                                    // 課程卡片
-                                    ..._buildSessionCards(),
+                                          ),
+                                          Row(
+                                            children: _tables
+                                                .map(
+                                                  (_) => Container(
+                                                    width: _tableColumnWidth,
+                                                    decoration: BoxDecoration(
+                                                      border: Border(
+                                                        right: BorderSide(
+                                                          color: Colors
+                                                              .grey
+                                                              .shade100,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                )
+                                                .toList(),
+                                          ),
+                                          // 課程卡片
+                                          ..._buildSessionCards(),
 
-                                    // 🔥 [現在時間紅線]
-                                    if (_shouldShowCurrentTimeLine())
-                                      Positioned(
-                                        top:
-                                            _calculateCurrentTimeTop() -
-                                            5, // 往上提一點，讓線置中於時間點
-                                        left: 0,
-                                        right: 0,
-                                        child: IgnorePointer(
-                                          // 確保紅線不會攔截滑鼠點擊
-                                          child: Row(
-                                            children: [
-                                              // 1. 紅色圓點 (模擬 Google Calendar 風格)
-                                              Container(
-                                                width: 10,
-                                                height: 10,
-                                                margin: const EdgeInsets.only(
-                                                  right: 0,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red,
-                                                  shape: BoxShape.circle,
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.white,
-                                                      spreadRadius: 1,
-                                                    ), // 白邊讓它更清楚
+                                          // 🔥 [現在時間紅線]
+                                          if (_shouldShowCurrentTimeLine())
+                                            Positioned(
+                                              top:
+                                                  _calculateCurrentTimeTop() -
+                                                  5, // 往上提一點，讓線置中於時間點
+                                              left: 0,
+                                              right: 0,
+                                              child: IgnorePointer(
+                                                // 確保紅線不會攔截滑鼠點擊
+                                                child: Row(
+                                                  children: [
+                                                    // 1. 紅色圓點 (模擬 Google Calendar 風格)
+                                                    Container(
+                                                      width: 10,
+                                                      height: 10,
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            right: 0,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.red,
+                                                        shape: BoxShape.circle,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors.white,
+                                                            spreadRadius: 1,
+                                                          ), // 白邊讓它更清楚
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    // 2. 貫穿全場的紅線
+                                                    Expanded(
+                                                      child: Container(
+                                                        height: 2,
+                                                        color: Colors.red,
+                                                      ),
+                                                    ),
                                                   ],
                                                 ),
                                               ),
-                                              // 2. 貫穿全場的紅線
-                                              Expanded(
-                                                child: Container(
-                                                  height: 2,
-                                                  color: Colors.red,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
+                                            ),
+                                        ],
                                       ),
-                                  ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
