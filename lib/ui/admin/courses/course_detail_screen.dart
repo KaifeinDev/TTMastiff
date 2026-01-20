@@ -33,6 +33,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
   List<SessionModel> _upcomingSessions = []; // 未來
   List<SessionModel> _historySessions = []; // 歷史
   Map<dynamic, String> _coachMap = {};
+  bool get _isAdmin => authManager.isAdmin;
 
   bool _isLoading = true;
 
@@ -617,14 +618,15 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                     ),
                     onPressed: () => _editSession(s),
                   ),
-                  TextButton.icon(
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('刪除'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red.shade400,
+                  if (_isAdmin)
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('刪除'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red.shade400,
+                      ),
+                      onPressed: () => _deleteSession(s.id),
                     ),
-                    onPressed: () => _deleteSession(s.id),
-                  ),
                 ],
               ),
             ),
