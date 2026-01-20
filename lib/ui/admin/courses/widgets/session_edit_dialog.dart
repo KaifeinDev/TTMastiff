@@ -41,6 +41,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   late DateTime _startDateTime;
   late DateTime _endDateTime;
   bool _isSavingSettings = false;
+  bool get _isExpired {
+    return DateTime.now().isAfter(_endDateTime);
+  }
 
   List<TableModel> _tables = [];
   List<String> _selectedTableIds = [];
@@ -249,14 +252,28 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   }
 
   Future<void> _pickDateTime(bool isStart) async {
-    // ... (維持原本時間選擇邏輯)
+    final now = DateTime.now();
     final initialDate = isStart ? _startDateTime : _endDateTime;
-    final date = await showDatePicker(
+    final effectiveInitialDate = initialDate.isBefore(now) ? now : initialDate;
+
+    final DateTime? date = await showDatePicker(
       context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2024),
-      lastDate: DateTime(2030),
+      initialDate: effectiveInitialDate,
+      // 🔥 關鍵 1：設定最早日期為「現在」，鎖住過去的日期
+      firstDate: now,
+      // 設定一個夠遠的未來 (例如 2100 年)
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        // (選填) 這裡可以自定義日曆的主題顏色
+        return Theme(
+          data: Theme.of(
+            context,
+          ).copyWith(colorScheme: ColorScheme.light(primary: Colors.blue)),
+          child: child!,
+        );
+      },
     );
+
     if (date == null || !mounted) return;
     final time = await showTimePicker(
       context: context,
@@ -270,6 +287,15 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       time.hour,
       time.minute,
     );
+    if (newDateTime.isBefore(now)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('無法設定為過去的時間'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     setState(() {
       if (isStart) {
         _startDateTime = newDateTime;
@@ -426,11 +452,13 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   Widget _buildRosterView() {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddStudentDialog,
-        icon: const Icon(Icons.person_add),
-        label: const Text('加入學生'),
-      ),
+      floatingActionButton: _isExpired
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _showAddStudentDialog,
+              icon: const Icon(Icons.person_add),
+              label: const Text('加入學生'),
+            ),
       body: _isLoadingRoster
           ? const Center(child: CircularProgressIndicator())
           : _roster.isEmpty
@@ -453,7 +481,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                     booking.attendanceStatus,
                     booking.status,
                   ),
-                  trailing: booking.status == 'cancelled'
+                  trailing: booking.status == 'cancelled' || _isExpired
                       ? null
                       : PopupMenuButton<String>(
                           onSelected: (val) {
@@ -574,6 +602,16 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         .map((t) => t.name)
         .join('、');
 
+    final sectionDecoration = BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: Colors.grey.shade300),
+      borderRadius: BorderRadius.circular(12),
+    );
+
+    final displayTables = _isExpired
+        ? _tables.where((t) => _selectedTableIds.contains(t.id)).toList()
+        : _tables;
+
     // 這裡放入原本的 Settings UI，並在 submit 時呼叫 sessionRepository.updateSession
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -581,69 +619,76 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 時間設定
-          _buildTimeRow('開始時間', _startDateTime, () => _pickDateTime(true)),
+          _buildTimeRow(
+            '開始時間',
+            _startDateTime,
+            _isExpired ? null : () => _pickDateTime(true),
+          ),
           const SizedBox(height: 16),
-          _buildTimeRow('結束時間', _endDateTime, () => _pickDateTime(false)),
+          _buildTimeRow(
+            '結束時間',
+            _endDateTime,
+            _isExpired ? null : () => _pickDateTime(false),
+          ),
           const SizedBox(height: 16),
 
-          Row(
-            children: [
-              const Icon(Icons.table_restaurant, size: 20, color: Colors.grey),
-              const SizedBox(width: 8),
-              const Text('桌次安排', style: TextStyle(fontWeight: FontWeight.bold)),
-              const Spacer(),
-              Text(
-                selectedTableNames.isEmpty ? '未指定' : selectedTableNames,
-                style: TextStyle(
-                  color: Colors.blue.shade700,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          // 地點與人數
-          // TextField(
-          //   controller: _locationController,
-          //   decoration: const InputDecoration(
-          //     labelText: '地點',
-          //     border: OutlineInputBorder(),
-          //     prefixIcon: Icon(Icons.place_outlined),
-          //   ),
-          // ),
+          // ---------------------------------------------------------
+          // 2. 桌次安排 (改用 Wrap，寬度自然，與教練一致)
+          // ---------------------------------------------------------
+          const Text('桌次安排', style: TextStyle(fontSize: 14)),
+          const SizedBox(height: 12),
+
           _isLoadingTables
               ? const Center(child: CircularProgressIndicator())
-              : Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    border: Border.all(color: Colors.grey.shade200),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: _tables.isEmpty
-                      ? const Text('無可用桌次資料')
-                      : Wrap(
-                          spacing: 8.0,
-                          runSpacing: 4.0,
-                          children: _tables.map((table) {
-                            final isSelected = _selectedTableIds.contains(
-                              table.id,
-                            );
-                            return FilterChip(
-                              label: Text(table.name),
-                              selected: isSelected,
-                              selectedColor: Colors.blue.shade100,
-                              checkmarkColor: Colors.blue.shade700,
-                              labelStyle: TextStyle(
-                                color: isSelected
-                                    ? Colors.blue.shade900
-                                    : Colors.black87,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
-                              onSelected: (bool selected) {
+              : (displayTables.isEmpty && _isExpired)
+              ? const Text('未指定', style: TextStyle(color: Colors.grey))
+              : SizedBox(
+                  width: double.infinity, // 確保 Wrap 佔滿寬度
+                  child: Wrap(
+                    spacing: 8.0, // 水平間距 (與教練區塊一致)
+                    runSpacing: 8.0, // 垂直間距 (與教練區塊一致)
+                    children: displayTables.map((table) {
+                      final isSelected = _selectedTableIds.contains(table.id);
+                      final isDisabled = _isExpired;
+
+                      return FilterChip(
+                        // 🔥 1. 樣式設定 (與教練完全一致)
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+
+                        label: Text(
+                          table.name,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isSelected
+                                ? Colors.blue.shade900
+                                : Colors.black87,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+
+                        // 🔥 2. 顏色設定
+                        selected: isSelected,
+                        selectedColor: Colors.blue.shade50,
+                        backgroundColor: Colors.white,
+                        disabledColor: Colors.grey.shade100,
+                        checkmarkColor: Colors.blue.shade700,
+
+                        // 🔥 3. 形狀設定 (StadiumBorder)
+                        shape: StadiumBorder(
+                          side: BorderSide(
+                            color: isSelected
+                                ? Colors.blue.shade200
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+
+                        // 🔥 4. 互動邏輯
+                        onSelected: isDisabled
+                            ? null
+                            : (bool selected) {
                                 setState(() {
                                   if (selected) {
                                     _selectedTableIds.add(table.id);
@@ -652,113 +697,143 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                                   }
                                 });
                               },
-                            );
-                          }).toList(),
-                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
           const SizedBox(height: 16),
 
-          // ─── 教練選擇區塊 ───
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '指定教練：',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
+          // ---------------------------------------------------------
+          // 3. 指定教練
+          // ---------------------------------------------------------
+          const Text('指定教練', style: TextStyle(fontSize: 14)),
+          const SizedBox(height: 12),
 
-              // 如果還在載入或完全沒資料
-              if (_allCoaches.isEmpty)
-                const Text('載入教練中或無教練資料', style: TextStyle(color: Colors.grey))
-              else
-                Wrap(
-                  spacing: 8.0,
-                  runSpacing: 4.0, // 換行後的間距
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    // 1. 顯示「已選擇」的教練 (InputChip)
-                    ..._selectedCoachIds.map((id) {
-                      // 找到對應的教練資料
-                      final coach = _allCoaches.firstWhere(
-                        (c) => c['id'] == id,
-                        orElse: () => {'full_name': '未知教練'},
-                      );
-
-                      return InputChip(
-                        avatar: CircleAvatar(
-                          backgroundColor: Colors.blue.shade100,
-                          child: Text(
-                            coach['full_name'].substring(0, 1), // 取首字當頭像
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.blue.shade800,
-                            ),
-                          ),
-                        ),
-                        label: Text(coach['full_name']),
-                        onDeleted: () {
-                          // 點擊 X 移除
-                          setState(() {
-                            _selectedCoachIds.remove(id);
-                            _recalcCapacity(); // 連動人數
-                          });
-                        },
-                        backgroundColor: Colors.blue.shade50,
-                        deleteIconColor: Colors.blue.shade300,
-                      );
-                    }),
-
-                    // 2. 顯示「+ 新增教練」按鈕 (只有當還有未選教練時才顯示)
-                    if (_selectedCoachIds.length < _allCoaches.length)
-                      if (widget.category == 'personal' &&
-                          _selectedCoachIds.isNotEmpty)
-                        const SizedBox.shrink()
-                      else
-                        ActionChip(
-                          avatar: const Icon(
-                            Icons.add,
-                            size: 18,
-                            color: Colors.grey,
-                          ),
-                          label: const Text('新增教練'),
-                          backgroundColor: Colors.white,
-                          side: BorderSide(color: Colors.grey.shade300), // 邊框樣式
-                          onPressed: () => _showAddCoachDialog(context),
-                        ),
-                  ],
-                ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-          TextField(
-            controller: _capacityController,
-            decoration: InputDecoration(
-              labelText: '人數上限',
-              border: OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.group_outlined),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
+          if (_allCoaches.isEmpty)
+            const Text('載入教練中...', style: TextStyle(color: Colors.grey))
+          else if (_selectedCoachIds.isEmpty && _isExpired)
+            const Text('未指定', style: TextStyle(color: Colors.grey))
+          else
+            Container(
+              width: double.infinity,
+              child: Wrap(
+                spacing: 8.0,
+                runSpacing: 8.0,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  // 減號按鈕
-                  IconButton(
-                    icon: const Icon(
-                      Icons.remove_circle_outline,
-                      color: Colors.grey,
+                  // 已選擇的教練
+                  ..._selectedCoachIds.map((id) {
+                    final coach = _allCoaches.firstWhere(
+                      (c) => c['id'] == id,
+                      orElse: () => {'full_name': '未知'},
+                    );
+
+                    return InputChip(
+                      // 🔥 1. 統一密度設定
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+
+                      avatar: CircleAvatar(
+                        backgroundColor: Colors.blue.shade100,
+                        child: Text(
+                          (coach['full_name'] as String).substring(0, 1),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.blue.shade900,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      label: Text(
+                        coach['full_name'],
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade900,
+                        ),
+                      ),
+
+                      // 🔥 2. 統一顏色設定
+                      backgroundColor: Colors.blue.shade50,
+                      deleteIconColor: Colors.blue.shade400,
+
+                      // 🔥 3. 統一邊框形狀 (StadiumBorder)
+                      shape: StadiumBorder(
+                        side: BorderSide(color: Colors.blue.shade200),
+                      ),
+
+                      onDeleted: _isExpired
+                          ? null
+                          : () {
+                              setState(() {
+                                _selectedCoachIds.remove(id);
+                                _recalcCapacity();
+                              });
+                            },
+                    );
+                  }),
+
+                  // 新增按鈕 (過期時不顯示)
+                  if (_selectedCoachIds.length < _allCoaches.length &&
+                      !_isExpired)
+                    ActionChip(
+                      // 🔥 1. 統一密度設定
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+
+                      avatar: const Icon(
+                        Icons.add,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
+                      label: const Text(
+                        '新增',
+                        style: TextStyle(color: Colors.black54),
+                      ),
+
+                      // 🔥 2. 統一顏色設定
+                      backgroundColor: Colors.white,
+
+                      // 🔥 3. 統一邊框形狀 (StadiumBorder)
+                      shape: StadiumBorder(
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+
+                      onPressed: () => _showAddCoachDialog(context),
                     ),
-                    onPressed: () => _adjustCapacity(-1),
-                  ),
-                  // 加號按鈕
-                  IconButton(
-                    icon: const Icon(
-                      Icons.add_circle_outline,
-                      color: Colors.blue,
-                    ),
-                    onPressed: () => _adjustCapacity(1),
-                  ),
                 ],
               ),
+            ),
+
+          const SizedBox(height: 32),
+          // 4. 人數上限 (保持原樣)
+          TextField(
+            controller: _capacityController,
+            readOnly: _isExpired,
+            decoration: InputDecoration(
+              labelText: '人數上限',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.group_outlined),
+              suffixIcon: _isExpired
+                  ? null
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.remove_circle_outline,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () => _adjustCapacity(-1),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.add_circle_outline,
+                            color: Colors.blue,
+                          ),
+                          onPressed: () => _adjustCapacity(1),
+                        ),
+                      ],
+                    ),
             ),
           ),
           const SizedBox(height: 24),
@@ -766,20 +841,27 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: ElevatedButton(
-              onPressed: _isSavingSettings ? null : _submitSettings,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              child: _isSavingSettings
-                  ? const CircularProgressIndicator()
-                  : const Text('儲存變更', style: TextStyle(color: Colors.white)),
-            ),
+            child: _isExpired
+                ? null
+                : ElevatedButton(
+                    onPressed: _isSavingSettings ? null : _submitSettings,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                    ),
+                    child: _isSavingSettings
+                        ? const CircularProgressIndicator()
+                        : const Text(
+                            '儲存變更',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                  ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTimeRow(String label, DateTime time, VoidCallback onTap) {
+  Widget _buildTimeRow(String label, DateTime time, VoidCallback? onTap) {
     return InkWell(
       onTap: onTap,
       child: Row(
@@ -788,7 +870,10 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           Text(label),
           Text(
             DateFormat('yyyy/MM/dd HH:mm').format(time),
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: onTap == null ? Colors.grey : Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
