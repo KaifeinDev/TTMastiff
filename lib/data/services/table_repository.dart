@@ -18,7 +18,7 @@ class TableRepository {
   }
 
   /// 新增桌次
-  Future<void> createTable(String name, int capacity) async {
+  Future<void> createTable(String name, int capacity, {String? remarks}) async {
     // 先抓目前最大的 sort_order，新增的排在最後
     final maxOrderRes = await _supabase
         .from('tables')
@@ -37,6 +37,7 @@ class TableRepository {
       'capacity': capacity,
       'is_active': true,
       'sort_order': nextOrder,
+      'remarks': remarks,
     });
   }
 
@@ -53,6 +54,8 @@ class TableRepository {
   }
 
   /// 批次更新排序 (當使用者拖拉列表後呼叫)
+  /// 目前關閉這個功能 (unnecessary)
+  /*
   Future<void> updateTableOrder(List<TableModel> tables) async {
     // 這裡為了簡單，我們逐筆更新。若桌數很多(>50)可考慮寫成 Postgres Function
     // 但球桌通常不多，這樣寫沒問題。
@@ -63,4 +66,5 @@ class TableRepository {
           .eq('id', tables[i].id);
     }
   }
+  */
 }

@@ -4,13 +4,15 @@ class TableModel {
   final int capacity;
   final bool isActive;
   final int sortOrder;
+  final String? remarks;
 
   TableModel({
     required this.id,
     required this.name,
-    this.capacity = 2,
+    this.capacity = 4,
     this.isActive = true,
     this.sortOrder = 0,
+    this.remarks,
   });
 
   factory TableModel.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class TableModel {
       capacity: json['capacity'] ?? 2,
       isActive: json['is_active'] ?? true,
       sortOrder: json['sort_order'] ?? 0,
+      remarks: json['remarks'],
     );
   }
 
@@ -29,6 +32,25 @@ class TableModel {
       'capacity': capacity,
       'is_active': isActive,
       'sort_order': sortOrder,
+      'remarks': remarks,
     };
+  }
+
+  TableModel copyWith({
+    String? id,
+    String? name,
+    int? capacity,
+    bool? isActive,
+    int? sortOrder,
+    String? remarks,
+  }) {
+    return TableModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      capacity: capacity ?? this.capacity,
+      isActive: isActive ?? this.isActive,
+      sortOrder: sortOrder ?? this.sortOrder,
+      remarks: remarks ?? this.remarks,
+    );
   }
 }
