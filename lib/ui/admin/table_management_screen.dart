@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ttmastiff/main.dart';
 import '../../data/models/table_model.dart';
 import '../../data/services/table_repository.dart';
 
@@ -11,44 +12,50 @@ class TableManagementScreen extends StatefulWidget {
 }
 
 class _TableManagementScreenState extends State<TableManagementScreen> {
-  late TableRepository _repository;
   List<TableModel> _tables = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // 假設您已有 Supabase 實體，或從 main.dart 傳入
-    _repository = TableRepository(Supabase.instance.client);
     _loadTables();
   }
 
   Future<void> _loadTables() async {
     setState(() => _isLoading = true);
     try {
-      final tables = await _repository.getTables();
+      final tables = await tableRepository.getTables();
+      tables.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
       setState(() {
         _tables = tables;
       });
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('讀取失敗: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('讀取失敗: $e')));
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // 處理拖拉排序
-  void _onReorder(int oldIndex, int newIndex) {
-    setState(() {
-      if (newIndex > oldIndex) newIndex -= 1;
-      final item = _tables.removeAt(oldIndex);
-      _tables.insert(newIndex, item);
-    });
-
-    // 呼叫 Repository 更新資料庫順序
-    _repository.updateTableOrder(_tables);
+  Future<void> _toggleTableStatus(TableModel table, bool newStatus) async {
+    // 為了 UX 體驗，先在 UI 上更新狀態 (Optimistic UI)，失敗再改回來，或者直接重整
+    // 這裡採用直接呼叫 API 後重整的方式確保資料一致性
+    try {
+      final updatedTable = table.copyWith(isActive: newStatus);
+      await tableRepository.updateTable(updatedTable);
+      await _loadTables(); // 重新讀取確保資料正確
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('狀態更新失敗: $e')));
+      }
+    }
   }
 
   // 顯示新增/編輯對話框
@@ -57,92 +64,90 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
     final capacityController = TextEditingController(
       text: (table?.capacity ?? 2).toString(),
     );
-    bool isActive = table?.isActive ?? true;
+    final remarksController = TextEditingController(text: table?.remarks ?? '');
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        // 為了讓 Switch 能夠即時更新狀態
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Text(table == null ? '新增桌次' : '編輯桌次'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: '桌次名稱 (如: 第1桌)'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: capacityController,
-                  decoration: const InputDecoration(labelText: '建議容納人數'),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                if (table != null) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('啟用狀態'),
-                      Switch(
-                        value: isActive,
-                        onChanged: (val) {
-                          setStateDialog(() => isActive = val);
-                        },
-                      ),
-                    ],
-                  ),
-                  const Text(
-                    '若停用，排課時將無法選擇此桌，但不影響歷史紀錄。',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ],
+      builder: (context) => AlertDialog(
+        title: Text(table == null ? '新增桌次' : '編輯桌次'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: '桌次名稱 (如: 第1桌)'),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('取消'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: capacityController,
+              decoration: const InputDecoration(labelText: '建議容納人數'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            // 🔥 新增：備註輸入框
+            TextField(
+              controller: remarksController,
+              decoration: const InputDecoration(
+                labelText: '備註 (選填)',
+                hintText: '例如：靠窗、有柱子...',
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  final name = nameController.text.trim();
-                  final capacity = int.tryParse(capacityController.text) ?? 2;
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              final capacity = int.tryParse(capacityController.text) ?? 2;
+              final remarks = remarksController.text.trim();
 
-                  if (name.isEmpty) return;
+              if (name.isEmpty) return;
 
-                  try {
-                    if (table == null) {
-                      await _repository.createTable(name, capacity);
-                    } else {
-                      // 更新邏輯
-                      final updatedTable = TableModel(
-                        id: table.id,
-                        name: name,
-                        capacity: capacity,
-                        isActive: isActive,
-                        sortOrder: table.sortOrder,
-                      );
-                      await _repository.updateTable(updatedTable);
-                    }
-                    Navigator.pop(context);
-                    _loadTables(); // 重新整理
-                  } catch (e) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text('儲存失敗: $e')));
-                  }
-                },
-                child: const Text('儲存'),
-              ),
-            ],
-          );
-        },
+              try {
+                if (table == null) {
+                  // 新增時，預設啟用
+                  // 注意：createTable 方法可能需要更新以接收 remarks
+                  await tableRepository.createTable(
+                    name,
+                    capacity,
+                    remarks: remarks,
+                  );
+                } else {
+                  // 更新邏輯
+                  final updatedTable = TableModel(
+                    id: table.id,
+                    name: name,
+                    capacity: capacity,
+                    isActive: table.isActive, // 保持原本狀態
+                    sortOrder: table.sortOrder,
+                    remarks: remarks, // 🔥 更新備註
+                  );
+                  await tableRepository.updateTable(updatedTable);
+                }
+                if (mounted) {
+                  Navigator.pop(context);
+                  _loadTables();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('儲存失敗: $e')));
+                }
+              }
+            },
+            child: const Text('儲存'),
+          ),
+        ],
       ),
     );
   }
 
+  /*
   Future<void> _deleteTable(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -165,7 +170,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
 
     if (confirm == true) {
       try {
-        await _repository.deleteTable(id);
+        await tableRepository.deleteTable(id);
         _loadTables();
       } catch (e) {
         if (mounted) {
@@ -176,6 +181,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
       }
     }
   }
+  */
 
   @override
   Widget build(BuildContext context) {
@@ -186,55 +192,145 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadTables),
         ],
       ),
+      // 🔥 修改 1: 改用 ListView (移除 ReorderableListView)
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ReorderableListView.builder(
+          : ListView.builder(
               padding: const EdgeInsets.only(bottom: 80),
               itemCount: _tables.length,
-              onReorder: _onReorder,
               itemBuilder: (context, index) {
                 final table = _tables[index];
                 return Card(
-                  key: ValueKey(table.id), // ReorderableListView 需要唯一的 key
                   margin: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 4,
+                    vertical: 8, // 稍微加大間距
                   ),
-                  elevation: 1,
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: table.isActive
-                          ? Colors.blue.shade100
-                          : Colors.grey.shade200,
-                      child: Text('${index + 1}'),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: table.isActive
+                          ? Colors.transparent
+                          : Colors.grey.shade300,
                     ),
-                    title: Text(
-                      table.name,
-                      style: TextStyle(
-                        decoration: table.isActive
-                            ? null
-                            : TextDecoration.lineThrough,
-                        color: table.isActive ? Colors.black87 : Colors.grey,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '容納: ${table.capacity} 人 ${table.isActive ? "" : "(已停用)"}',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _showEditDialog(table),
+                        // 左側：桌號圓圈
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: table.isActive
+                              ? Colors.blue.shade100
+                              : Colors.grey.shade200,
+                          child: Text(
+                            table.name.replaceAll(
+                              RegExp(r'\D'),
+                              '',
+                            ), // 嘗試只顯示數字，或直接用 index+1
+                            style: TextStyle(
+                              color: table.isActive
+                                  ? Colors.blue.shade900
+                                  : Colors.grey,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.grey),
-                          onPressed: () => _deleteTable(table.id),
+                        const SizedBox(width: 16),
+
+                        // 中間：資訊區 (名稱、容納人數、備註)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                table.name,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: table.isActive
+                                      ? null
+                                      : TextDecoration.lineThrough,
+                                  color: table.isActive
+                                      ? Colors.black87
+                                      : Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '容納: ${table.capacity} 人',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              // 🔥 修改 2: 顯示備註
+                              if (table.remarks != null &&
+                                  table.remarks!.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '註: ${table.remarks}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.amber.shade900,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
-                        const Icon(
-                          Icons.drag_handle,
-                          color: Colors.grey,
-                        ), // 拖拉提示圖示
+
+                        // 右側：操作區 (Switch + 編輯按鈕)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // 🔥 修改 4: 把狀態切換移到這裡
+                            Column(
+                              children: [
+                                Switch(
+                                  value: table.isActive,
+                                  activeColor: Colors.green,
+                                  onChanged: (val) =>
+                                      _toggleTableStatus(table, val),
+                                ),
+                                Text(
+                                  table.isActive ? "啟用中" : "已停用",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: table.isActive
+                                        ? Colors.green
+                                        : Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _showEditDialog(table),
+                            ),
+                            // 🔥 修改 3: 刪除按鈕已註解
+                            /*
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.grey),
+                              onPressed: () => _deleteTable(table.id),
+                            ),
+                            */
+                          ],
+                        ),
                       ],
                     ),
                   ),

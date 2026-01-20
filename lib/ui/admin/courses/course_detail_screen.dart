@@ -33,6 +33,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
   List<SessionModel> _upcomingSessions = []; // 未來
   List<SessionModel> _historySessions = []; // 歷史
   Map<dynamic, String> _coachMap = {};
+  bool get _isAdmin => authManager.isAdmin;
 
   bool _isLoading = true;
 
@@ -203,6 +204,47 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
     }
   }
 
+  String _smartFormatTableNames(List<dynamic> tables) {
+    if (tables.isEmpty) return '未指定';
+
+    final names = tables.map((t) => t.name.toString()).toList();
+
+    // 情況 A: 檢查是否全部都是 "第...桌" 的格式
+    final isAllPrefixPattern = names.every(
+      (n) => n.startsWith('第') && n.endsWith('桌'),
+    );
+
+    if (isAllPrefixPattern) {
+      // 取出中間的數字/代號
+      final numbers = names
+          .map((n) => n.replaceAll('第', '').replaceAll('桌', ''))
+          .toList();
+
+      // (選用) 嘗試排序：如果是純數字，按數字大小排；否則按文字排
+      numbers.sort((a, b) {
+        final numA = int.tryParse(a);
+        final numB = int.tryParse(b);
+        if (numA != null && numB != null) return numA.compareTo(numB);
+        return a.compareTo(b);
+      });
+
+      return '第 ${numbers.join("、")} 桌';
+    }
+
+    // 情況 B: 檢查是否全部都是 "...桌" 結尾 (例如 "A桌", "B桌")
+    final isAllSuffixPattern = names.every((n) => n.endsWith('桌'));
+
+    if (isAllSuffixPattern) {
+      final shorts = names.map((n) => n.replaceAll('桌', '')).toList();
+      // 排序
+      shorts.sort();
+      return '${shorts.join("、")} 桌';
+    }
+
+    // 情況 C: 混雜格式，直接用頓號連接
+    return names.join('、');
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading && widget.initialData == null) {
@@ -329,33 +371,43 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                 ),
 
                 // 右邊：地點 Tag (有最大寬度限制)
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 140),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.table_restaurant,
-                        size: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        s.tableNames, // ✅ 自動顯示 "A桌、B桌" 或 "未指定"
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontSize: 13,
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.table_restaurant,
+                          size: 14,
+                          color: Colors.grey.shade600,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            _smartFormatTableNames(
+                              s.tables,
+                            ), // ✅ 自動顯示 "A桌、B桌" 或 "未指定"
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -549,6 +601,8 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
               ),
             ),
           ],
+          const Divider(height: 1),
+
           if (!isHistory) ...[
             const Divider(height: 1), // 分隔線
             Padding(
@@ -564,13 +618,32 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                     ),
                     onPressed: () => _editSession(s),
                   ),
-                  TextButton.icon(
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('刪除'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red.shade400,
+                  if (_isAdmin)
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('刪除'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red.shade400,
+                      ),
+                      onPressed: () => _deleteSession(s.id),
                     ),
-                    onPressed: () => _deleteSession(s.id),
+                ],
+              ),
+            ),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.assignment_ind_outlined, size: 18),
+                    label: const Text('查看詳情'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey.shade600, // 使用灰色區隔
+                    ),
+                    // 🔥 直接重用 _editSession，因為 Dialog 邏輯是通用的
+                    onPressed: () => _editSession(s),
                   ),
                 ],
               ),
