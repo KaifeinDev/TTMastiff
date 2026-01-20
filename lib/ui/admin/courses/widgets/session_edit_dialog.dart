@@ -32,6 +32,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   // Tab 1: 學員名單變數
   List<BookingModel> _roster = [];
   bool _isLoadingRoster = false;
+  bool get _isAdmin => authManager.isAdmin;
 
   // Tab 2: 場次設定變數
   // final _locationController = TextEditingController();
@@ -452,7 +453,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   Widget _buildRosterView() {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: _isExpired
+      floatingActionButton: _isExpired || !_isAdmin
           ? null
           : FloatingActionButton.extended(
               onPressed: _showAddStudentDialog,
@@ -485,14 +486,15 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                       ? null
                       : PopupMenuButton<String>(
                           onSelected: (val) {
-                            if (val == 'cancel')
+                            if (val == 'cancel') {
                               _cancelStudentBooking(booking.id);
-                            else
+                            } else {
                               _updateStudentStatus(
                                 booking.id,
                                 'confirmed',
                                 val,
                               );
+                            }
                           },
                           itemBuilder: (context) => const [
                             PopupMenuItem(
@@ -515,8 +517,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   }
 
   Widget _buildStatusBadge(String attendance, String status) {
-    if (status == 'cancelled')
+    if (status == 'cancelled') {
       return const Text('已取消', style: TextStyle(color: Colors.grey));
+    }
     String text = '待上課';
     Color color = Colors.blue;
     switch (attendance) {
@@ -597,17 +600,6 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       _capacityController.text = newValue.toString();
     }
 
-    final selectedTableNames = _tables
-        .where((t) => _selectedTableIds.contains(t.id))
-        .map((t) => t.name)
-        .join('、');
-
-    final sectionDecoration = BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: Colors.grey.shade300),
-      borderRadius: BorderRadius.circular(12),
-    );
-
     final displayTables = _isExpired
         ? _tables.where((t) => _selectedTableIds.contains(t.id)).toList()
         : _tables;
@@ -622,13 +614,13 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           _buildTimeRow(
             '開始時間',
             _startDateTime,
-            _isExpired ? null : () => _pickDateTime(true),
+            _isExpired || !_isAdmin ? null : () => _pickDateTime(true),
           ),
           const SizedBox(height: 16),
           _buildTimeRow(
             '結束時間',
             _endDateTime,
-            _isExpired ? null : () => _pickDateTime(false),
+            _isExpired || !_isAdmin ? null : () => _pickDateTime(false),
           ),
           const SizedBox(height: 16),
 
@@ -649,7 +641,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                     runSpacing: 8.0, // 垂直間距 (與教練區塊一致)
                     children: displayTables.map((table) {
                       final isSelected = _selectedTableIds.contains(table.id);
-                      final isDisabled = _isExpired;
+                      final isDisabled = _isExpired || !_isAdmin;
 
                       return FilterChip(
                         // 🔥 1. 樣式設定 (與教練完全一致)
@@ -761,7 +753,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                         side: BorderSide(color: Colors.blue.shade200),
                       ),
 
-                      onDeleted: _isExpired
+                      onDeleted: _isExpired || !_isAdmin
                           ? null
                           : () {
                               setState(() {
@@ -774,7 +766,8 @@ class _SessionEditDialogState extends State<SessionEditDialog>
 
                   // 新增按鈕 (過期時不顯示)
                   if (_selectedCoachIds.length < _allCoaches.length &&
-                      !_isExpired)
+                      !_isExpired &&
+                      _isAdmin)
                     ActionChip(
                       // 🔥 1. 統一密度設定
                       visualDensity: VisualDensity.compact,
@@ -808,12 +801,12 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           // 4. 人數上限 (保持原樣)
           TextField(
             controller: _capacityController,
-            readOnly: _isExpired,
+            readOnly: _isExpired || !_isAdmin,
             decoration: InputDecoration(
               labelText: '人數上限',
               border: const OutlineInputBorder(),
               prefixIcon: const Icon(Icons.group_outlined),
-              suffixIcon: _isExpired
+              suffixIcon: _isExpired || !_isAdmin
                   ? null
                   : Row(
                       mainAxisSize: MainAxisSize.min,
@@ -841,7 +834,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: _isExpired
+            child: _isExpired || !_isAdmin
                 ? null
                 : ElevatedButton(
                     onPressed: _isSavingSettings ? null : _submitSettings,

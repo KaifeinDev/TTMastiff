@@ -20,6 +20,7 @@ class _CourseListScreenState extends State<CourseListScreen>
   List<CourseModel> _archivedCourses = []; // 已封存
 
   bool _isLoading = true;
+  bool get _isAdmin => authManager.isAdmin;
   late TabController _tabController;
 
   @override
@@ -391,40 +392,41 @@ class _CourseListScreenState extends State<CourseListScreen>
                       ),
                     ),
                     // 操作按鈕區
-                    Column(
-                      children: [
-                        // 1. 編輯按鈕
-                        IconButton(
-                          icon: const Icon(
-                            Icons.edit_outlined,
-                            color: Colors.blue,
-                          ),
-                          tooltip: '編輯資訊',
-                          onPressed: () => _showCourseDialog(course),
-                        ),
-                        // 2. 🔥 封存/上架按鈕
-                        IconButton(
-                          icon: Icon(
-                            isArchived
-                                ? Icons.unarchive_outlined
-                                : Icons.inventory_2_outlined,
-                            color: isArchived ? Colors.green : Colors.orange,
-                          ),
-                          tooltip: isArchived ? '重新上架' : '封存課程',
-                          onPressed: () => _togglePublishStatus(course),
-                        ),
-                        // 3. 刪除按鈕 (可以只在封存頁顯示，或是都顯示)
-                        if (isArchived) // 建議只在封存頁才顯示刪除，避免誤刪
+                    if (_isAdmin)
+                      Column(
+                        children: [
+                          // 1. 編輯按鈕
                           IconButton(
                             icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.grey,
+                              Icons.edit_outlined,
+                              color: Colors.blue,
                             ),
-                            tooltip: '永久刪除 (僅限無紀錄課程)',
-                            onPressed: () => _deleteCourse(course.id),
+                            tooltip: '編輯資訊',
+                            onPressed: () => _showCourseDialog(course),
                           ),
-                      ],
-                    ),
+                          // 2. 🔥 封存/上架按鈕
+                          IconButton(
+                            icon: Icon(
+                              isArchived
+                                  ? Icons.unarchive_outlined
+                                  : Icons.inventory_2_outlined,
+                              color: isArchived ? Colors.green : Colors.orange,
+                            ),
+                            tooltip: isArchived ? '重新上架' : '封存課程',
+                            onPressed: () => _togglePublishStatus(course),
+                          ),
+                          // 3. 刪除按鈕 (可以只在封存頁顯示，或是都顯示)
+                          if (isArchived) // 建議只在封存頁才顯示刪除，避免誤刪
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.grey,
+                              ),
+                              tooltip: '永久刪除 (僅限無紀錄課程)',
+                              onPressed: () => _deleteCourse(course.id),
+                            ),
+                        ],
+                      ),
                   ],
                 ),
               ),
