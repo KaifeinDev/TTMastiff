@@ -600,6 +600,8 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
               ),
             ),
           ],
+          const Divider(height: 1),
+
           if (!isHistory) ...[
             const Divider(height: 1), // 分隔線
             Padding(
@@ -622,6 +624,24 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                       foregroundColor: Colors.red.shade400,
                     ),
                     onPressed: () => _deleteSession(s.id),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.assignment_ind_outlined, size: 18),
+                    label: const Text('查看詳情'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey.shade600, // 使用灰色區隔
+                    ),
+                    // 🔥 直接重用 _editSession，因為 Dialog 邏輯是通用的
+                    onPressed: () => _editSession(s),
                   ),
                 ],
               ),
