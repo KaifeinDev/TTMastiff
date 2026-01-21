@@ -88,8 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         elevation: 0,
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        centerTitle: false,
+        foregroundColor: Colors.black
       ),
       backgroundColor: Colors.grey.shade100,
       body: Column(
@@ -117,11 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? Theme.of(context).primaryColor
-                              : (isToday
-                                    ? Theme.of(
-                                        context,
-                                      ).primaryColor.withOpacity(0.1)
-                                    : Colors.transparent),
+                              : Colors.transparent,
                           shape: BoxShape.circle,
                           border: isSelected
                               ? null
@@ -329,7 +324,7 @@ class _CourseCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: course.category == 'personal'
                               ? Colors.purple.shade50
-                              : Colors.blue.shade50,
+                              : Color.fromARGB(30, 255, 122, 50),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -338,7 +333,7 @@ class _CourseCard extends StatelessWidget {
                             fontSize: 12,
                             color: course.category == 'personal'
                                 ? Colors.purple
-                                : Colors.blue,
+                                : Colors.orange,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
