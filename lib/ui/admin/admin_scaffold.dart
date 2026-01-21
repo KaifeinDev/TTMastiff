@@ -96,6 +96,13 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           textColor: textColor,
           iconColor: iconColor,
         ),
+        _AdminMenuItem(
+          icon: Icons.payments, // 或是用 Icons.monetization_on 也可以
+          title: '薪資管理',
+          route: '/admin/salaries',
+          textColor: textColor,
+          iconColor: iconColor,
+        ),
       ],
     );
   }
