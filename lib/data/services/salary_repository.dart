@@ -231,6 +231,83 @@ class SalaryRepository {
       totalAmount: totalAmount.round(),
     );
   }
+
+  // ==========================================
+  // 新增功能：員工詳情與排班管理 (Staff Detail Support)
+  // ==========================================
+
+  /// 更新員工基本設定 (時薪、銀行帳號)
+  Future<void> updateStaffDetail(StaffDetailModel detail) async {
+    final data = {
+      'id': detail.id,
+      'coach_hourly_rate': detail.coachHourlyRate,
+      'desk_hourly_rate': detail.deskHourlyRate,
+      'bank_account': detail.bankAccount,
+      'status': detail.status,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    await _supabase.from('staff_details').upsert(data);
+  }
+
+  /// 取得某員工特定月份的所有排班
+  Future<List<WorkShiftModel>> getStaffShifts(
+    String staffId,
+    DateTime month,
+  ) async {
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 1);
+
+    final res = await _supabase
+        .from('work_shifts')
+        .select()
+        .eq('staff_id', staffId)
+        .gte('start_time', start.toIso8601String())
+        .lt('start_time', end.toIso8601String())
+        .order('start_time');
+
+    return (res as List).map((e) => WorkShiftModel.fromJson(e)).toList();
+  }
+
+  /// 新增或更新排班
+  Future<void> upsertWorkShift(WorkShiftModel shift) async {
+    final data = {
+      'staff_id': shift.staffId,
+      'start_time': shift.startTime.toIso8601String(),
+      'end_time': shift.endTime.toIso8601String(),
+      'note': shift.note,
+    };
+    if (shift.id.isNotEmpty) {
+      data['id'] = shift.id;
+    } else {
+      // 如果是新增，確保不傳空ID，讓 DB 自動生成
+    }
+
+    // 如果 id 是空的，Supabase 不一定會自動忽略，建議分開寫或不傳 id
+    if (shift.id.isEmpty) {
+      await _supabase.from('work_shifts').insert(data);
+    } else {
+      await _supabase.from('work_shifts').update(data).eq('id', shift.id);
+    }
+  }
+
+  /// 刪除排班
+  Future<void> deleteWorkShift(String shiftId) async {
+    await _supabase.from('work_shifts').delete().eq('id', shiftId);
+  }
+
+  // ==========================================
+  // 新增功能：圖表數據 (Analytics Support)
+  // ==========================================
+
+  /// 取得某一年份的所有已結算薪資單 (用於圖表)
+  Future<List<PayrollModel>> getYearlyPayrolls(int year) async {
+    final res = await _supabase
+        .from('payrolls')
+        .select()
+        .eq('year', year)
+        .order('month');
+    return (res as List).map((e) => PayrollModel.fromJson(e)).toList();
+  }
 }
 
 // 用一個簡單的小 class 來傳遞計算結果

@@ -14,7 +14,6 @@ import 'package:ttmastiff/data/services/transaction_repository.dart';
 import 'package:ttmastiff/data/services/student_repository.dart';
 import 'package:ttmastiff/data/services/table_repository.dart';
 import 'package:ttmastiff/data/services/salary_repository.dart';
-import 'package:ttmastiff/ui/admin/salary_management/salary_management_screen.dart';
 
 import 'router.dart';
 
