@@ -17,6 +17,7 @@ import 'ui/screens/splash_screen.dart';
 import '../ui/admin/admin_scaffold.dart';
 import 'ui/admin/dashboard/dashboard_screen.dart';
 import 'ui/admin/students/user_list_screen.dart';
+import 'ui/admin/salary_management/salary_management_screen.dart';
 
 // --- 3. 新增的課程管理頁面 (請確認檔案已建立) ---
 // 原本的 course_manage_screen.dart 建議改名為 course_list_screen.dart
@@ -208,6 +209,11 @@ final appRouter = GoRouter(
           path: '/admin/tables',
           pageBuilder: (context, state) =>
               const NoTransitionPage(child: TableManagementScreen()),
+        ),
+        GoRoute(
+          path: '/admin/salaries',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: SalaryManagementScreen()),
         ),
       ],
     ),
