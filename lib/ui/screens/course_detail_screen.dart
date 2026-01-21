@@ -399,12 +399,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: Colors.red,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
                   "額滿",
-                  style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               )
             else if (remain <= 2)
