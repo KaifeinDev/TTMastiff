@@ -29,6 +29,24 @@ class PayrollModel {
     this.status = 'pending',
   });
 
+  factory PayrollModel.empty() {
+    return PayrollModel(
+      id: '', // ID 為空，代表尚未寫入資料庫 (Unsaved)
+      staffId: '',
+      year: 0,
+      month: 0,
+      totalCoachHours: 0.0,
+      coachHourlyRate: 0,
+      totalDeskHours: 0.0,
+      deskHourlyRate: 0,
+      bonus: 0,
+      deduction: 0,
+      note: null,
+      totalAmount: 0,
+      status: 'pending',
+    );
+  }
+
   factory PayrollModel.fromJson(Map<String, dynamic> json) {
     return PayrollModel(
       id: json['id'],

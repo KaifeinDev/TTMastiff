@@ -7,17 +7,138 @@ class SalaryRepository {
   final SupabaseClient _supabase;
   SalaryRepository(this._supabase);
 
-  /// 1. 取得某月份的所有「已結算薪資單」
-  Future<List<PayrollModel>> getPayrolls(int year, int month) async {
-    final res = await _supabase
-        .from('payrolls')
-        .select()
-        .eq('year', year)
-        .eq('month', month);
-    return (res as List).map((e) => PayrollModel.fromJson(e)).toList();
+  // ==========================================
+  // 核心功能區
+  // ==========================================
+
+  /// 1. 取得月度薪資報表 (高效能 Batch Fetching)
+  Future<List<Map<String, dynamic>>> getMonthlySalaryReport(
+    int year,
+    int month,
+  ) async {
+    final start = DateTime(year, month, 1);
+    final end = (month == 12)
+        ? DateTime(year + 1, 1, 1)
+        : DateTime(year, month + 1, 1);
+
+    // 平行請求：5 次 DB 查詢解決所有問題
+    final results = await Future.wait([
+      _supabase.from('profiles').select(), // 0
+      _supabase
+          .from('work_shifts')
+          .select()
+          .gte('start_time', start.toIso8601String())
+          .lt('start_time', end.toIso8601String()), // 1
+      _supabase
+          .from('sessions')
+          .select()
+          .gte('start_time', start.toIso8601String())
+          .lt('start_time', end.toIso8601String()), // 2
+      _supabase
+          .from('payrolls')
+          .select()
+          .eq('year', year)
+          .eq('month', month), // 3
+      _supabase.from('staff_details').select(), // 4
+    ]);
+
+    final profiles = results[0] as List;
+    final allShifts = (results[1] as List)
+        .map((e) => WorkShiftModel.fromJson(e))
+        .toList();
+    final allSessions = results[2] as List;
+    final savedPayrolls = (results[3] as List)
+        .map((e) => PayrollModel.fromJson(e))
+        .toList();
+    final staffDetails = (results[4] as List)
+        .map((e) => StaffDetailModel.fromJson(e))
+        .toList();
+
+    List<Map<String, dynamic>> report = [];
+
+    for (var p in profiles) {
+      final staffId = p['id'];
+
+      // A. 檢查是否已存檔
+      final saved = savedPayrolls.firstWhere(
+        (e) => e.staffId == staffId,
+        orElse: () => PayrollModel.empty(),
+      );
+
+      if (saved.id.isNotEmpty) {
+        report.add({'profile': p, 'payroll': saved});
+        continue;
+      }
+
+      // B. 未存檔，執行即時計算
+      // 過濾出此人的資料
+      final myShifts = allShifts.where((s) => s.staffId == staffId).toList();
+      final mySessions = allSessions.where((s) {
+        final coaches = List<String>.from(s['coach_ids'] ?? []);
+        return coaches.contains(staffId);
+      }).toList();
+
+      // 取得費率
+      final detail = staffDetails.firstWhere(
+        (d) => d.id == staffId,
+        orElse: () => StaffDetailModel(
+          id: staffId,
+          coachHourlyRate: 0,
+          deskHourlyRate: 180,
+        ),
+      );
+
+      // 🔥 使用共用計算邏輯
+      final stats = _calculateSalaryStats(
+        shifts: myShifts,
+        sessions: mySessions,
+        coachRate: detail.coachHourlyRate,
+        deskRate: detail.deskHourlyRate,
+      );
+
+      report.add({
+        'profile': p,
+        'payroll': PayrollModel(
+          id: '',
+          staffId: staffId,
+          year: year,
+          month: month,
+          totalCoachHours: stats.totalCoachHours,
+          totalDeskHours: stats.totalDeskHours,
+          coachHourlyRate: detail.coachHourlyRate,
+          deskHourlyRate: detail.deskHourlyRate,
+          bonus: 0,
+          deduction: 0,
+          note: null,
+          totalAmount: stats.totalAmount,
+          status: 'pending',
+        ),
+      });
+    }
+
+    return report;
   }
 
-  /// 2. 取得某員工的詳細設定 (時薪)
+  /// 2. 儲存/更新薪資單
+  Future<void> savePayroll(PayrollModel payroll) async {
+    final data = payroll.toJson();
+    if (payroll.id.isEmpty) {
+      data.remove('id');
+      // 如果這邊不 remove status，就會把 'pending' 寫進去，這也是對的
+      // 但通常讓資料庫 default 值處理會比較乾淨
+      if (data['status'] == 'pending') {
+        data.remove('status');
+      }
+    }
+    await _supabase
+        .from('payrolls')
+        .upsert(data, onConflict: 'staff_id, year, month');
+  }
+
+  // ==========================================
+  // 輔助方法 (舊有的單人查詢功能，保留備用)
+  // ==========================================
+
   Future<StaffDetailModel?> getStaffDetail(String staffId) async {
     final res = await _supabase
         .from('staff_details')
@@ -27,21 +148,20 @@ class SalaryRepository {
     return res != null ? StaffDetailModel.fromJson(res) : null;
   }
 
-  /// 3. 計算某員工某月的「預估薪資」 (尚未結算時用)
+  /// 單人計算 (例如：點進詳情頁重新整理時可用)
   Future<PayrollModel> calculateEstimatedSalary({
     required String staffId,
     required int year,
     required int month,
   }) async {
     final start = DateTime(year, month, 1);
-    final end = DateTime(year, month + 1, 1); // 下個月1號
+    final end = DateTime(year, month + 1, 1);
 
-    // A. 抓時薪設定
+    // 1. 抓資料
     final detail = await getStaffDetail(staffId);
     final coachRate = detail?.coachHourlyRate ?? 0;
     final deskRate = detail?.deskHourlyRate ?? 180;
 
-    // B. 抓櫃檯時數 (Work Shifts)
     final shiftsRes = await _supabase
         .from('work_shifts')
         .select()
@@ -51,56 +171,77 @@ class SalaryRepository {
     final shifts = (shiftsRes as List)
         .map((e) => WorkShiftModel.fromJson(e))
         .toList();
-    final totalDeskHours = shifts.fold(0.0, (sum, item) => sum + item.hours);
 
-    // C. 抓教課時數 (Sessions)
-    // 這裡假設 sessions 表有關聯 coach_ids (Array)
     final sessionsRes = await _supabase
         .from('sessions')
         .select()
-        .contains('coach_ids', [staffId]) // 包含此教練
+        .contains('coach_ids', [staffId])
         .gte('start_time', start.toIso8601String())
         .lt('start_time', end.toIso8601String());
 
-    // 簡單計算：假設一堂課就是 End - Start
-    double totalCoachHours = 0;
-    for (var s in sessionsRes) {
-      final sTime = DateTime.parse(s['start_time']);
-      final eTime = DateTime.parse(s['end_time']);
-      totalCoachHours += eTime.difference(sTime).inMinutes / 60.0;
-    }
+    // 2. 🔥 使用共用計算邏輯
+    final stats = _calculateSalaryStats(
+      shifts: shifts,
+      sessions: sessionsRes as List,
+      coachRate: coachRate,
+      deskRate: deskRate,
+    );
 
-    // D. 計算總額
-    final totalAmount =
-        (totalCoachHours * coachRate) + (totalDeskHours * deskRate);
-
-    // 回傳一個「假」的 PayrollModel 供前端顯示 (ID 為空代表未存檔)
     return PayrollModel(
       id: '',
       staffId: staffId,
       year: year,
       month: month,
-      totalCoachHours: totalCoachHours,
+      totalCoachHours: stats.totalCoachHours,
       coachHourlyRate: coachRate,
-      totalDeskHours: totalDeskHours,
+      totalDeskHours: stats.totalDeskHours,
       deskHourlyRate: deskRate,
-      totalAmount: totalAmount.round(),
+      totalAmount: stats.totalAmount,
     );
   }
 
-  /// 4. 儲存/更新薪資單 (結算)
-  Future<void> savePayroll(PayrollModel payroll) async {
-    // 檢查是否已存在，若有則 Update，若無則 Insert
-    // 使用 upsert
-    final data = payroll.toJson();
-    if (payroll.id.isEmpty) {
-      // 如果是預估的假物件，把 id 拿掉讓 DB 自動生成
-      data.remove('id');
-      data.remove('status'); // 預設 pending
+  // ==========================================
+  // 🔥 私有計算核心 (避免邏輯重複)
+  // ==========================================
+
+  _SalaryStats _calculateSalaryStats({
+    required List<WorkShiftModel> shifts,
+    required List<dynamic> sessions,
+    required int coachRate,
+    required int deskRate,
+  }) {
+    // 1. 櫃檯時數
+    final totalDeskHours = shifts.fold(0.0, (sum, item) => sum + item.hours);
+
+    // 2. 教課時數
+    double totalCoachHours = 0;
+    for (var s in sessions) {
+      final sTime = DateTime.parse(s['start_time']);
+      final eTime = DateTime.parse(s['end_time']);
+      totalCoachHours += eTime.difference(sTime).inMinutes / 60.0;
     }
 
-    await _supabase
-        .from('payrolls')
-        .upsert(data, onConflict: 'staff_id, year, month');
+    // 3. 總額
+    final totalAmount =
+        (totalCoachHours * coachRate) + (totalDeskHours * deskRate);
+
+    return _SalaryStats(
+      totalDeskHours: totalDeskHours,
+      totalCoachHours: totalCoachHours,
+      totalAmount: totalAmount.round(),
+    );
   }
+}
+
+// 用一個簡單的小 class 來傳遞計算結果
+class _SalaryStats {
+  final double totalDeskHours;
+  final double totalCoachHours;
+  final int totalAmount;
+
+  _SalaryStats({
+    required this.totalDeskHours,
+    required this.totalCoachHours,
+    required this.totalAmount,
+  });
 }

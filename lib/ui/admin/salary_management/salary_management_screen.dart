@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ttmastiff/data/models/payroll_model.dart';
-import 'package:ttmastiff/data/services/salary_repository.dart';
-import 'widgets/payroll_edit_dialog.dart'; // 下面會寫
+import 'package:ttmastiff/main.dart';
+import 'widgets/payroll_edit_dialog.dart';
 
 class SalaryManagementScreen extends StatefulWidget {
   const SalaryManagementScreen({super.key});
@@ -12,7 +11,6 @@ class SalaryManagementScreen extends StatefulWidget {
 }
 
 class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
-  late SalaryRepository _repository;
   DateTime _selectedDate = DateTime.now(); // 只看年/月
   bool _isLoading = false;
 
@@ -23,51 +21,35 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = SalaryRepository(Supabase.instance.client);
     _loadData();
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
 
-    // 1. 先抓所有員工 (Profiles)
-    final profiles = await Supabase.instance.client.from('profiles').select();
-
-    List<Map<String, dynamic>> tempList = [];
-
-    for (var p in profiles) {
-      final String staffId = p['id'];
-      final String name = p['full_name'] ?? '未知';
-
-      // 2. 檢查該月是否已結算 (DB有紀錄)
-      final payrolls = await _repository.getPayrolls(
+    try {
+      // 🔥 修改重點：不再前端跑迴圈，而是呼叫一次 Repository
+      // 後端會一次平行抓取 Profile, Session, Shift 並完成配對計算
+      final report = await salaryRepository.getMonthlySalaryReport(
         _selectedDate.year,
         _selectedDate.month,
       );
-      PayrollModel? record;
 
-      try {
-        record = payrolls.firstWhere((e) => e.staffId == staffId);
-      } catch (e) {
-        // 沒找到
+      setState(() {
+        _staffList = report; // 直接接收處理好的資料
+      });
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
       }
-
-      // 3. 如果沒結算，跑即時計算
-      if (record == null) {
-        record = await _repository.calculateEstimatedSalary(
-          staffId: staffId,
-          year: _selectedDate.year,
-          month: _selectedDate.month,
-        );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
-
-      tempList.add({'profile': p, 'payroll': record});
     }
-
-    setState(() {
-      _staffList = tempList;
-      _isLoading = false;
-    });
   }
 
   void _changeMonth(int offset) {
@@ -159,7 +141,7 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
                                       staffName: name,
                                       payroll: payroll,
                                       onConfirm: (updatedPayroll) async {
-                                        await _repository.savePayroll(
+                                        await salaryRepository.savePayroll(
                                           updatedPayroll,
                                         );
                                         _loadData(); // 重整
