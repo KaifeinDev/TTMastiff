@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class SalaryCard extends StatelessWidget {
   final String name;
+  final String? bankAccount;
   final int baseCoachRate;
   final double coachHours;
   final double deskHours;
   final double adjustmentHours;
+  final int bonus;
+  final int deduction;
   final int totalAmount;
   final String status;
   final VoidCallback onAction;
@@ -14,10 +18,13 @@ class SalaryCard extends StatelessWidget {
   const SalaryCard({
     super.key,
     required this.name,
+    this.bankAccount,
     required this.baseCoachRate,
     required this.coachHours,
     required this.deskHours,
     required this.adjustmentHours,
+    this.bonus = 0,
+    this.deduction = 0,
     required this.totalAmount,
     required this.status,
     required this.onAction,
@@ -49,8 +56,38 @@ class SalaryCard extends StatelessWidget {
     return '已達最高階';
   }
 
+  Map<String, String> _parseBankAccount(String? raw) {
+    if (raw == null || raw.isEmpty) return {};
+
+    final cleanRaw = raw.trim();
+
+    // Regex 解釋：
+    // ^\(?       -> 開頭可能是 '('
+    // (\d{3})    -> 捕捉群組1: 抓取連續 3 個數字 (銀行代碼)
+    // \)?        -> 可能是 ')'
+    // [- ]* -> 中間可能夾雜 '-' 或 空格
+    // (\d+)      -> 捕捉群組2: 後面剩下的所有數字 (銀行帳號)
+    final RegExp regex = RegExp(r'^\(?(\d{3})\)?[- ]*(\d+)');
+
+    final match = regex.firstMatch(cleanRaw);
+
+    if (match != null) {
+      return {
+        'code': match.group(1)!, // 例如: 700
+        'account': match.group(2)!, // 例如: 00433210313081
+      };
+    }
+
+    // 防呆：如果完全不符合規則 (例如使用者亂填)，就全部當作帳號
+    return {'code': '', 'account': cleanRaw};
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bankInfo = _parseBankAccount(bankAccount);
+    final hasBankInfo = bankInfo.isNotEmpty;
+    final bankCode = bankInfo['code'] ?? '';
+    final accountNum = bankInfo['account'] ?? '';
     final isUnsettled = status == 'unsettled';
 
     // 定義狀態顏色
@@ -84,14 +121,120 @@ class SalaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                // 左側：姓名 與 銀行帳號
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // 🔥 銀行帳號區塊 (智慧顯示)
+                      InkWell(
+                        onTap: () {
+                          if (hasBankInfo) {
+                            // 複製邏輯：只複製「帳號部分」，這是最貼心的設計
+                            // 因為 App 轉帳通常是「先選手動選銀行代碼」，然後「貼上帳號」
+                            Clipboard.setData(ClipboardData(text: accountNum));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                // 提示訊息清楚告知複製了什麼
+                                content: Text(
+                                  bankCode.isNotEmpty
+                                      ? '已複製帳號: $accountNum (代碼 $bankCode)'
+                                      : '已複製帳號: $accountNum',
+                                ),
+                                duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.account_balance_wallet,
+                                size: 14,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 6),
+
+                              if (!hasBankInfo)
+                                Text(
+                                  '未設定帳號',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
+                                )
+                              else ...[
+                                // 顯示代碼 (如果有)
+                                if (bankCode.isNotEmpty) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blueGrey[100],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      bankCode,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blueGrey[800],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+
+                                // 顯示帳號
+                                Text(
+                                  accountNum,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontFamily: 'Monospace', // 等寬字體
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[800],
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.copy,
+                                  size: 12,
+                                  color: Colors.blue[300],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+
                 // 純顯示用的 Badge (平面風格)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -229,21 +372,35 @@ class SalaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // 左下角：緊湊的時數資訊 (靠左堆疊)
-                Row(
-                  mainAxisSize: MainAxisSize.min, // 緊縮
-                  children: [
-                    _buildCompactStat('教課', coachHours),
-                    const SizedBox(width: 16),
-                    _buildCompactStat('櫃檯', deskHours),
-                    if (adjustmentHours != 0) ...[
-                      const SizedBox(width: 16),
-                      _buildCompactStat(
-                        '補正',
-                        adjustmentHours,
-                        isHighlight: true,
-                      ),
+                Expanded(
+                  child: Wrap(
+                    spacing: 16, // 水平間距
+                    runSpacing: 8, // 換行後的垂直間距
+                    children: [
+                      _buildCompactStat('教課', coachHours),
+                      _buildCompactStat('櫃檯', deskHours),
+
+                      if (adjustmentHours != 0)
+                        _buildCompactStat(
+                          '補正',
+                          adjustmentHours,
+                          isHighlight: true,
+                        ),
+
+                      // 🔥 3. 顯示獎金 (如果有才顯示)
+                      if (bonus > 0)
+                        _buildMoneyStat('獎金', bonus, Colors.green, isAdd: true),
+
+                      // 🔥 4. 顯示扣款 (如果有才顯示)
+                      if (deduction > 0)
+                        _buildMoneyStat(
+                          '扣款',
+                          deduction,
+                          Colors.red,
+                          isAdd: false,
+                        ),
                     ],
-                  ],
+                  ),
                 ),
 
                 // 右下角：明顯的操作按鈕
@@ -404,4 +561,34 @@ class SalaryCard extends StatelessWidget {
       ],
     );
   }
+}
+
+Widget _buildMoneyStat(
+  String label,
+  int amount,
+  Color color, {
+  required bool isAdd,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          color: color.withOpacity(0.8),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      Text(
+        '${isAdd ? '+' : '-'}${NumberFormat.decimalPattern().format(amount)}',
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+          color: color,
+          fontFamily: 'Monospace', // 用等寬字數字對齊較好看
+        ),
+      ),
+    ],
+  );
 }

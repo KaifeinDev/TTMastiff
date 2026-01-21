@@ -77,6 +77,7 @@ class SalaryRepository {
           'profile': p,
           'payroll': saved,
           'base_rate': baseRate, // 🆕 將底薪傳出去給前端用
+          'bank_account': detail.bankAccount,
         });
         continue;
       }
@@ -114,6 +115,7 @@ class SalaryRepository {
           status: 'unsettled',
           adjustmentHours: 0,
         ),
+        'bank_account': detail.bankAccount,
         'base_rate': baseRate, // 🆕 將底薪傳出去
       });
     }
