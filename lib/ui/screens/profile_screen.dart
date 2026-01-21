@@ -104,7 +104,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('確定要登出嗎？'),
-        backgroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -132,7 +131,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
-        backgroundColor: Colors.white,
         content: Text(content),
         actions: [
           TextButton(
@@ -166,14 +164,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           builder: (context, setStateDialog) {
             return AlertDialog(
               title: const Text('新增學員'),
-              backgroundColor: Colors.white,
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       '請輸入資料以建立學員檔案',
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(color: Colors.grey.shade700),
                     ),
                     const SizedBox(height: 16),
 
@@ -327,7 +324,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           builder: (context, setStateDialog) {
             return AlertDialog(
               title: const Text('編輯資料'),
-              backgroundColor: Colors.white,
               scrollable: true,
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -441,6 +437,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: const Text(
               '我的檔案',
               style: TextStyle(fontWeight: FontWeight.bold),
+              
+            ),
+            bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
             ),
             actions: [
               IconButton(
@@ -464,7 +469,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white70,
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Row(
@@ -578,18 +583,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 10),
                         if (isAdmin || isCoach) ...[
                           Card(
-                            elevation: 2,
                             shadowColor: Colors.blueGrey.shade50,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                               side: BorderSide(
                                 color: Colors.blueGrey.shade200,
-                                width: 1,
                               ),
                             ),
                             color: Colors.blueGrey.shade50, // 用淺紅色背景區分
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
                               onTap: () {
                                 // 這裡填入您後台的首頁路由
                                 context.go('/admin/dashboard');
@@ -655,19 +657,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         // 2. 錢包/點數區塊
                         Card(
-                          elevation: 2,
-                          shadowColor: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                                color: Theme.of(context).colorScheme.primary
-                                        .withOpacity(0.4),
-                                width: 1,
-                              ),
-                          ),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               vertical: 18,
@@ -807,9 +796,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   side: BorderSide.none,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                color: Colors.grey.shade100,
+                                color: Colors.grey.shade200,
                                 child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
                                   onTap: () => _showEditDialog(student),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
@@ -854,30 +842,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          // 🌟 修正了原本的 itSelf 錯誤
-                                          if (isSelf) ...[
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blueGrey
-                                                    .withOpacity(0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: const Text(
-                                                '本人',
-                                                style: TextStyle(
-                                                  color: Colors.blueGrey,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
                                         ],
                                       ),
                                       subtitle: Column(
@@ -888,7 +852,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             // '${student.birthDate.year}/${student.birthDate.month}/${student.birthDate.day}',
                                             student.birthDate.toDateWithAge(),
                                             style: TextStyle(
-                                              color: Colors.grey.shade600,
+                                              color: Colors.grey.shade700,
                                               fontSize: 13,
                                             ),
                                           ),
@@ -902,7 +866,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               message: student.medicalNote,
                                               child: Icon(
                                                 Icons.medical_information,
-                                                size: 20,
+                                                size: 24,
                                                 color: Colors.red.shade300,
                                               ),
                                             ),
