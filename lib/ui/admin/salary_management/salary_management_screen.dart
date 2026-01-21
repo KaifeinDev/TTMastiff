@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/data/models/payroll_model.dart';
 import 'package:ttmastiff/main.dart';
+import '../../../../data/models/payroll_model.dart';
 import 'widgets/payroll_edit_dialog.dart';
+import 'widgets/salary_card.dart';
+import 'widgets/payroll_dashboard.dart';
 
 class SalaryManagementScreen extends StatefulWidget {
   const SalaryManagementScreen({super.key});
@@ -11,11 +13,8 @@ class SalaryManagementScreen extends StatefulWidget {
 }
 
 class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
-  DateTime _selectedDate = DateTime.now(); // 只看年/月
+  DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
-
-  // 這裡簡單用一個 Map 來存每個員工的計算結果
-  // Key: StaffName, Value: PayrollModel
   List<Map<String, dynamic>> _staffList = [];
 
   @override
@@ -24,35 +23,33 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
     _loadData();
   }
 
+  // 🔒 判斷是否為當月 (避免選到未來)
+  bool get _isCurrentMonth {
+    final now = DateTime.now();
+    return _selectedDate.year == now.year && _selectedDate.month == now.month;
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-
     try {
-      // 🔥 修改重點：不再前端跑迴圈，而是呼叫一次 Repository
-      // 後端會一次平行抓取 Profile, Session, Shift 並完成配對計算
       final report = await salaryRepository.getMonthlySalaryReport(
         _selectedDate.year,
         _selectedDate.month,
       );
-
       setState(() {
-        _staffList = report; // 直接接收處理好的資料
+        _staffList = report;
       });
     } catch (e) {
-      debugPrint('Error loading data: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
-      }
+      debugPrint('Error: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _changeMonth(int offset) {
+    // 如果是往後且已經是當月，則不動作
+    if (offset > 0 && _isCurrentMonth) return;
+
     setState(() {
       _selectedDate = DateTime(
         _selectedDate.year,
@@ -65,13 +62,16 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('薪資管理')),
+      appBar: AppBar(
+        title: const Text('薪資管理'),
+        backgroundColor: Colors.blue.shade50,
+      ),
       body: Column(
         children: [
           // 1. 月份選擇器
           Container(
-            padding: const EdgeInsets.all(16),
             color: Colors.blue.shade50,
+            padding: const EdgeInsets.only(bottom: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -86,79 +86,75 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                // 🔒 限制：如果是當月，按鈕變灰且不可點
                 IconButton(
                   icon: const Icon(Icons.chevron_right),
-                  onPressed: () => _changeMonth(1),
+                  onPressed: _isCurrentMonth ? null : () => _changeMonth(1),
+                  color: _isCurrentMonth ? Colors.grey : Colors.black,
                 ),
               ],
             ),
           ),
 
-          // 2. 員工列表
+          if (!_isLoading && _staffList.isNotEmpty)
+            PayrollDashboard(staffList: _staffList),
+
+          // 2. 列表
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
+                : _staffList.isEmpty
+                ? const Center(child: Text("本月無資料"))
                 : ListView.builder(
                     itemCount: _staffList.length,
+                    padding: const EdgeInsets.only(top: 8, bottom: 24),
                     itemBuilder: (context, index) {
                       final item = _staffList[index];
-                      final name = item['profile']['full_name'];
+                      final name = item['profile']['full_name'] ?? '員工';
                       final PayrollModel payroll = item['payroll'];
-                      final bool isLocked = payroll.id.isNotEmpty; // 有ID代表已存過檔
 
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: ListTile(
-                          title: Text(
-                            name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            '教課: ${payroll.totalCoachHours}hr | 櫃檯: ${payroll.totalDeskHours}hr\n'
-                            '狀態: ${isLocked ? (payroll.status == 'paid' ? '已發放' : '已結算(未發)') : '未結算'}',
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '\$${payroll.totalAmount}',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              ElevatedButton(
-                                onPressed: () {
-                                  // 跳出結算/編輯視窗
-                                  showDialog(
-                                    context: context,
-                                    builder: (_) => PayrollEditDialog(
-                                      staffName: name,
-                                      payroll: payroll,
-                                      onConfirm: (updatedPayroll) async {
-                                        await salaryRepository.savePayroll(
-                                          updatedPayroll,
-                                        );
-                                        _loadData(); // 重整
-                                      },
-                                    ),
-                                  );
-                                },
-                                child: Text(isLocked ? '查看/修改' : '結算'),
-                              ),
-                            ],
-                          ),
-                        ),
+                      // 🐛 修復 Badge 狀態邏輯
+                      // 優先看 payroll.status，如果 DB 有存 'paid' 或 'confirmed' 就用它
+                      // 只有當 id 為空 (沒存過檔) 才強制顯示為 'unsettled'
+                      final int baseRate = item['base_rate'] ?? 350;
+
+                      String displayStatus = payroll.id.isEmpty
+                          ? 'unsettled'
+                          : payroll.status;
+
+                      return SalaryCard(
+                        name: name,
+                        baseCoachRate:
+                            baseRate, // 🔥 2. 新增：傳入底薪給卡片 (讓它知道下一階是多少)
+                        coachHours: payroll.totalCoachHours,
+                        deskHours: payroll.totalDeskHours,
+                        adjustmentHours:
+                            payroll.adjustmentHours ?? 0.0, // 確保不為 null
+                        totalAmount: payroll.totalAmount,
+                        status: displayStatus,
+                        // 🔥 3. 修改：傳入底薪給 Dialog 函式
+                        onAction: () =>
+                            _showEditDialog(name, payroll, baseRate),
                       );
                     },
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditDialog(String name, PayrollModel payroll, int baseRate) {
+    showDialog(
+      context: context,
+      builder: (_) => PayrollEditDialog(
+        staffName: name,
+        payroll: payroll,
+        baseCoachRate: baseRate, // 🔥 4. 傳遞底薪給彈窗
+        onConfirm: (updatedPayroll) async {
+          await salaryRepository.savePayroll(updatedPayroll);
+          if (mounted) _loadData();
+        },
       ),
     );
   }

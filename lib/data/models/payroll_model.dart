@@ -12,6 +12,7 @@ class PayrollModel {
   final String? note;
   final int totalAmount;
   final String status;
+  final double? adjustmentHours;
 
   PayrollModel({
     required this.id,
@@ -27,6 +28,7 @@ class PayrollModel {
     this.note,
     required this.totalAmount,
     this.status = 'pending',
+    this.adjustmentHours = 0,
   });
 
   factory PayrollModel.empty() {
@@ -44,6 +46,7 @@ class PayrollModel {
       note: null,
       totalAmount: 0,
       status: 'pending',
+      adjustmentHours: 0,
     );
   }
 
@@ -62,6 +65,7 @@ class PayrollModel {
       note: json['note'],
       totalAmount: json['total_amount'] ?? 0,
       status: json['status'] ?? 'pending',
+      adjustmentHours: json['adjustment_hours'] ?? 0,
     );
   }
 
@@ -79,6 +83,7 @@ class PayrollModel {
       'note': note,
       'total_amount': totalAmount,
       'status': status,
+      'adjustment_hours': adjustmentHours,
     };
   }
 }
