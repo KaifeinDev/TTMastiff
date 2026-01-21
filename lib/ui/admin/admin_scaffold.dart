@@ -96,6 +96,27 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           textColor: textColor,
           iconColor: iconColor,
         ),
+        _AdminMenuItem(
+          icon: Icons.payments, // 或是用 Icons.monetization_on 也可以
+          title: '薪資管理',
+          route: '/admin/salaries',
+          textColor: textColor,
+          iconColor: iconColor,
+        ),
+        _AdminMenuItem(
+          icon: Icons.manage_accounts, // 或 Icons.people_alt
+          title: '人員管理',
+          route: '/admin/staff_list', // 連到列表頁
+          textColor: textColor,
+          iconColor: iconColor,
+        ),
+        _AdminMenuItem(
+          icon: Icons.analytics_outlined, // 或 Icons.insert_chart
+          title: '薪資分析',
+          route: '/admin/salary_analytics',
+          textColor: textColor,
+          iconColor: iconColor,
+        ),
       ],
     );
   }
