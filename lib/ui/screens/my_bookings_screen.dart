@@ -411,7 +411,7 @@ class _GroupedBookingCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            "教練: ${sessionInfo.session.coachesText}",
+            "教練: ${sessionInfo.session.coachName}",
             style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
 
