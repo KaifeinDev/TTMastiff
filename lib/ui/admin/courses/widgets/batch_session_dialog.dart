@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart'; // 確保能存取 Repository
 import 'package:ttmastiff/data/models/table_model.dart';
 import 'package:flutter/services.dart';
+import '../../../../core/utils/util.dart';
 
 class BatchSessionDialog extends StatefulWidget {
   final String courseId;
@@ -65,7 +66,9 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
         setState(() => _allCoaches = coaches);
       }
     } catch (e) {
-      debugPrint('Error fetching coaches: $e');
+      if (mounted) {
+        showErrorDialog(context, e, title: '載入教練失敗');
+      }
     }
   }
 
@@ -86,8 +89,10 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
         });
       }
     } catch (e) {
-      debugPrint('載入桌次失敗: $e');
-      if (mounted) setState(() => _isLoadingTables = false);
+      if (mounted) {
+        showErrorDialog(context, e, title: '載入桌次失敗');
+        setState(() => _isLoadingTables = false);
+      }
     }
   }
 
@@ -268,9 +273,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       if (mounted) Navigator.pop(context, true); // 回傳 true 代表成功
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('排課失敗: $e')));
+        showErrorDialog(context, e, title: '排課失敗');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
