@@ -222,6 +222,45 @@ class BookingRepository {
         .gte('sessions.end_time', limitDate.toIso8601String())
         .order('sessions(start_time)', ascending: false);
     final data = List<Map<String, dynamic>>.from(response);
+    
+    // 收集所有 session 的 coach_ids
+    final Set<String> allCoachIds = {};
+    for (var booking in data) {
+      final session = booking['sessions'];
+      if (session != null && session['coach_ids'] != null) {
+        final coachIds = List<String>.from(session['coach_ids'] ?? []);
+        allCoachIds.addAll(coachIds);
+      }
+    }
+    
+    // 批量查詢教練資料
+    Map<String, Map<String, dynamic>> coachMap = {};
+    if (allCoachIds.isNotEmpty) {
+      final coachesData = await _supabase
+          .from('profiles')
+          .select('id, full_name')
+          .inFilter('id', allCoachIds.toList());
+  
+      coachMap = {
+        for (var coach in coachesData) coach['id'] as String: coach
+      };
+    }
+    
+    
+    // 將教練名稱填入對應的 session
+    for (var booking in data) {
+      final session = booking['sessions'];
+      if (session != null && session['coach_ids'] != null) {
+        final coachIds = List<String>.from(session['coach_ids'] ?? []);
+        final coachNames = coachIds
+            .map((id) => coachMap[id]?['full_name'] as String?)
+            .where((name) => name != null && name.isNotEmpty)
+            .map((name) => name!)
+            .toList();
+        session['coach_name'] = coachNames.isEmpty ? null : coachNames.join(', ');
+      }
+    }
+    
     return data.map((e) => BookingModel.fromJson(e)).toList();
   }
 

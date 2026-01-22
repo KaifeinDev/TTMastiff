@@ -102,11 +102,14 @@ class CourseRepository {
             .select('id, full_name, role') // 雖然 model 沒有 role，但可以順便檢查
             .inFilter('id', session.coachIds); // 使用 inFilter 更簡潔
 
-        final coachesList = (coachesData as List)
-            .map((c) => CoachModel.fromJson(c))
+        final coachNames = (coachesData as List)
+            .map((c) => c['full_name'] as String? ?? '教練')
+            .where((name) => name.isNotEmpty)
             .toList();
 
-        session = session.copyWith(coaches: coachesList);
+        session = session.copyWith(
+          coachName: coachNames.isEmpty ? null : coachNames.join(', '),
+        );
       }
 
       return session;
