@@ -83,7 +83,9 @@ class _LoginScreenState extends State<LoginScreen> {
       listenable: authManager,
       builder: (context, child) {
         return Scaffold(
-          appBar: AppBar(title: const Text('登入')),
+          appBar: AppBar(
+            title: const Text('登入', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
           body: Center(
             child: SingleChildScrollView(
               // 避免鍵盤跳出時擋住畫面
