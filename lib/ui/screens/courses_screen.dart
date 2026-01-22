@@ -8,14 +8,14 @@ import 'package:go_router/go_router.dart';
 import '../../data/services/course_repository.dart';
 import '../../data/models/course_model.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class CoursesScreen extends StatefulWidget {
+  const CoursesScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<CoursesScreen> createState() => _CoursesScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _CoursesScreenState extends State<CoursesScreen> {
   late final CourseRepository _courseRepo;
 
   // 狀態變數

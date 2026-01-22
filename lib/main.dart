@@ -119,7 +119,11 @@ class MyApp extends StatelessWidget {
         textTheme: const TextTheme(
           labelLarge: TextStyle(fontWeight: FontWeight.bold),
         ),
-
+        tabBarTheme: const TabBarThemeData(
+          labelStyle: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       // 🔥 新增：深色主題
       darkTheme: ThemeData(
