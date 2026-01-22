@@ -46,6 +46,22 @@ class TableRepository {
     await _supabase.from('tables').update(table.toJson()).eq('id', table.id);
   }
 
+  /// 檢查某張桌子在未來是否有被使用
+  Future<int> checkTableUsage(String tableId) async {
+    final now = DateTime.now().toIso8601String();
+
+    // 查詢 sessions 表
+    // 條件：start_time > 現在 AND table_ids 陣列包含 tableId
+    final response = await _supabase
+        .from('sessions')
+        .select('id') // 我們只需要算數量，不用抓全部欄位
+        .gt('start_time', now)
+        .contains('table_ids', [tableId]) // 檢查陣列是否包含此 ID
+        .count(CountOption.exact); // 只取數量
+
+    return response.count;
+  }
+
   /// 刪除桌次
   /// ⚠️ 注意：如果有 Sessions 綁定此桌次，Supabase 可能會報錯 (Foreign Key Constraint)
   /// 建議用 try-catch 包裹，失敗時提示使用者改用「停用」

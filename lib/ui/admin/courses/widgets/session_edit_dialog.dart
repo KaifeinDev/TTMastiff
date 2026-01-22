@@ -9,6 +9,7 @@ import '../../../../data/models/session_model.dart';
 import '../../../../data/models/booking_model.dart';
 import '../../../../data/models/student_model.dart';
 import '../../../../data/models/table_model.dart';
+import '../../../../core/utils/util.dart';
 import 'student_search_dialog.dart';
 
 class SessionEditDialog extends StatefulWidget {
@@ -361,9 +362,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('錯誤: $e')));
+        showErrorDialog(context, e);
       }
     } finally {
       if (mounted) setState(() => _isSavingSettings = false);

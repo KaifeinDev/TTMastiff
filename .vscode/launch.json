@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Flutter-Mobile",
+            "name": "Flutter-Android",
             "request": "launch",
             "type": "dart",
-            "deviceId": "emulator-5554"
+            "deviceId": "android" // 改用 android 關鍵字，比寫死 ID 更具彈性
         },
         {
             "name": "Flutter-Web",
@@ -15,13 +15,26 @@
                 "-d",
                 "chrome"
             ]
+        },
+        {
+            "name": "Flutter-iOS",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "AEDB3A8E-BE5C-4458-AAEA-8A9E2CADDF09"
         }
     ],
     "compounds": [
         {
-            "name": "All-Platforms",
+            "name": "🚀 Win: Android + Web",
             "configurations": [
-                "Flutter-Mobile",
+                "Flutter-Android",
+                "Flutter-Web"
+            ]
+        },
+        {
+            "name": "🚀 Mac: iOS + Web",
+            "configurations": [
+                "Flutter-iOS",
                 "Flutter-Web"
             ]
         }
