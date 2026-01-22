@@ -5,13 +5,16 @@ import 'package:ttmastiff/main.dart';
 // --- 1. 一般頁面 ---
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/register_screen.dart';
-import 'ui/screens/home_screen.dart';
+import 'ui/screens/homepage_screen.dart';
+import 'ui/screens/courses_screen.dart';
 import 'ui/screens/course_detail_screen.dart'; // 這是前台的課程詳情
 import 'ui/screens/my_bookings_screen.dart';
 import 'ui/screens/profile_screen.dart';
 import 'ui/screens/scaffold_with_nav_bar.dart';
 import 'ui/screens/transaction_history_screen.dart';
 import 'ui/screens/splash_screen.dart';
+import 'ui/screens/notifications_screen.dart';
+import 'ui/screens/notification_detail_screen.dart';
 
 // --- 2. 管理後台頁面 ---
 import '../ui/admin/admin_scaffold.dart';
@@ -58,12 +61,12 @@ final appRouter = GoRouter(
 
     // 規則 2: 已登入 -> 根據身分分流
     if (isLoggedIn && isLoggingIn || isSplash)
-      return isAdmin || isCoach ? '/admin/dashboard' : '/home';
+      return isAdmin || isCoach ? '/admin/dashboard' : '/homepage';
 
-    // 規則 3: 一般用戶闖入後台 -> 踢回 /home
+    // 規則 3: 一般用戶闖入後台 -> 踢回 /homepage
     if (isLoggedIn && location.startsWith('/admin') && !isAdmin && !isCoach) {
       print('⛔ 權限不足：一般使用者嘗試進入後台');
-      return '/home';
+      return '/homepage';
     }
 
     return null;
@@ -86,12 +89,21 @@ final appRouter = GoRouter(
         return ScaffoldWithNavBar(navigationShell: navigationShell);
       },
       branches: [
-        // 分頁 1: 首頁
+        // 分頁 1: 首頁（新增）
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/homepage',
+              builder: (context, state) => const HomepageScreen(),
+            ),
+          ],
+        ),
+        // 分頁 2: 課程（原本的 /home）
         StatefulShellBranch(
           routes: [
             GoRoute(
               path: '/home',
-              builder: (context, state) => const HomeScreen(),
+              builder: (context, state) => const CoursesScreen(),
               routes: [
                 GoRoute(
                   path: 'course_detail/:courseId',
@@ -104,7 +116,7 @@ final appRouter = GoRouter(
             ),
           ],
         ),
-        // 分頁 2: 我的課程
+        // 分頁 3: 我的課程
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -113,7 +125,7 @@ final appRouter = GoRouter(
             ),
           ],
         ),
-        // 分頁 3: 個人檔案
+        // 分頁 4: 個人檔案
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -130,6 +142,22 @@ final appRouter = GoRouter(
               ],
             ),
           ],
+        ),
+      ],
+    ),
+
+    // --- 通知頁面 (獨立路由，不在底部導航欄) ---
+    GoRoute(
+      path: '/notifications',
+      builder: (context, state) => const NotificationsScreen(),
+      routes: [
+        GoRoute(
+          path: ':notificationId',
+          parentNavigatorKey: _rootNavigatorKey,
+          builder: (context, state) {
+            final notificationId = state.pathParameters['notificationId']!;
+            return NotificationDetailScreen(notificationId: notificationId);
+          },
         ),
       ],
     ),

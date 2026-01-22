@@ -7,17 +7,15 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // 或配合你的 App 主題色
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 這裡可以放你的 Logo 圖片
-            // Image.asset('assets/images/logo.png', width: 150),
-            const Icon(
-              Icons.sports_tennis,
-              size: 80,
-              color: Colors.blueAccent,
+            Image.asset(
+              'assets/images/logo.png',
+              width: 120,
+              height: 120,
+              fit: BoxFit.contain,
             ), // 暫時用 Icon 代替
             const SizedBox(height: 24),
             const Text(
