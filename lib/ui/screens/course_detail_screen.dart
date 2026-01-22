@@ -195,6 +195,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 // 1. 課程圖片與資訊
+                Text(
+                  "詳細課程資訊",
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 _buildHeaderSection(),
                 const SizedBox(height: 24),
 
@@ -282,7 +288,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           decoration: BoxDecoration(
             color: _course!.category == 'personal'
                 ? Colors.purple.shade50
-                : Colors.blue.shade50,
+                : Color.fromARGB(30, 255, 122, 50),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
@@ -291,16 +297,23 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               fontSize: 12,
               color: _course!.category == 'personal'
                   ? Colors.purple
-                  : Colors.blue,
+                  : const Color.fromARGB(255, 255, 123, 0),
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          _course!.description ?? "暫無課程描述",
-          style: TextStyle(color: Colors.grey.shade600, height: 1.5),
-        ),
+        Builder(
+        builder: (_) {
+          final description = (_course!.description?.trim().isNotEmpty ?? false)
+              ? _course!.description!.trim()
+              : "暫無課程描述";
+          return Text(
+            description,
+            style: TextStyle(color: Colors.grey.shade600, height: 1.5),
+          );
+        },
+      ),
       ],
     );
   }
@@ -386,24 +399,24 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: Colors.red,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
                   "額滿",
-                  style: TextStyle(fontSize: 10, color: Colors.black54),
+                  style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               )
             else if (remain <= 2)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade100,
+                  color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   "剩 $remain 位",
-                  style: TextStyle(fontSize: 10, color: Colors.orange.shade800),
+                  style: TextStyle(fontSize: 10, color: Colors.red.shade600, fontWeight: FontWeight.bold),
                 ),
               ),
           ],

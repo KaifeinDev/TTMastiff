@@ -82,12 +82,44 @@ class MyApp extends StatelessWidget {
       title: 'TTMastiff 球館系統',
       theme: ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: Colors.white,
+        scaffoldBackgroundColor: Colors.grey.shade50,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blueAccent,
+          seedColor: Color(0xFFD32D26),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
+        // 全局 Card 主題設定
+        cardTheme: CardThemeData(
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: const Color.fromARGB(255, 242, 148, 136), // 你想要的顏色
+              width: 1,
+            ),
+          ),
+        ),
+        // 全局 Dialog 主題設定
+        dialogTheme: DialogThemeData(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          titleTextStyle: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        // 全局 DatePicker 主題設定
+        datePickerTheme: DatePickerThemeData(
+          backgroundColor: Colors.white,
+        ),
+        // 全局 按鈕文字設定
+        textTheme: const TextTheme(
+          labelLarge: TextStyle(fontWeight: FontWeight.bold),
+        ),
+
       ),
       // 🔥 新增：深色主題
       darkTheme: ThemeData(

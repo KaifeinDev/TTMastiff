@@ -168,9 +168,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       '請輸入資料以建立學員檔案',
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(color: Colors.grey.shade700),
                     ),
                     const SizedBox(height: 16),
 
@@ -426,7 +426,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     // 🌟 獲取主要顯示資訊
-    final displayAvatar = _primaryStudent?.avatarUrl;
     final displayName = _primaryStudent?.name ?? '用戶';
     return ListenableBuilder(
       listenable: authManager,
@@ -435,8 +434,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final bool isCoach = authManager.isCoach;
         return Scaffold(
           appBar: AppBar(
-            title: const Text('我的檔案'),
-            centerTitle: false,
+            title: const Text(
+              '我的檔案',
+              style: TextStyle(fontWeight: FontWeight.bold),
+              
+            ),
+            bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.logout),
@@ -459,27 +469,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHighest,
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Row(
                             children: [
-                              CircleAvatar(
-                                radius: 30,
-                                backgroundColor: Colors.white,
-                                backgroundImage: displayAvatar != null
-                                    ? NetworkImage(displayAvatar)
-                                    : null,
-                                child: displayAvatar == null
-                                    ? Text(
-                                        displayName.isNotEmpty
-                                            ? displayName[0]
-                                            : '?',
-                                        style: const TextStyle(fontSize: 24),
-                                      )
-                                    : null,
+                              Builder(
+                                builder: (_) {
+                                  final name = displayName.trim();
+                                  final initials = name.length >= 2
+                                      ? name.substring(name.length - 2)
+                                      : name;
+
+                                  return CircleAvatar(
+                                    radius: 30,
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.primary,
+                                    child: Text(
+                                      initials,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -498,7 +513,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     if (_userEmail != null &&
                                         _userEmail!.isNotEmpty)
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 4),
+                                        padding: const EdgeInsets.only(top: 6),
                                         child: Row(
                                           children: [
                                             const Icon(
@@ -565,21 +580,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 10),
                         if (isAdmin || isCoach) ...[
                           Card(
-                            elevation: 4,
-                            shadowColor: Colors.red.withOpacity(0.3),
+                            shadowColor: Colors.blueGrey.shade50,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                               side: BorderSide(
-                                color: Colors.red.shade200,
-                                width: 1,
+                                color: Colors.blueGrey.shade200,
                               ),
                             ),
-                            color: Colors.red.shade50, // 用淺紅色背景區分
+                            color: Colors.blueGrey.shade50, // 用淺紅色背景區分
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
                               onTap: () {
                                 // 這裡填入您後台的首頁路由
                                 context.go('/admin/dashboard');
@@ -597,16 +609,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         color: Colors.white,
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: Colors.red.shade100,
+                                          color: Colors.blueGrey.shade100,
                                         ),
                                       ),
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.admin_panel_settings,
-                                        color: Colors.red,
+                                        color: Colors.blueGrey.shade900  
                                       ),
                                     ),
                                     const SizedBox(width: 16),
-                                    const Expanded(
+                                    Expanded(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -614,7 +626,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           Text(
                                             '管理後台',
                                             style: TextStyle(
-                                              color: Colors.red,
+                                              color: Colors.blueGrey.shade900,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16,
                                             ),
@@ -622,17 +634,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           Text(
                                             '切換至管理員模式',
                                             style: TextStyle(
-                                              color: Colors.redAccent,
+                                              color: Colors.blueGrey.shade700,
                                               fontSize: 12,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const Icon(
+                                    Icon(
                                       Icons.arrow_forward_ios,
                                       size: 16,
-                                      color: Colors.red,
+                                      color: Colors.blueGrey.shade900,
                                     ),
                                   ],
                                 ),
@@ -645,148 +657,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         // 2. 錢包/點數區塊
                         Card(
-                          elevation: 2,
-                          color: Theme.of(
-                            context,
-                          ).primaryColor, // 🔥 回歸原本的純色，不要漸層
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            children: [
-                              // --- 上半部：完全保留您原本的程式碼與排版 ---
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 20,
-                                  horizontal: 24,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 18,
+                              horizontal: 20,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '剩餘點數',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                                child: Row(
+                                const SizedBox(height: 12),
+                                Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    const Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '剩餘點數',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          'Credits',
-                                          style: TextStyle(
-                                            color: Colors.white30,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
                                     Row(
                                       children: [
                                         const Icon(
                                           Icons.monetization_on,
                                           color: Colors.amber,
-                                          size: 32,
+                                          size: 48,
                                         ),
-                                        const SizedBox(width: 8),
+                                        const SizedBox(width: 12),
                                         Text(
-                                          NumberFormat(
-                                            '#,###',
-                                          ).format(_credits),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.bold,
+                                          '${NumberFormat('#,###').format(_credits)}',
+                                          style: TextStyle(
+                                            color: Theme.of(context).primaryColor,
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w800,
                                           ),
                                         ),
                                       ],
+                                    ),
+                                    FilledButton.tonal(
+                                      onPressed: () {
+                                        context.push('/profile/transactions');
+                                      },
+                                      style: FilledButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 12,
+                                        ),
+                                        shape: const StadiumBorder(),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.history,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '查看紀錄',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
-
-                              // --- 分隔線 (極細微，避免割裂感) ---
-                              const Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: Colors.white12, // 12% 透明度的白色，非常低調
-                              ),
-
-                              // --- 下半部：按鈕區 ---
-                              Material(
-                                color: Colors.transparent, // 讓水波紋顯示底色
-                                child: InkWell(
-                                  onTap: () {
-                                    context.push('/profile/transactions');
-                                  },
-                                  // 確保按下去的水波紋不會超出圓角
-                                  borderRadius: const BorderRadius.only(
-                                    bottomLeft: Radius.circular(16),
-                                    bottomRight: Radius.circular(16),
-                                  ),
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.history,
-                                          size: 18,
-                                          color: Colors.white.withOpacity(0.9),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        const Text(
-                                          '查看交易與儲值紀錄',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Icon(
-                                          Icons.chevron_right,
-                                          size: 16,
-                                          color: Colors.white.withOpacity(0.5),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: 32),
 
                         // 3. 學員管理標題
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.people_outline),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '家庭成員 / 學員',
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                            FilledButton.tonalIcon(
-                              onPressed: _showAddStudentDialog,
-                              icon: const Icon(Icons.add),
-                              label: const Text('新增'),
-                            ),
-                          ],
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.people_outline),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '家庭成員 / 學員',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              FilledButton.tonalIcon(
+                                onPressed: _showAddStudentDialog,
+                                icon: const Icon(Icons.add),
+                                label: const Text('新增'),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 16),
 
@@ -811,15 +783,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               final hasNote =
                                   student.medicalNote != null &&
                                   student.medicalNote!.isNotEmpty;
+                              final name = student.name.trim();
+                              final initials = name.isEmpty
+                                  ? '?'
+                                  : (name.length >= 2
+                                      ? name.substring(name.length - 2)
+                                      : name);
 
                               return Card(
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                  side: BorderSide(color: Colors.grey.shade200),
+                                  side: BorderSide.none,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
+                                color: Colors.grey.shade200,
                                 child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
                                   onTap: () => _showEditDialog(student),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
@@ -833,28 +811,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           height: 50,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: Colors.grey.shade200,
-                                            image: student.avatarUrl != null
-                                                ? DecorationImage(
-                                                    image: NetworkImage(
-                                                      student.avatarUrl!,
-                                                    ),
-                                                    fit: BoxFit.cover,
-                                                  )
-                                                : null,
+                                            color: isSelf
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                : Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                    .withOpacity(0.12),
                                           ),
-                                          child: student.avatarUrl == null
-                                              ? Center(
-                                                  child: Text(
-                                                    student.name.isNotEmpty
-                                                        ? student.name[0]
-                                                        : '?',
-                                                    style: const TextStyle(
-                                                      fontSize: 20,
-                                                    ),
-                                                  ),
-                                                )
-                                              : null,
+                                          child: Center(
+                                            child: Text(
+                                              initials,
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w600,
+                                                color: isSelf
+                                                    ? Colors.white
+                                                    : Colors.black87,
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                       title: Row(
@@ -865,30 +842,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          // 🌟 修正了原本的 itSelf 錯誤
-                                          if (isSelf) ...[
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blueGrey
-                                                    .withOpacity(0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: const Text(
-                                                '本人',
-                                                style: TextStyle(
-                                                  color: Colors.blueGrey,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
                                         ],
                                       ),
                                       subtitle: Column(
@@ -899,7 +852,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             // '${student.birthDate.year}/${student.birthDate.month}/${student.birthDate.day}',
                                             student.birthDate.toDateWithAge(),
                                             style: TextStyle(
-                                              color: Colors.grey.shade600,
+                                              color: Colors.grey.shade700,
                                               fontSize: 13,
                                             ),
                                           ),
@@ -913,7 +866,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               message: student.medicalNote,
                                               child: Icon(
                                                 Icons.medical_information,
-                                                size: 20,
+                                                size: 24,
                                                 color: Colors.red.shade300,
                                               ),
                                             ),
