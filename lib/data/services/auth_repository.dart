@@ -27,6 +27,7 @@ class AuthRepository {
     required String fullName,
     required String phone,
     required DateTime birthDate,
+    String? gender,
     String? medicalNote,
     String referralSource = 'app_signup',
   }) async {
@@ -69,6 +70,7 @@ class AuthRepository {
         'name': fullName,
         // 優化：只取 YYYY-MM-DD，避免時區導致日期跑掉
         'birth_date': birthDate.toIso8601String().substring(0, 10),
+        'gender': gender,
         'medical_note': medicalNote,
         'avatar_url': avatarUrl,
         'is_primary': true,

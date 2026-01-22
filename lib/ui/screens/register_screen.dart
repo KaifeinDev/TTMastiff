@@ -23,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   final _medicalNoteController = TextEditingController();
   DateTime? _selectedDate;
+  String? _selectedGender; // 性別：'male', 'female', 'other'
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -72,13 +73,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // 呼叫更新後的 AuthRepository
       await _repository.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         fullName: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
         birthDate: _selectedDate!,
+        gender: _selectedGender,
         medicalNote: _medicalNoteController.text.trim().isEmpty
             ? null
             : _medicalNoteController.text.trim(),
@@ -114,7 +115,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('註冊帳號')),
+      appBar: AppBar(
+        title: const Text('註冊帳號', style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -172,7 +175,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 3. 生日
+                // 3. 性別
+                DropdownButtonFormField<String>(
+                  value: _selectedGender,
+                  decoration: const InputDecoration(
+                    labelText: '性別',
+                    prefixIcon: Icon(Icons.person_outline),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'male', child: Text('男生')),
+                    DropdownMenuItem(value: 'female', child: Text('女生')),
+                    DropdownMenuItem(value: 'other', child: Text('中性')),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _selectedGender = value);
+                  },
+                  validator: (val) => val == null ? '請選擇性別' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // 4. 生日
                 InkWell(
                   onTap: _pickDate,
                   child: InputDecorator(
@@ -251,7 +274,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // 4. 醫療備註
+                // 8. 醫療備註
                 TextFormField(
                   controller: _medicalNoteController,
                   textInputAction: TextInputAction.next,
