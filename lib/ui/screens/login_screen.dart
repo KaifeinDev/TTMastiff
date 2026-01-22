@@ -92,10 +92,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch, // 讓按鈕跟輸入框同寬
                 children: [
-                  const Icon(
-                    Icons.sports_tennis,
-                    size: 80,
-                    color: Colors.blueAccent,
+                  Image.asset(
+                    'assets/images/logo.png',
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 16),
                   const Text(
