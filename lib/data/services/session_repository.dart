@@ -109,6 +109,35 @@ class SessionRepository {
   }) async {
     if (sessionsData.isEmpty) return;
 
+    // A. 預先檢查每一筆資料是否有衝突
+    // 注意：這會對每一筆新增進行查詢，如果一次新增非常多筆(如50筆以上)，
+    // 建議改用後端 Edge Function 處理，但在 App 端這樣寫邏輯最清楚。
+    for (var data in sessionsData) {
+      // 1. 解析資料
+      final startTime = DateTime.parse(data['start_time']);
+      final endTime = DateTime.parse(data['end_time']);
+      final tableIds = List<String>.from(data['table_ids'] ?? []);
+      final coachIds = List<String>.from(data['coach_ids'] ?? []);
+
+      // 2. 呼叫檢查
+      final conflict = await checkDetailConflict(
+        startTime: startTime,
+        endTime: endTime,
+        tableIds: tableIds,
+        coachIds: coachIds,
+        courseId: courseId,
+        // 新增時不需要 excludeSessionId
+      );
+
+      // 3. 若有衝突，直接拋出錯誤，整批都不會建立
+      if (conflict.hasConflict) {
+        throw Exception(
+          '衝突錯誤 (${DateFormat('MM/dd HH:mm').format(startTime)})：${conflict.message}',
+        );
+      }
+    }
+
+    // B. 全部檢查通過，執行批次寫入
     final List<Map<String, dynamic>> payload = sessionsData.map((data) {
       return {'course_id': courseId, ...data};
     }).toList();
@@ -182,6 +211,39 @@ class SessionRepository {
     DateTime? startTime,
     DateTime? endTime,
   }) async {
+    // A. 必須先抓取「目前的資料」，因為 update 可能只改時間沒改桌子
+    // 我們需要完整的資料才能判斷衝突
+    final currentData = await _supabase
+        .from('sessions')
+        .select()
+        .eq('id', sessionId)
+        .single();
+
+    // B. 合併資料：如果有傳新值就用新的，否則用舊的
+    final finalStartTime =
+        startTime ?? DateTime.parse(currentData['start_time']);
+    final finalEndTime = endTime ?? DateTime.parse(currentData['end_time']);
+    final finalTableIds =
+        tableIds ?? List<String>.from(currentData['table_ids'] ?? []);
+    final finalCoachIds =
+        coachIds ?? List<String>.from(currentData['coach_ids'] ?? []);
+    final currentCourseId = currentData['course_id'];
+
+    // C. 檢查衝突 (記得排除自己)
+    final conflict = await checkDetailConflict(
+      startTime: finalStartTime,
+      endTime: finalEndTime,
+      tableIds: finalTableIds,
+      coachIds: finalCoachIds,
+      courseId: currentCourseId,
+      excludeSessionId: sessionId, // 🔥 關鍵：排除自己
+    );
+
+    if (conflict.hasConflict) {
+      throw Exception(conflict.message);
+    }
+
+    // D. 準備更新 payload
     final Map<String, dynamic> updates = {};
     if (coachIds != null) updates['coach_ids'] = coachIds;
     if (location != null) updates['location'] = location;
@@ -190,7 +252,75 @@ class SessionRepository {
     if (startTime != null) updates['start_time'] = startTime.toIso8601String();
     if (endTime != null) updates['end_time'] = endTime.toIso8601String();
 
-    await _supabase.from('sessions').update(updates).eq('id', sessionId);
+    if (updates.isNotEmpty) {
+      await _supabase.from('sessions').update(updates).eq('id', sessionId);
+    }
+  }
+
+  // 批次更新 Sessions
+  // 用途：例如一次把選取的 5 堂課都改成「教練A」或都改成「桌號3」
+  Future<void> batchUpdateSessions({
+    required List<String> sessionIds, // 要更新的 IDs
+    List<String>? coachIds,
+    String? location,
+    List<String>? tableIds,
+    int? maxCapacity,
+    // 通常批次更新不會改時間(因為每堂課時間不同)，但如果要改也可以傳
+  }) async {
+    if (sessionIds.isEmpty) return;
+
+    // A. 抓出所有要修改的 Sessions 原本資料
+    final List<dynamic> currentSessions = await _supabase
+        .from('sessions')
+        .select()
+        .filter('id', 'in', sessionIds);
+
+    // B. 逐筆檢查衝突
+    for (var session in currentSessions) {
+      final String id = session['id'];
+
+      // 合併資料
+      final DateTime currentStart = DateTime.parse(session['start_time']);
+      final DateTime currentEnd = DateTime.parse(session['end_time']);
+
+      final finalTableIds =
+          tableIds ?? List<String>.from(session['table_ids'] ?? []);
+      final finalCoachIds =
+          coachIds ?? List<String>.from(session['coach_ids'] ?? []);
+      final String courseId = session['course_id'];
+
+      // 呼叫檢查
+      final conflict = await checkDetailConflict(
+        startTime: currentStart, // 時間通常維持原樣
+        endTime: currentEnd,
+        tableIds: finalTableIds, // 用新的桌子 (如果有的話)
+        coachIds: finalCoachIds, // 用新的教練 (如果有的話)
+        courseId: courseId,
+        excludeSessionId: id, // 排除自己
+      );
+
+      if (conflict.hasConflict) {
+        // 為了讓使用者知道是哪一堂出錯，可以格式化時間
+        final timeStr = DateFormat('MM/dd HH:mm').format(currentStart);
+        throw Exception('批次更新失敗：$timeStr 的課程發生衝突 (${conflict.message})');
+      }
+    }
+
+    // C. 全部檢查通過，執行批次更新
+    // 因為 Supabase 的 .update().in_() 會把所有選取的 rows 更新成一樣的值
+    // 這剛好符合「批次修改屬性」的需求
+    final Map<String, dynamic> updates = {};
+    if (coachIds != null) updates['coach_ids'] = coachIds;
+    if (location != null) updates['location'] = location;
+    if (tableIds != null) updates['table_ids'] = tableIds;
+    if (maxCapacity != null) updates['max_capacity'] = maxCapacity;
+
+    if (updates.isNotEmpty) {
+      await _supabase
+          .from('sessions')
+          .update(updates)
+          .filter('id', 'in', sessionIds);
+    }
   }
 
   // 刪除單一場次
@@ -269,30 +399,28 @@ class SessionRepository {
   Future<ConflictResult> checkDetailConflict({
     required DateTime startTime,
     required DateTime endTime,
-    required List<String> tableIds, // 🔥 改為 List
+    required List<String> tableIds,
     required List<String> coachIds,
     required String courseId,
     String? excludeSessionId,
   }) async {
-    // 取得當天範圍內的 sessions 來比對
-    // 這裡為了保險，我們把搜尋範圍擴大一點 (例如前後 1 天)，或精準搜尋該時段重疊
-    // 簡單起見，我們用 "該時段有重疊" 的條件查詢 DB
-
-    // Supabase 查詢：時間重疊 (StartA < EndB) AND (EndA > StartB)
+    // 1. 查詢時間重疊的 Session
     final response = await _supabase
         .from('sessions')
         .select('''
-          id, course_id, table_ids, coach_ids,
+          id, start_time, end_time, 
+          course_id, table_ids, coach_ids,
           courses(title)
         ''')
-        // 時間重疊邏輯: session.start < request.end AND session.end > request.start
         .lt('start_time', endTime.toIso8601String())
         .gt('end_time', startTime.toIso8601String());
 
     final List<dynamic> existingSessions = response;
 
+    // 🔥 準備一個清單來收集所有錯誤
+    List<String> conflictDetails = [];
+
     for (final session in existingSessions) {
-      // 排除自己
       if (excludeSessionId != null && session['id'] == excludeSessionId) {
         continue;
       }
@@ -304,43 +432,68 @@ class SessionRepository {
       final List<String> existingCoachIds = List<String>.from(
         session['coach_ids'] ?? [],
       );
-
       final courseName = session['courses']?['title'] ?? '未知課程';
 
-      // 檢查 1 : 同課程重複 (同一門課不能同時開兩班)
+      // 為了讓訊息更清楚，我們把時間也抓出來
+      final sTime = DateTime.parse(session['start_time']).toLocal();
+      final eTime = DateTime.parse(session['end_time']).toLocal();
+      final timeStr =
+          "${DateFormat('HH:mm').format(sTime)}~${DateFormat('HH:mm').format(eTime)}";
+
+      // 檢查 1 : 同課程重複
       if (existingCourseId == courseId) {
-        return ConflictResult(
-          type: ConflictType.courseDuplicate,
-          message: '課程 "$courseName" 於該時段已有其他場次',
-          conflictSessionId: session['id'],
-        );
+        conflictDetails.add('❌ [課程重複] $timeStr "$courseName"');
       }
 
-      // 檢查 2: 桌次衝突 (陣列交集檢查)
-      // 如果新選的桌子裡，有任何一張已經被別人用了，就是衝突
-      final overlappingTables = tableIds.where(
-        (id) => existingTableIds.contains(id),
-      );
-      if (overlappingTables.isNotEmpty) {
-        return ConflictResult(
-          type: ConflictType.tableOccupied,
-          message: '所選桌次已被 "$courseName" 佔用', // 簡化訊息，不列出具體哪一張
-          conflictSessionId: session['id'],
+      // 檢查 2: 桌次衝突
+      final overlappingTableIds = tableIds
+          .where((id) => existingTableIds.contains(id))
+          .toList();
+      if (overlappingTableIds.isNotEmpty) {
+        // 查詢桌名 (非同步操作)
+        final List<dynamic> tablesRes = await _supabase
+            .from('tables')
+            .select('name')
+            .filter('id', 'in', overlappingTableIds);
+
+        final String occupiedTableNames = tablesRes
+            .map((t) => t['name'] as String)
+            .join('、');
+
+        conflictDetails.add(
+          '❌ [桌次佔用] $timeStr "$courseName" (桌次: $occupiedTableNames)',
         );
       }
 
       // 檢查 3: 教練衝突
-      final overlappingCoaches = coachIds.where(
-        (id) => existingCoachIds.contains(id),
-      );
-      if (overlappingCoaches.isNotEmpty) {
-        // ... 可選擇要不要去抓教練名字來顯示
-        return ConflictResult(
-          type: ConflictType.coachBusy,
-          message: '指定教練該時段已有安排課程 "$courseName"',
-          conflictSessionId: session['id'],
+      final overlappingCoachIds = coachIds
+          .where((id) => existingCoachIds.contains(id))
+          .toList();
+      if (overlappingCoachIds.isNotEmpty) {
+        final List<dynamic> coachesRes = await _supabase
+            .from('profiles')
+            .select('full_name')
+            .filter('id', 'in', overlappingCoachIds);
+
+        final String busyCoachNames = coachesRes
+            .map((c) => c['full_name'] as String? ?? '未知教練')
+            .join('、');
+
+        conflictDetails.add(
+          '❌ [教練撞期] $timeStr "$courseName" (教練: $busyCoachNames)',
         );
       }
+    }
+
+    // 🔥 判斷是否收集到錯誤
+    if (conflictDetails.isNotEmpty) {
+      // 將所有錯誤組合成一個長字串，中間用換行符號隔開
+      final fullMessage = conflictDetails.join('\n');
+
+      return ConflictResult(
+        type: ConflictType.tableOccupied, // 這裡 Type 其實沒那麼重要了，主要是 Message
+        message: '發現 ${conflictDetails.length} 個衝突：\n$fullMessage',
+      );
     }
 
     return ConflictResult(type: ConflictType.none);
