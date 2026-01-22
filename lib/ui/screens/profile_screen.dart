@@ -11,6 +11,7 @@ import '../../core/utils/util.dart';
 
 import 'package:ttmastiff/main.dart';
 import '../../data/services/booking_repository.dart';
+import 'widgets/gender_icon.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -427,6 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     // 🌟 獲取主要顯示資訊
     final displayName = _primaryStudent?.name ?? '用戶';
+    final primaryGender = _primaryStudent?.gender;
     return ListenableBuilder(
       listenable: authManager,
       builder: (context, child) {
@@ -501,14 +503,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      displayName,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          displayName,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                        if (primaryGender != null) ...[
+                                          const SizedBox(width: 4),
+                                          buildGenderIcon(primaryGender),
+                                        ],
+                                      ],
                                     ),
                                     if (_userEmail != null &&
                                         _userEmail!.isNotEmpty)
@@ -835,6 +846,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         ),
                                       ),
                                       title: Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
                                             student.name,
@@ -842,6 +854,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
+                                          if (student.gender != null) ...[
+                                            const SizedBox(width: 4),
+                                            buildGenderIcon(student.gender),
+                                          ],
                                         ],
                                       ),
                                       subtitle: Column(
@@ -867,7 +883,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               child: Icon(
                                                 Icons.medical_information,
                                                 size: 24,
-                                                color: Colors.red.shade300,
+                                                color: Colors.redAccent,
                                               ),
                                             ),
                                           const SizedBox(width: 8),
