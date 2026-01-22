@@ -397,7 +397,7 @@ class _GroupedBookingCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                sessionInfo.session.location ?? "無地點資訊",
+                sessionInfo.session.tableNamesText,
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               ),
             ],
