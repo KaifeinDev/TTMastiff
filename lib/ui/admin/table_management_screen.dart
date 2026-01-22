@@ -262,7 +262,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 80),
+              padding: const EdgeInsets.only(bottom: 100),
               itemCount: _tables.length,
               itemBuilder: (context, index) {
                 final table = _tables[index];
