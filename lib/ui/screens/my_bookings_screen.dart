@@ -148,6 +148,7 @@ class _MyBookingScreenState extends State<MyBookingScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: Text(isLeaveWindow ? '申請請假？' : '取消預約？'),
+        backgroundColor: Colors.white,
         content: Text(
           isLeaveWindow
               ? '課程即將在 $kFreeCancelHours 小時內開始，無法取消退費。\n您確定要標記為請假嗎？'
@@ -203,12 +204,15 @@ class _MyBookingScreenState extends State<MyBookingScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的課程'),
+        title: const Text(
+          '我的課程',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.blue,
+          labelColor: Theme.of(context).primaryColor,
           unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.blue,
+          indicatorColor: Theme.of(context).primaryColor,
           tabs: const [
             Tab(text: '即將到來'),
             Tab(text: '歷史紀錄'),
@@ -320,7 +324,7 @@ class _DayHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: isToday ? Colors.blue.shade700 : Colors.black87,
+              color: Theme.of(context).primaryColor,
             ),
           ),
           const SizedBox(width: 8),
@@ -379,13 +383,13 @@ class _GroupedBookingCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: Color.fromARGB(57, 211, 44, 38),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   timeRange,
                   style: TextStyle(
-                    color: Colors.blue.shade700,
+                    color: Color(0xFFD32D26),
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),

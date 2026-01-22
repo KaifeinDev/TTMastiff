@@ -87,16 +87,20 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        centerTitle: false,
+        bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Divider(
+          height: 1,
+          thickness: 1,
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
+        ),
       ),
-      backgroundColor: Colors.grey.shade100,
       body: Column(
         children: [
           // 1. 星期選擇器
           Container(
-            color: Colors.white,
+            color: Colors.grey.shade50,
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -117,11 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? Theme.of(context).primaryColor
-                              : (isToday
-                                    ? Theme.of(
-                                        context,
-                                      ).primaryColor.withOpacity(0.1)
-                                    : Colors.transparent),
+                              : Colors.transparent,
                           shape: BoxShape.circle,
                           border: isSelected
                               ? null
@@ -329,7 +329,7 @@ class _CourseCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: course.category == 'personal'
                               ? Colors.purple.shade50
-                              : Colors.blue.shade50,
+                              : Color.fromARGB(30, 255, 122, 50),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -338,7 +338,7 @@ class _CourseCard extends StatelessWidget {
                             fontSize: 12,
                             color: course.category == 'personal'
                                 ? Colors.purple
-                                : Colors.blue,
+                                : Colors.orange,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
