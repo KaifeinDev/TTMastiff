@@ -45,7 +45,11 @@ class SessionRepository {
           .select('''
             *,
             courses:course_id (*),
-            bookings:bookings (id)
+            bookings:bookings (
+              id,
+              status,
+              students:student_id (name)
+            )
           ''')
           .gte('start_time', startOfDay.toIso8601String())
           .lte('end_time', endOfDay.toIso8601String())
