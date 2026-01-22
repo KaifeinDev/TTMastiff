@@ -45,15 +45,81 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
   Future<void> _toggleTableStatus(TableModel table, bool newStatus) async {
     // 為了 UX 體驗，先在 UI 上更新狀態 (Optimistic UI)，失敗再改回來，或者直接重整
     // 這裡採用直接呼叫 API 後重整的方式確保資料一致性
+    if (!table.isActive) {
+      await _updateStatus(table, true);
+      return;
+    }
+
     try {
-      final updatedTable = table.copyWith(isActive: newStatus);
-      await tableRepository.updateTable(updatedTable);
-      await _loadTables(); // 重新讀取確保資料正確
+      final usageCount = await tableRepository.checkTableUsage(table.id);
+
+      if (mounted) {
+        setState(() => _isLoading = false); // 關閉讀取圈圈以便顯示 Dialog
+
+        if (usageCount > 0) {
+          // 情況：有衝突，顯示嚴重警告
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('⚠️ 警告：桌次使用中'),
+              content: Text(
+                '「${table.name}」目前被排定在 $usageCount 堂未來的課程中。\n\n'
+                '強制停用可能會導致這些課程的座位安排出現混亂。\n'
+                '建議先調整排課，或確認現場已有替代方案。',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('取消'),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('強制停用'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirm != true) return; // 使用者後悔了
+        } // 沒衝突就直接關
+        await _updateStatus(table, false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('狀態更新失敗: $e')));
+      }
+    }
+  }
+
+  Future<void> _updateStatus(TableModel table, bool isActive) async {
+    try {
+      // 建立新的物件 (假設您的 Model 有 copyWith，或是手動建)
+      final newTable = TableModel(
+        id: table.id,
+        name: table.name,
+        capacity: table.capacity,
+        isActive: isActive, // 更新這裡
+        sortOrder: table.sortOrder,
+        remarks: table.remarks,
+      );
+
+      await tableRepository.updateTable(newTable);
+      await _loadTables(); // 重整列表
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(isActive ? '已啟用桌次' : '已停用桌次')));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('狀態更新失敗: $e')));
+        ).showSnackBar(SnackBar(content: Text('更新失敗: $e')));
       }
     }
   }
