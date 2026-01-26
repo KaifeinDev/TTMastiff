@@ -397,7 +397,7 @@ class _GroupedBookingCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                sessionInfo.session.location ?? "無地點資訊",
+                sessionInfo.session.tableNamesText,
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               ),
             ],
@@ -411,7 +411,7 @@ class _GroupedBookingCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            "教練: ${sessionInfo.session.coachesText}",
+            "教練: ${sessionInfo.session.coachName}",
             style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
 

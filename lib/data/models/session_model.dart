@@ -36,7 +36,8 @@ class SessionModel {
   final int? _sessionPrice;
 
   final List<String> coachIds;
-  final List<CoachModel> coaches;
+  final String? coachName; // 教練名稱（多個教練用逗號分隔）
+  final String? tableNames; // 桌子名稱（多個桌子用頓號分隔）
   final int bookingsCount;
   final List<String> studentNames;
 
@@ -52,7 +53,8 @@ class SessionModel {
     this.tables = const [],
     int? sessionPrice,
     this.coachIds = const [],
-    this.coaches = const [],
+    this.coachName,
+    this.tableNames,
     this.bookingsCount = 0,
     required this.studentNames,
   }) : _sessionPrice = sessionPrice;
@@ -126,8 +128,11 @@ class SessionModel {
       // 讀取 DB 的 uuid[] 陣列
       coachIds: List<String>.from(json['coach_ids'] ?? []),
 
-      // 這裡先給空值，通常會在 Repository 層再另外 fetch 或 map 進來
-      coaches: const [],
+      // 讀取教練名稱（如果 Repository 層已經填入）
+      coachName: json['coach_name'] as String?,
+
+      // 讀取桌子名稱（如果 Repository 層已經填入）
+      tableNames: json['table_names'] as String?,
 
       // ⚠️ 關鍵修正：處理 Supabase 的 Count 回傳格式
       // 如果是用 .select('*, bookings(count)')，格式會是 { "bookings": [{"count": 5}] }
@@ -161,7 +166,8 @@ class SessionModel {
     List<TableModel>? tables,
     int? sessionPrice,
     List<String>? coachIds,
-    List<CoachModel>? coaches,
+    String? coachName,
+    String? tableNames,
     int? bookingsCount,
     List<String>? studentNames, // 參數名稱建議統一，原本叫 names 容易混淆
   }) {
@@ -181,7 +187,8 @@ class SessionModel {
 
       // 5. 列表與統計
       coachIds: coachIds ?? this.coachIds,
-      coaches: coaches ?? this.coaches,
+      coachName: coachName ?? this.coachName,
+      tableNames: tableNames ?? this.tableNames,
       bookingsCount: bookingsCount ?? this.bookingsCount,
       studentNames: studentNames ?? this.studentNames,
     );
@@ -214,15 +221,20 @@ class SessionModel {
 
   /// 顯示教練名單
   String get coachesText {
-    if (coaches.isEmpty) return '教練待定';
-    return coaches.map((c) => c.name).join(', ');
+    if (coachName == null || coachName!.isEmpty) return '教練待定';
+    return coachName!;
   }
 
   /// 判斷是否額滿
   bool get isFull => bookingsCount >= maxCapacity;
 
   // 取得所有桌名的字串 (例如 "A桌、B桌")
-  String get tableNames {
+  String get tableNamesText {
+    // 優先使用 Repository 層填入的 table_names
+    if (tableNames != null && tableNames!.isNotEmpty) {
+      return tableNames!;
+    }
+    // 如果沒有，則使用 tables 列表
     if (tables.isEmpty) return '未指定';
     return tables.map((t) => t.name).join('、');
   }
