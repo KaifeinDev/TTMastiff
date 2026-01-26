@@ -222,6 +222,80 @@ class BookingRepository {
         .gte('sessions.end_time', limitDate.toIso8601String())
         .order('sessions(start_time)', ascending: false);
     final data = List<Map<String, dynamic>>.from(response);
+    
+    // 收集所有 session 的 coach_ids 和 table_ids
+    final Set<String> allCoachIds = {};
+    final Set<String> allTableIds = {};
+    for (var booking in data) {
+      final session = booking['sessions'];
+      if (session != null) {
+        // 收集 coach_ids
+        if (session['coach_ids'] != null) {
+          final coachIds = List<String>.from(session['coach_ids'] ?? []);
+          allCoachIds.addAll(coachIds);
+        }
+        // 收集 table_ids
+        if (session['table_ids'] != null) {
+          final tableIds = List<String>.from(session['table_ids'] ?? []);
+          allTableIds.addAll(tableIds);
+        }
+      }
+    }
+    
+    // 批量查詢教練資料
+    Map<String, Map<String, dynamic>> coachMap = {};
+    if (allCoachIds.isNotEmpty) {
+      final coachesData = await _supabase
+          .from('profiles')
+          .select('id, full_name')
+          .inFilter('id', allCoachIds.toList());
+  
+      coachMap = {
+        for (var coach in coachesData) coach['id'] as String: coach
+      };
+    }
+    
+    // 批量查詢桌子資料
+    Map<String, Map<String, dynamic>> tableMap = {};
+    if (allTableIds.isNotEmpty) {
+      final tablesData = await _supabase
+          .from('tables')
+          .select('id, name')
+          .inFilter('id', allTableIds.toList());
+  
+      tableMap = {
+        for (var table in tablesData) table['id'] as String: table
+      };
+    }
+    
+    // 將教練名稱和桌子名稱填入對應的 session
+    for (var booking in data) {
+      final session = booking['sessions'];
+      if (session != null) {
+        // 填入教練名稱
+        if (session['coach_ids'] != null) {
+          final coachIds = List<String>.from(session['coach_ids'] ?? []);
+          final coachNames = coachIds
+              .map((id) => coachMap[id]?['full_name'] as String?)
+              .where((name) => name != null && name.isNotEmpty)
+              .map((name) => name!)
+              .toList();
+          session['coach_name'] = coachNames.isEmpty ? null : coachNames.join(', ');
+        }
+        
+        // 填入桌子名稱
+        if (session['table_ids'] != null) {
+          final tableIds = List<String>.from(session['table_ids'] ?? []);
+          final tableNames = tableIds
+              .map((id) => tableMap[id]?['name'] as String?)
+              .where((name) => name != null && name.isNotEmpty)
+              .map((name) => name!)
+              .toList();
+          session['table_names'] = tableNames.isEmpty ? null : tableNames.join('、');
+        }
+      }
+    }
+    
     return data.map((e) => BookingModel.fromJson(e)).toList();
   }
 

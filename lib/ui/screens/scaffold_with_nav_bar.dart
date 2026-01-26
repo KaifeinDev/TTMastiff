@@ -22,10 +22,10 @@ class ScaffoldWithNavBar extends StatelessWidget {
           if (index == navigationShell.currentIndex) {
             // 切換分頁
             // 點擊可重載
-            if (index == 0) {
+            if (index == 1) {
               CourseRepository.courseRefreshSignal.notify();
             }
-            // if (index == 1) {
+            // if (index == 2) {
             //   BookingRepository.bookingRefreshSignal.notify();
             // }
             navigationShell.goBranch(index, initialLocation: true);
@@ -35,6 +35,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
           }
         },
         destinations: const [
+          NavigationDestination(icon: Icon(Icons.home), label: '首頁'),
           NavigationDestination(icon: Icon(Icons.calendar_month), label: '課程'),
           NavigationDestination(icon: Icon(Icons.bookmark), label: '我的課程'),
           NavigationDestination(icon: Icon(Icons.person), label: '檔案'),

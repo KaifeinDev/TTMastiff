@@ -206,9 +206,9 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
 
   // 取得教練名稱字串
   String _getCoachNames(SessionModel session) {
-    // 情況 A: Repository 已經幫忙 Join 好 CoachModel 了 (最好的情況)
-    if (session.coaches.isNotEmpty) {
-      return session.coaches.map((c) => c.name).join(', ');
+    // 情況 A: Repository 已經幫忙填入 coachName 了 (最好的情況)
+    if (session.coachName != null && session.coachName!.isNotEmpty) {
+      return session.coachName!;
     }
 
     // 情況 B: 只有 coachIds，需要去查 _coachMap (次佳方案)

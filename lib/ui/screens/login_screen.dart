@@ -83,7 +83,9 @@ class _LoginScreenState extends State<LoginScreen> {
       listenable: authManager,
       builder: (context, child) {
         return Scaffold(
-          appBar: AppBar(title: const Text('登入')),
+          appBar: AppBar(
+            title: const Text('登入', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
           body: Center(
             child: SingleChildScrollView(
               // 避免鍵盤跳出時擋住畫面
@@ -92,10 +94,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch, // 讓按鈕跟輸入框同寬
                 children: [
-                  const Icon(
-                    Icons.sports_tennis,
-                    size: 80,
-                    color: Colors.blueAccent,
+                  Image.asset(
+                    'assets/images/logo.png',
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 16),
                   const Text(

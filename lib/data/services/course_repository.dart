@@ -96,18 +96,42 @@ class CourseRepository {
 
       // 2. 處理教練名單 (二次查詢)
       // 因為 PostgREST 目前不支援直接 JOIN uuid[] 陣列，所以必須分開查
+      String? coachName;
       if (session.coachIds.isNotEmpty) {
         final coachesData = await _supabase
             .from('profiles')
             .select('id, full_name, role') // 雖然 model 沒有 role，但可以順便檢查
             .inFilter('id', session.coachIds); // 使用 inFilter 更簡潔
 
-        final coachesList = (coachesData as List)
-            .map((c) => CoachModel.fromJson(c))
+        final coachNames = (coachesData as List)
+            .map((c) => c['full_name'] as String? ?? '教練')
+            .where((name) => name.isNotEmpty)
             .toList();
 
-        session = session.copyWith(coaches: coachesList);
+        coachName = coachNames.isEmpty ? null : coachNames.join(', ');
       }
+
+      // 3. 處理桌子名單 (二次查詢)
+      String? tableNames;
+      if (session.tableIds.isNotEmpty) {
+        final tablesData = await _supabase
+            .from('tables')
+            .select('id, name')
+            .inFilter('id', session.tableIds);
+
+        final tableNameList = (tablesData as List)
+            .map((t) => t['name'] as String?)
+            .where((name) => name != null && name.isNotEmpty)
+            .map((name) => name!)
+            .toList();
+
+        tableNames = tableNameList.isEmpty ? null : tableNameList.join('、');
+      }
+
+      session = session.copyWith(
+        coachName: coachName,
+        tableNames: tableNames,
+      );
 
       return session;
     } catch (e) {
