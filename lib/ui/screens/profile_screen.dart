@@ -12,6 +12,7 @@ import '../../core/utils/util.dart';
 import 'package:ttmastiff/main.dart';
 import '../../data/services/booking_repository.dart';
 import 'widgets/gender_icon.dart';
+import 'widgets/level_icon.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -559,6 +560,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               style: Theme.of(
                                                 context,
                                               ).textTheme.bodyMedium,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    if (_primaryStudent?.level != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.stars,
+                                              size: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              getLevelText(_primaryStudent?.level),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium,
                                             ),
                                           ],
                                         ),
