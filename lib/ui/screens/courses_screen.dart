@@ -3,10 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart'; // 記得引入 intl 用於時間格式化
 import 'package:go_router/go_router.dart';
 
-
 // Repositories & Models
 import '../../data/services/course_repository.dart';
 import '../../data/models/course_model.dart';
+import 'widgets/level_icon.dart';
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({super.key});
@@ -24,6 +24,9 @@ class _CoursesScreenState extends State<CoursesScreen> {
   bool _isLoading = true;
   String? _errorMsg;
 
+  // 會員等級 (beginner / intermediate / advanced)
+  String? _memberLevel;
+
   // 定義星期的標籤
   final List<String> _weekDays = ['一', '二', '三', '四', '五', '六', '日'];
 
@@ -37,6 +40,28 @@ class _CoursesScreenState extends State<CoursesScreen> {
     _selectedDayIndex = DateTime.now().weekday - 1;
 
     _fetchCourses();
+    _loadMemberLevel();
+  }
+
+  Future<void> _loadMemberLevel() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('membership')
+          .eq('id', user.id)
+          .single();
+
+      if (!mounted) return;
+      setState(() {
+        _memberLevel = (data['membership'] as String?) ?? 'beginner';
+      });
+    } catch (e) {
+      // 會員等級載入失敗時，不影響課程顯示，只是不套用折扣
+      debugPrint('載入會員等級失敗: $e');
+    }
   }
 
   // 根據目前選中的星期，重新撈取資料
@@ -256,7 +281,10 @@ class _CoursesScreenState extends State<CoursesScreen> {
         separatorBuilder: (ctx, index) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
           final course = _courses[index];
-          return _CourseCard(course: course);
+          return _CourseCard(
+            course: course,
+            memberLevel: _memberLevel,
+          );
         },
       ),
     );
@@ -268,8 +296,12 @@ class _CoursesScreenState extends State<CoursesScreen> {
 // =========================================================
 class _CourseCard extends StatelessWidget {
   final CourseModel course;
+  final String? memberLevel;
 
-  const _CourseCard({required this.course});
+  const _CourseCard({
+    required this.course,
+    required this.memberLevel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -344,15 +376,8 @@ class _CourseCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      // 價格
-                      Text(
-                        '\$${course.price}',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
+                      // 價格（根據會員等級套用折扣）
+                      _buildPriceWithDiscount(context),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -426,6 +451,35 @@ class _CourseCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// 根據會員等級計算折扣後的價格，並顯示折扣標籤
+  Widget _buildPriceWithDiscount(BuildContext context) {
+    final basePrice = course.price;
+    final finalPrice = getDiscountedPrice(basePrice, memberLevel);
+    final discountLabel = getDiscountLabel(memberLevel);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          '\$${finalPrice}',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
+        if (discountLabel != null)
+          Text(
+            discountLabel,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+            ),
+          ),
+      ],
     );
   }
 }

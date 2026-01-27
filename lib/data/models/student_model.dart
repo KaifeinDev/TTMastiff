@@ -4,7 +4,8 @@ class StudentModel {
   final String name;
   final String? avatarUrl;
   final bool isPrimary; // 🌟 新增：用來判斷是否為「本人」
-  final String level;   // 🌟 新增：程度 (對應 DB V3)
+  // 🌟 level 已由 profiles.membership 取代，這裡僅保留欄位以相容既有資料
+  final String level;
   final DateTime birthDate; // 🌟 新增：生日
   final String? gender; // 🌟 新增：性別 ('male', 'female', 'other')
   final String? medicalNote; // 🌟 新增：醫療備註
