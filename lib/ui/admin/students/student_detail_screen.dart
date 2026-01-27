@@ -44,6 +44,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   List<BookingModel> _bookings = [];
   int _parentCredits = 0;
   String? _membership; // profiles.membership
+  int _points = 0; // 學員點數
 
   bool _isLoadingCredits = true;
   bool _isLoading = true;
@@ -67,6 +68,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       _student = widget.initialStudent;
       _parentName = widget.initialParentName;
       _parentPhone = widget.initialParentPhone;
+      _points = widget.initialStudent!.points;
 
       // 有資料就不用全頁 Loading，可以直接顯示內容
       if (mounted) setState(() => _isLoading = false);
@@ -104,6 +106,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             _student = profileData['student'];
             _parentName = profileData['parentName'];
             _parentPhone = profileData['parentPhone'];
+            _points = profileData['student']?.points ?? 0;
+          });
+        }
+      } else if (_student != null) {
+        // 如果已經有學生資料，更新點數
+        if (mounted) {
+          setState(() {
+            _points = _student!.points;
           });
         }
       }
@@ -258,6 +268,141 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       Navigator.of(dialogContext).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('✅ 會員等級更新成功！')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.of(dialogContext).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('❌ 更新失敗: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('確認'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // 顯示編輯點數 Dialog
+  void _showPointsEditDialog() {
+    if (_student == null) return;
+
+    int currentPoints = _points;
+    final pointsController = TextEditingController(text: _points.toString());
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('編輯點數'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      iconSize: 32,
+                      onPressed: () {
+                        if (currentPoints > 0) {
+                          setDialogState(() {
+                            currentPoints--;
+                            pointsController.text = currentPoints.toString();
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      width: 100,
+                      child: TextField(
+                        controller: pointsController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        onChanged: (value) {
+                          if (value.isNotEmpty) {
+                            setDialogState(() {
+                              currentPoints = int.tryParse(value) ?? 0;
+                            });
+                          } else {
+                            setDialogState(() {
+                              currentPoints = 0;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      iconSize: 32,
+                      onPressed: () {
+                        setDialogState(() {
+                          currentPoints++;
+                          pointsController.text = currentPoints.toString();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  if (currentPoints == _points) {
+                    Navigator.of(dialogContext).pop();
+                    return;
+                  }
+
+                  try {
+                    await studentRepository.updateStudentPoints(
+                      _student!.id,
+                      currentPoints,
+                    );
+
+                    // 更新本地狀態
+                    setState(() {
+                      _points = currentPoints;
+                      _student = StudentModel(
+                        id: _student!.id,
+                        parentId: _student!.parentId,
+                        name: _student!.name,
+                        avatarUrl: _student!.avatarUrl,
+                        isPrimary: _student!.isPrimary,
+                        level: _student!.level,
+                        gender: _student!.gender,
+                        medicalNote: _student!.medicalNote,
+                        birthDate: _student!.birthDate,
+                        points: currentPoints,
+                      );
+                    });
+
+                    if (mounted) {
+                      Navigator.of(dialogContext).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('✅ 點數更新成功！')),
                       );
                     }
                   } catch (e) {
@@ -638,23 +783,21 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     ),
                   ],
                   if (isSelf) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: StudentInfoRow(
-                            icon: Icons.stars,
-                            label: '會員',
-                            value: getLevelText(_membership),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit, size: 20),
-                          onPressed: () => _showLevelEditDialog(),
-                          tooltip: '編輯會員等級',
-                        ),
-                      ],
+                    const SizedBox(height: 12),
+                    StudentInfoRow(
+                      icon: Icons.wallet_membership,
+                      label: '會員',
+                      value: getLevelText(_membership),
+                      onEdit: () => _showLevelEditDialog(),
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  StudentInfoRow(
+                    icon: Icons.stars,
+                    label: '點數',
+                    value: '$_points',
+                    onEdit: () => _showPointsEditDialog(),
+                  ),
                 ],  
               ),
             ),

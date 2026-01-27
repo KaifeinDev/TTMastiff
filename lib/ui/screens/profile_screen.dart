@@ -572,7 +572,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         child: Row(
                                           children: [
                                             const Icon(
-                                              Icons.stars,
+                                              Icons.wallet_membership,
                                               size: 14,
                                               color: Colors.grey,
                                             ),
@@ -887,13 +887,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            // '${student.birthDate.year}/${student.birthDate.month}/${student.birthDate.day}',
-                                            student.birthDate.toDateWithAge(),
-                                            style: TextStyle(
-                                              color: Colors.grey.shade700,
-                                              fontSize: 13,
-                                            ),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.cake,
+                                                size: 14,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                student.birthDate.toDateWithAge(),
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.stars,
+                                                size: 14,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${student.points}',
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),

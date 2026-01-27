@@ -9,6 +9,7 @@ class StudentModel {
   final DateTime birthDate; // 🌟 新增：生日
   final String? gender; // 🌟 新增：性別 ('male', 'female', 'other')
   final String? medicalNote; // 🌟 新增：醫療備註
+  final int points; // 🌟 新增：點數
 
   StudentModel({
     required this.id, 
@@ -20,6 +21,7 @@ class StudentModel {
     this.gender,
     this.medicalNote,
     required this.birthDate,
+    this.points = 0,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@ class StudentModel {
       birthDate: DateTime.parse(json['birth_date'] as String), 
       gender: json['gender'],
       medicalNote: json['medical_note'],
+      points: (json['points'] as int?) ?? 0,
     );
   }
 }
