@@ -72,6 +72,14 @@ class StudentRepository {
         .eq('id', id);
   }
 
+  // 更新學員等級
+  Future<void> updateStudentLevel(String id, String level) async {
+    await _supabase
+        .from('students')
+        .update({'level': level})
+        .eq('id', id);
+  }
+
   /// 根據課程和場次篩選學員（管理員用）
   /// 如果 courseId 為 null，返回所有學員
   /// 如果 sessionId 為 null，返回該課程的所有學員

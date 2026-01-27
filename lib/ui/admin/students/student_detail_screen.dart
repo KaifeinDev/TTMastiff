@@ -11,6 +11,9 @@ import 'widgets/student_avatar.dart';
 import '../courses/widgets/session_edit_dialog.dart';
 import '../../../core/utils/util.dart';
 import 'package:ttmastiff/data/services/booking_repository.dart';
+import '../../../data/services/student_repository.dart';
+import '../../screens/widgets/level_icon.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final String studentId;
@@ -44,6 +47,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   bool _isLoadingCredits = true;
   bool _isLoading = true;
+  
+  final _studentRepository = StudentRepository(Supabase.instance.client);
 
   @override
   void initState() {
@@ -163,6 +168,113 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       _loadParentCredits(), // 重抓點數
       _fetchLatestBookings(), // 重抓列表
     ]);
+  }
+
+  // 顯示編輯會員等級 Dialog
+  void _showLevelEditDialog() {
+    if (_student == null) return;
+
+    String? selectedLevel = _student!.level;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('編輯會員等級'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String>(
+                  title: const Text('初級'),
+                  value: 'beginner',
+                  groupValue: selectedLevel,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedLevel = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: const Text('中級'),
+                  value: 'intermediate',
+                  groupValue: selectedLevel,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedLevel = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: const Text('高級'),
+                  value: 'advanced',
+                  groupValue: selectedLevel,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedLevel = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  if (selectedLevel == null || selectedLevel == _student!.level) {
+                    Navigator.of(dialogContext).pop();
+                    return;
+                  }
+
+                  try {
+                    await _studentRepository.updateStudentLevel(
+                      _student!.id,
+                      selectedLevel!,
+                    );
+                    
+                    // 更新本地狀態
+                    setState(() {
+                      _student = StudentModel(
+                        id: _student!.id,
+                        parentId: _student!.parentId,
+                        name: _student!.name,
+                        avatarUrl: _student!.avatarUrl,
+                        isPrimary: _student!.isPrimary,
+                        level: selectedLevel!,
+                        gender: _student!.gender,
+                        medicalNote: _student!.medicalNote,
+                        birthDate: _student!.birthDate,
+                      );
+                    });
+
+                    if (mounted) {
+                      Navigator.of(dialogContext).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('✅ 會員等級更新成功！')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.of(dialogContext).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('❌ 更新失敗: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('確認'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   // 顯示儲值 Dialog
@@ -521,6 +633,22 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       value: _student!.medicalNote!,
                     ),
                   ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StudentInfoRow(
+                          icon: Icons.stars,
+                          label: '會員',
+                          value: getLevelText(_student!.level),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        onPressed: () => _showLevelEditDialog(),
+                        tooltip: '編輯會員等級',
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
