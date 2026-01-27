@@ -34,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _userEmail;
   String? _userPhone;
   int _credits = 0;
+  String? _membership; // profiles.membership
 
   @override
   void initState() {
@@ -88,6 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // 電話優先看 profile，沒有才看 auth user
           _userPhone = profileData['phone'] ?? user.phone;
           _credits = profileData['credits'] ?? 0;
+          _membership = profileData['membership'] as String? ?? 'beginner';
 
           _students = studentsList;
           _primaryStudent = primary; // 🌟 UI 顯示頭像跟姓名要靠這個
@@ -564,7 +566,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ],
                                         ),
                                       ),
-                                    if (_primaryStudent?.level != null)
+                                    if (_membership != null)
                                       Padding(
                                         padding: const EdgeInsets.only(top: 4),
                                         child: Row(
@@ -576,7 +578,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
-                                              getLevelText(_primaryStudent?.level),
+                                              getLevelText(_membership),
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodyMedium,

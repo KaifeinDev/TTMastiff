@@ -11,7 +11,6 @@ import 'widgets/student_avatar.dart';
 import '../courses/widgets/session_edit_dialog.dart';
 import '../../../core/utils/util.dart';
 import 'package:ttmastiff/data/services/booking_repository.dart';
-import '../../../data/services/student_repository.dart';
 import '../../screens/widgets/level_icon.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -38,17 +37,16 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   static final _dateFormat = DateFormat('yyyy/MM/dd (E)', 'zh_TW');
   static final _timeFormat = DateFormat('HH:mm');
 
-  // 用來顯示即時點數
+  // 用來顯示即時點數與會員資訊
   StudentModel? _student;
   String? _parentName;
   String? _parentPhone;
   List<BookingModel> _bookings = [];
   int _parentCredits = 0;
+  String? _membership; // profiles.membership
 
   bool _isLoadingCredits = true;
   bool _isLoading = true;
-  
-  final _studentRepository = StudentRepository(Supabase.instance.client);
 
   @override
   void initState() {
@@ -129,9 +127,24 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
     try {
       final credits = await creditRepository.getCurrentCredit(targetParentId);
+
+      // 讀取會員資格
+      String? membership;
+      try {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select('membership')
+            .eq('id', targetParentId)
+            .single();
+        membership = profile['membership'] as String?;
+      } catch (e) {
+        debugPrint('讀取會員資格失敗: $e');
+      }
+
       if (mounted) {
         setState(() {
           _parentCredits = credits;
+          _membership = membership ?? 'beginner';
           _isLoadingCredits = false;
         });
       }
@@ -172,9 +185,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   // 顯示編輯會員等級 Dialog
   void _showLevelEditDialog() {
-    if (_student == null) return;
+    final parentId = _student?.parentId ?? widget.initialStudent?.parentId;
+    if (parentId == null) return;
 
-    String? selectedLevel = _student!.level;
+    String? selectedLevel = _membership ?? 'beginner';
 
     showDialog(
       context: context,
@@ -224,30 +238,20 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ),
               FilledButton(
                 onPressed: () async {
-                  if (selectedLevel == null || selectedLevel == _student!.level) {
+                  if (selectedLevel == null || selectedLevel == _membership) {
                     Navigator.of(dialogContext).pop();
                     return;
                   }
 
                   try {
-                    await _studentRepository.updateStudentLevel(
-                      _student!.id,
-                      selectedLevel!,
-                    );
+                    await Supabase.instance.client
+                        .from('profiles')
+                        .update({'membership': selectedLevel})
+                        .eq('id', parentId);
                     
                     // 更新本地狀態
                     setState(() {
-                      _student = StudentModel(
-                        id: _student!.id,
-                        parentId: _student!.parentId,
-                        name: _student!.name,
-                        avatarUrl: _student!.avatarUrl,
-                        isPrimary: _student!.isPrimary,
-                        level: selectedLevel!,
-                        gender: _student!.gender,
-                        medicalNote: _student!.medicalNote,
-                        birthDate: _student!.birthDate,
-                      );
+                      _membership = selectedLevel!;
                     });
 
                     if (mounted) {
@@ -633,23 +637,25 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       value: _student!.medicalNote!,
                     ),
                   ],
-                  Row(
-                    children: [
-                      Expanded(
-                        child: StudentInfoRow(
-                          icon: Icons.stars,
-                          label: '會員',
-                          value: getLevelText(_student!.level),
+                  if (isSelf) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: StudentInfoRow(
+                            icon: Icons.stars,
+                            label: '會員',
+                            value: getLevelText(_membership),
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: () => _showLevelEditDialog(),
-                        tooltip: '編輯會員等級',
-                      ),
-                    ],
-                  ),
-                ],
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 20),
+                          onPressed: () => _showLevelEditDialog(),
+                          tooltip: '編輯會員等級',
+                        ),
+                      ],
+                    ),
+                  ],
+                ],  
               ),
             ),
           ),

@@ -11,3 +11,27 @@ String getLevelText(String? level) {
       return '初級';
   }
 }
+
+/// 根據會員等級計算折扣後的價格
+int getDiscountedPrice(int price, String? level) {
+  switch (level) {
+    case 'intermediate':
+      return (price * 0.9).round(); // 9 折
+    case 'advanced':
+      return (price * 0.8).round(); // 8 折
+    default:
+      return price; // beginner 或未知 -> 原價
+  }
+}
+
+/// 根據會員等級回傳折扣標籤（例如「9折」、「8折」），沒有折扣則回傳 null
+String? getDiscountLabel(String? level) {
+  switch (level) {
+    case 'intermediate':
+      return '9折';
+    case 'advanced':
+      return '8折';
+    default:
+      return null;
+  }
+}
