@@ -117,6 +117,13 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           textColor: textColor,
           iconColor: iconColor,
         ),
+        _AdminMenuItem(
+          icon: Icons.event,
+          title: '活動管理',
+          route: '/admin/activities',
+          textColor: textColor,
+          iconColor: iconColor,
+        ),
       ],
     );
   }
