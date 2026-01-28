@@ -5,7 +5,7 @@
             "name": "Flutter-Android",
             "request": "launch",
             "type": "dart",
-            "deviceId": "android" // 改用 android 關鍵字，比寫死 ID 更具彈性
+            "deviceId": "emulator-5554"
         },
         {
             "name": "Flutter-Web",
