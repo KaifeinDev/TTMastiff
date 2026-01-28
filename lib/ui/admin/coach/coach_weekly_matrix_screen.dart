@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart'; // 取得全域 repository (sessionRepo, tableRepo, coachRepo)
-import 'package:ttmastiff/core/utils/util.dart'; // 取得 showErrorDialog
+import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 // Models
 import '../../../../data/models/session_model.dart';
 import '../../../../data/models/table_model.dart';
-
-// Widgets
-import '../courses/widgets/session_edit_dialog.dart';
 
 class CoachWeeklyMatrixScreen extends StatefulWidget {
   const CoachWeeklyMatrixScreen({super.key});
@@ -23,49 +20,93 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
   DateTime _startDate = DateTime.now();
   bool _isLoading = true;
 
-  // 資料快取
+  // 資料
   List<SessionModel> _weekSessions = [];
-  List<TableModel> _tables = [];
-  List<Map<String, dynamic>> _allCoaches = []; // 假設 Repository 回傳 List<Map>
+  List<Map<String, dynamic>> _allCoaches = [];
 
-  // 營業時間設定 (可改為讀取設定檔)
-  final int _startHour = 9;
-  final int _endHour = 22;
+  // 設定
+  final double _rowHeight = 300.0;
+  final double _dateColWidth = 80.0; // 左側日期欄固定寬度
+  final double _startHour = 8.0;
+  final double _endHour = 22.0;
+
+  // 🔥 捲動控制器 (四個部分連動)
+  late ScrollController _headerHorzCtrl; // 上方教練列 (水平)
+  late ScrollController _dateVertCtrl; // 左側日期列 (垂直)
+  late ScrollController _gridHorzCtrl; // 主格子 (水平)
+  late ScrollController _gridVertCtrl; // 主格子 (垂直)
+
+  // 防止無窮迴圈的鎖
+  bool _isSyncing = false;
 
   @override
   void initState() {
     super.initState();
+    _initControllers();
     _loadAllData();
   }
 
-  // 🔄 載入所有資料
+  void _initControllers() {
+    _headerHorzCtrl = ScrollController();
+    _dateVertCtrl = ScrollController();
+    _gridHorzCtrl = ScrollController();
+    _gridVertCtrl = ScrollController();
+
+    // 1. 水平同步：上方 Header <-> 主格子
+    _headerHorzCtrl.addListener(
+      () => _syncScroll(_headerHorzCtrl, _gridHorzCtrl),
+    );
+    _gridHorzCtrl.addListener(
+      () => _syncScroll(_gridHorzCtrl, _headerHorzCtrl),
+    );
+
+    // 2. 垂直同步：左側日期 <-> 主格子
+    _dateVertCtrl.addListener(() => _syncScroll(_dateVertCtrl, _gridVertCtrl));
+    _gridVertCtrl.addListener(() => _syncScroll(_gridVertCtrl, _dateVertCtrl));
+  }
+
+  // 🔄 通用同步邏輯
+  void _syncScroll(ScrollController source, ScrollController target) {
+    if (_isSyncing) return; // 如果正在同步中，跳過
+    if (!source.hasClients || !target.hasClients) return;
+
+    if (source.offset != target.offset) {
+      _isSyncing = true;
+      target.jumpTo(source.offset);
+      _isSyncing = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _headerHorzCtrl.dispose();
+    _dateVertCtrl.dispose();
+    _gridHorzCtrl.dispose();
+    _gridVertCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     try {
-      // 計算本週範圍
       final start = DateTime(_startDate.year, _startDate.month, _startDate.day);
       final end = start.add(const Duration(days: 7));
 
-      // 平行執行：抓課程 + 抓桌子 + 抓教練
       final results = await Future.wait([
         sessionRepository.fetchSessionsByRange(start, end),
-        tableRepository.getTables(),
         coachRepository.getCoaches(),
       ]);
 
       if (mounted) {
         setState(() {
           _weekSessions = results[0] as List<SessionModel>;
-          _tables = results[1] as List<TableModel>;
-          // 假設 getCoaches 回傳 List<Map<String, dynamic>>，若回傳 Model 請自行調整
-          _allCoaches = List<Map<String, dynamic>>.from(results[2] as List);
+          _allCoaches = List<Map<String, dynamic>>.from(results[1] as List);
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        // 🔥 使用 util.dart 的錯誤處理
         showErrorDialog(context, e, title: '載入資料失敗');
       }
     }
@@ -80,7 +121,6 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 根據標籤篩選教練
     final filteredCoaches = _allCoaches;
 
     return Scaffold(
@@ -95,20 +135,19 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
           _buildDateControlBar(),
           const Divider(height: 1),
 
-          // 下方主要內容區域
+          // 主體區域
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : filteredCoaches.isEmpty
                 ? const Center(child: Text('沒有符合條件的教練'))
-                : _buildMatrixBody(filteredCoaches),
+                : _buildMatrixLayout(filteredCoaches),
           ),
         ],
       ),
     );
   }
 
-  // 1. 日期控制列
   Widget _buildDateControlBar() {
     final endDate = _startDate.add(const Duration(days: 6));
     return Padding(
@@ -160,387 +199,460 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
     );
   }
 
-  // 3. 矩陣主體 (包含左側固定欄位與右側滑動區)
-  Widget _buildMatrixBody(List<Map<String, dynamic>> coaches) {
+  // 🔥 核心佈局：凍結窗格結構
+  Widget _buildMatrixLayout(List<Map<String, dynamic>> coaches) {
+    final borderSide = BorderSide(color: Colors.grey.shade300, width: 1);
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 判斷是否為寬螢幕 (電腦/平板)
-        final bool isWideScreen = constraints.maxWidth > 900;
+        // 1. 取得右側可用總寬度
+        double availableWidth = constraints.maxWidth - _dateColWidth;
 
-        // 🔥 這裡設定左側欄位的寬度
-        // 手機版縮小為 90，電腦版維持 140
-        final double coachColWidth = isWideScreen ? 140.0 : 90.0;
+        // 2. 設定最小寬度門檻 (例如每個教練至少要有 120~150px)
+        const double minCellWidth = 140.0;
 
-        // 計算右側每個格子的寬度
-        final double cellWidth = isWideScreen
-            ? (constraints.maxWidth - coachColWidth) /
-                  7 // 扣掉左側寬度後平分
-            : 140.0; // 手機版右側格子維持好按的大小
+        // 3. 計算單格寬度邏輯
+        double cellWidth;
+        double totalCoachesMinWidth = coaches.length * minCellWidth;
 
-        return SingleChildScrollView(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // A. 左側教練欄 (傳入動態寬度)
-              _buildCoachColumn(
-                coaches,
-                coachColWidth,
-                isCompact: !isWideScreen,
-              ),
+        if (totalCoachesMinWidth <= availableWidth) {
+          // A. 【電腦版/教練少】：如果所有教練排排站都還塞得進去
+          // -> 直接平分剩餘空間，讓表格填滿畫面
+          // (防呆：避免除以 0，雖然前面有檢查 isEmpty)
+          cellWidth = availableWidth / (coaches.isEmpty ? 1 : coaches.length);
+        } else {
+          // B. 【手機版/教練多】：塞不下，需要捲動
+          // -> 計算一頁能顯示幾個 (Mobile 至少顯示 2 個)
+          int visibleCount = (availableWidth / minCellWidth).floor();
+          if (visibleCount < 2) visibleCount = 2;
 
-              // B. 右側時間格
-              Expanded(
-                child: isWideScreen
-                    ? _buildTimeGrid(
-                        coaches,
-                        cellWidth,
-                        isWideScreen,
-                        coachColWidth,
-                      )
-                    : SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: SizedBox(
-                          // 手機版總寬度 = 單格寬度 * 7
-                          width: cellWidth * 7,
-                          child: _buildTimeGrid(
-                            coaches,
+          cellWidth = availableWidth / visibleCount;
+        }
+
+        return Column(
+          children: [
+            // 1. 上方 Header Row (左上角固定塊 + 右側可滑動教練列)
+            SizedBox(
+              height: 50,
+              child: Row(
+                children: [
+                  // 左上角固定塊
+                  Container(
+                    width: _dateColWidth,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      border: Border(bottom: borderSide, right: borderSide),
+                    ),
+                    child: const Text(
+                      '日期',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                  // 右側教練列表
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _headerHorzCtrl,
+                      scrollDirection: Axis.horizontal,
+                      physics: const ClampingScrollPhysics(),
+                      child: Row(
+                        children: coaches.map((coach) {
+                          return _buildCoachHeaderCell(
+                            coach,
                             cellWidth,
-                            isWideScreen,
-                            coachColWidth,
-                          ),
+                            borderSide,
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 2. 下方 Body Row (左側日期列 + 右側雙向滑動矩陣)
+            Expanded(
+              child: Row(
+                children: [
+                  // 左側日期直欄
+                  SizedBox(
+                    width: _dateColWidth,
+                    child: SingleChildScrollView(
+                      controller: _dateVertCtrl,
+                      scrollDirection: Axis.vertical,
+                      physics: const ClampingScrollPhysics(),
+                      child: Column(
+                        children: List.generate(7, (index) {
+                          return _buildDateCell(index, borderSide);
+                        }),
+                      ),
+                    ),
+                  ),
+
+                  // 右側主矩陣
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _gridVertCtrl,
+                      scrollDirection: Axis.vertical,
+                      physics: const ClampingScrollPhysics(),
+                      child: SingleChildScrollView(
+                        controller: _gridHorzCtrl,
+                        scrollDirection: Axis.horizontal,
+                        physics: const ClampingScrollPhysics(),
+                        child: Column(
+                          children: List.generate(7, (dayIndex) {
+                            final date = _startDate.add(
+                              Duration(days: dayIndex),
+                            );
+                            final isToday = DateUtils.isSameDay(
+                              date,
+                              DateTime.now(),
+                            );
+
+                            return Row(
+                              children: coaches.map((coach) {
+                                return _buildTimelineCell(
+                                  coach,
+                                  date,
+                                  cellWidth,
+                                  borderSide,
+                                  isToday: isToday,
+                                );
+                              }).toList(),
+                            );
+                          }),
                         ),
                       ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
   }
 
-  // A. 左側教練列表 UI
-  Widget _buildCoachColumn(
-    List<Map<String, dynamic>> coaches,
-    double width, {
-    bool isCompact = false, // 新增參數來控制顯示詳細程度
-  }) {
+  // 元件：單個教練 Header
+  Widget _buildCoachHeaderCell(
+    Map<String, dynamic> coach,
+    double width,
+    BorderSide border,
+  ) {
     return Container(
-      width: width, // 🔥 使用動態寬度
+      width: width,
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(right: BorderSide(color: Colors.grey.shade300)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(4, 0),
-          ),
-        ],
+        color: Colors.grey.shade50,
+        border: Border(bottom: border, right: border),
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 表頭
-          Container(
-            height: 50,
-            alignment: Alignment.center,
-            color: Colors.grey.shade50,
+          CircleAvatar(
+            radius: 14,
+            backgroundImage:
+                (coach['avatar_url'] != null && coach['avatar_url'].isNotEmpty)
+                ? NetworkImage(coach['avatar_url'])
+                : null,
+            child: (coach['avatar_url'] == null || coach['avatar_url'].isEmpty)
+                ? Text(
+                    coach['full_name']?[0] ?? '?',
+                    style: const TextStyle(fontSize: 10),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
             child: Text(
-              isCompact ? '教練' : '教練 / 日期', // 手機版精簡文字
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              coach['full_name'] ?? '未知',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Divider(height: 1),
-
-          // 教練名單
-          ...coaches.map((coach) {
-            final String fullName = coach['full_name'] as String? ?? '未知';
-            final String avatarUrl = coach['avatar_url'] as String? ?? '';
-            final String firstLetter = fullName.isNotEmpty ? fullName[0] : '?';
-            final List<String> tags =
-                (coach['tags'] as List?)?.map((e) => e.toString()).toList() ??
-                [];
-
-            return Container(
-              height: 120, // 固定高度
-              width: width,
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 頭像
-                  CircleAvatar(
-                    // 🔥 手機版頭像縮小 (半徑 24 -> 20)
-                    radius: isCompact ? 20 : 24,
-                    backgroundImage: avatarUrl.isNotEmpty
-                        ? NetworkImage(avatarUrl)
-                        : null,
-                    backgroundColor: Colors.blue.shade100,
-                    child: avatarUrl.isEmpty
-                        ? Text(
-                            firstLetter,
-                            style: TextStyle(
-                              color: Colors.blue.shade800,
-                              fontSize: isCompact ? 14 : 16,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(height: 6),
-
-                  // 姓名
-                  Text(
-                    fullName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: isCompact ? 12 : 13, // 手機版字體縮小
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
-
-                  // Tags (手機版空間如果不夠，可以選擇隱藏，或者只顯示一個)
-                  if (!isCompact && tags.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        tags.join(', '),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey.shade600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }),
         ],
       ),
     );
   }
 
-  // B. 右側日期矩陣 UI
-  Widget _buildTimeGrid(
-    List<Map<String, dynamic>> coaches,
-    double cellWidth,
-    bool isWideScreen,
-    double coachColWidth,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 1. X軸：日期 Header
-        Row(
-          // 如果是寬螢幕，用 mainAxisAlignment.spaceEvenly 或讓子元件 Expanded
-          // 這裡我們直接用 Container 指定寬度 (上面的 cellWidth 已經算好了)
-          children: List.generate(7, (index) {
-            final date = _startDate.add(Duration(days: index));
-            final isToday = DateUtils.isSameDay(date, DateTime.now());
+  // 元件：單個日期 Cell (包含 Apple Calendar 風格時間刻度)
+  Widget _buildDateCell(int index, BorderSide border) {
+    final date = _startDate.add(Duration(days: index));
+    final isToday = DateUtils.isSameDay(date, DateTime.now());
 
-            return Container(
-              // 🔥 關鍵修改：如果是寬螢幕，這裡的寬度是動態計算的；否則是固定的
-              width: cellWidth,
-              height: 50,
-              alignment: Alignment.center,
-
-              // 🔥 修正 Color 報錯：color 必須放在 BoxDecoration 裡面
-              decoration: BoxDecoration(
-                color: isToday ? Colors.orange.shade50 : Colors.grey.shade50,
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300),
-                  right: BorderSide(color: Colors.grey.shade200),
-                ),
-              ),
-
+    return Container(
+      height: _rowHeight,
+      width: _dateColWidth,
+      decoration: BoxDecoration(
+        color: isToday ? Colors.orange.shade50.withOpacity(0.5) : Colors.white,
+        border: Border(bottom: border, right: border),
+      ),
+      child: Stack(
+        // 2. 修改：允許溢出，解決底部時間被切掉的問題
+        clipBehavior: Clip.none,
+        children: [
+          // 3. 修改：日期靠左，與右側的時間刻度拉開距離
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 12.0), // 左側留點空隙
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center, // 日期本身還是置中對齊
                 children: [
                   Text(
-                    DateFormat('MM/dd').format(date),
+                    DateFormat('dd').format(date),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: isToday ? Colors.deepOrange : Colors.black87,
+                      fontSize: 18,
                     ),
                   ),
                   Text(
-                    _weekdayName(date.weekday),
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    DateFormat('MM月').format(date),
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: isToday
+                        ? BoxDecoration(
+                            color: Colors.deepOrange,
+                            borderRadius: BorderRadius.circular(10),
+                          )
+                        : null,
+                    child: Text(
+                      _weekdayName(date.weekday),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isToday ? Colors.white : Colors.grey.shade600,
+                        fontWeight: isToday
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
                   ),
                 ],
               ),
-            );
-          }),
-        ),
-
-        // 2. 內容格子 (Y軸：教練 x X軸：日期)
-        ...coaches.map((coach) {
-          return Row(
-            children: List.generate(7, (dayIndex) {
-              final date = _startDate.add(Duration(days: dayIndex));
-              // 傳入動態寬度
-              return _buildCell(coach, date, cellWidth);
-            }),
-          );
-        }),
-      ],
-    );
-  }
-
-  // 修改 _buildCell 以接收寬度
-  Widget _buildCell(Map<String, dynamic> coach, DateTime date, double width) {
-    final availableSlots = _calculateAvailableSlots(coach['id'], date);
-
-    return Container(
-      width: width, // 🔥 使用傳入的寬度
-      height: 120,
-      decoration: BoxDecoration(
-        border: Border(
-          right: BorderSide(color: Colors.grey.shade100),
-          bottom: BorderSide(color: Colors.grey.shade100),
-        ),
-      ),
-      padding: const EdgeInsets.all(6),
-      child: availableSlots.isEmpty
-          ? Center(
-              child: Text('-', style: TextStyle(color: Colors.grey.shade300)),
-            )
-          : SingleChildScrollView(
-              // 這裡保留 ScrollView 防止按鈕太多爆版
-              child: Wrap(
-                alignment: WrapAlignment.center, // 讓按鈕置中比較好看
-                spacing: 6,
-                runSpacing: 6,
-                children: availableSlots.map((time) {
-                  return InkWell(
-                    onTap: () => _handleSlotClick(coach, date, time),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.green.shade200),
-                      ),
-                      child: Text(
-                        '${time.hour.toString().padLeft(2, '0')}:00',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green.shade800,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
             ),
+          ),
+          // 時間刻度 (右側)
+          ..._buildSideTimeLabels(),
+        ],
+      ),
     );
   }
 
-  // 🧮 核心演算法：計算空檔
-  List<TimeOfDay> _calculateAvailableSlots(String coachId, DateTime date) {
-    List<TimeOfDay> slots = [];
-    final totalTables = _tables.length;
+  List<Widget> _buildSideTimeLabels() {
+    final double totalHours = _endHour - _startHour;
+    List<Widget> labels = [];
 
-    for (int hour = _startHour; hour < _endHour; hour++) {
-      // 確保將 slot 時間也轉為 Local，避免與 DB 傳來的 UTC 發生誤差
-      final slotStart = DateTime(date.year, date.month, date.day, hour);
-      final slotEnd = slotStart.add(const Duration(hours: 1));
+    for (double h = _startHour; h <= _endHour; h += 2) {
+      if (h == _startHour || h == _endHour) continue;
+      final double top = (h - _startHour) / totalHours * _rowHeight;
 
-      // 檢查 1: 該教練這小時是否忙碌
-      final isCoachBusy = _weekSessions.any((s) {
-        if (!s.coachIds.contains(coachId)) return false;
-
-        // 🔄 修正邏輯：計算「重疊時間」長度
-        // 1. 找出重疊區間的開始與結束
-        final overlapStart = s.startTime.isAfter(slotStart)
-            ? s.startTime
-            : slotStart;
-        final overlapEnd = s.endTime.isBefore(slotEnd) ? s.endTime : slotEnd;
-
-        // 2. 如果「重疊結束時間」大於「重疊開始時間」，代表有實際的時間重疊
-        //    (這裡可以容許 0 秒的接觸，例如剛好 19:00 結束與 19:00 開始不算重疊)
-        return overlapEnd.isAfter(overlapStart);
-      });
-
-      if (isCoachBusy) continue;
-
-      // 檢查 2: 全場館桌子是否滿了 (邏輯同上)
-      final activeSessionsCount = _weekSessions.where((s) {
-        final overlapStart = s.startTime.isAfter(slotStart)
-            ? s.startTime
-            : slotStart;
-        final overlapEnd = s.endTime.isBefore(slotEnd) ? s.endTime : slotEnd;
-        return overlapEnd.isAfter(overlapStart);
-      }).length;
-
-      if (activeSessionsCount >= totalTables) continue;
-
-      slots.add(TimeOfDay(hour: hour, minute: 0));
+      labels.add(
+        Positioned(
+          top: top - 6, // 讓文字中心對齊線條
+          right: 6, // 保持右側間距
+          child: Text(
+            "${h.toInt()}",
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade400,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      );
     }
-    return slots;
+    return labels;
   }
 
-  // 📝 點擊動作：建立新課程 (預填教練、時間、無桌號)
-  void _handleSlotClick(
+  // 元件：主內容格子
+  Widget _buildTimelineCell(
     Map<String, dynamic> coach,
     DateTime date,
-    TimeOfDay time,
-  ) async {
-    final startDateTime = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
-    final endDateTime = startDateTime.add(const Duration(hours: 1));
+    double width,
+    BorderSide border, {
+    required bool isToday,
+  }) {
+    final coachSessions = _weekSessions.where((s) {
+      return s.coachIds.contains(coach['id']) &&
+          DateUtils.isSameDay(s.startTime, date);
+    }).toList();
 
-    // 🔥 建立符合您 Model 定義的物件
-    final newSession = SessionModel(
-      id: '', // 新增時為空
-      courseId: '', // 待選
-      startTime: startDateTime,
-      endTime: endDateTime,
-      location: '未指定',
-      maxCapacity: 1,
-
-      // 關鍵設定：不指定桌子
-      tableIds: [],
-      tables: [],
-
-      // 自動帶入教練
-      coachIds: [coach['id']],
-      coachName: coach['full_name'],
-
-      bookingsCount: 0,
-      studentNames: [], // 必填空陣列
-      sessionPrice: null,
-    );
-
-    // 開啟編輯視窗
-    final result = await showDialog(
-      context: context,
-      builder: (context) => SessionEditDialog(
-        session: newSession,
-        category: 'personal', // 假設電話預約通常是私教
+    return Container(
+      width: width,
+      height: _rowHeight,
+      decoration: BoxDecoration(
+        color: isToday ? Colors.orange.shade50.withOpacity(0.3) : Colors.white,
+        border: Border(bottom: border, right: border),
+      ),
+      child: Stack(
+        children: [
+          _buildBackgroundGridLines(isToday: isToday),
+          ...coachSessions.map(
+            (session) => _buildSessionBlock(session, _rowHeight),
+          ),
+        ],
       ),
     );
+  }
 
-    // 如果新增成功，重整矩陣
-    if (result == true) {
-      _loadAllData();
+  Widget _buildBackgroundGridLines({required bool isToday}) {
+    final double totalHours = _endHour - _startHour;
+    List<Widget> lines = [];
+    for (double h = _startHour; h <= _endHour; h += 2) {
+      if (h == _startHour) continue;
+      final double top = (h - _startHour) / totalHours * _rowHeight;
+      lines.add(
+        Positioned(
+          top: top,
+          left: 0,
+          right: 0,
+          child: Container(
+            height: 1,
+            color: isToday ? Colors.grey.shade200 : Colors.grey.shade100,
+          ),
+        ),
+      );
     }
+    return Stack(children: lines);
+  }
+
+  Widget _buildSessionBlock(SessionModel session, double totalHeight) {
+    final double totalHours = _endHour - _startHour;
+    double sessionStart =
+        session.startTime.hour + (session.startTime.minute / 60.0);
+    double sessionEnd = session.endTime.hour + (session.endTime.minute / 60.0);
+
+    if (sessionStart < _startHour) sessionStart = _startHour;
+    if (sessionEnd > _endHour) sessionEnd = _endHour;
+    if (sessionStart >= sessionEnd) return const SizedBox();
+
+    final double topPercent = (sessionStart - _startHour) / totalHours;
+    final double durationPercent = (sessionEnd - sessionStart) / totalHours;
+    final double blockHeight = durationPercent * totalHeight;
+
+    final isPersonal = session.category == 'personal';
+    final themeColor = isPersonal ? Colors.orange : Colors.blue;
+    final bgColor = themeColor.withOpacity(0.15);
+    final borderColor = themeColor.withOpacity(0.4);
+
+    final String courseTimeStr =
+        "${DateFormat('HH:mm').format(session.startTime)} - ${DateFormat('HH:mm').format(session.endTime)}";
+    final String studentText = (session.studentNames.isNotEmpty)
+        ? session.studentNames.join(', ')
+        : '無指定學生';
+    final String tooltipMsg =
+        "${session.courseTitle}\n$courseTimeStr\n學生: $studentText";
+
+    return Positioned(
+      top: topPercent * totalHeight,
+      height: blockHeight,
+      left: 2,
+      right: 2,
+      child: Tooltip(
+        message: tooltipMsg,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        textStyle: const TextStyle(color: Colors.white, fontSize: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Row(
+              children: [
+                Container(width: 3, color: themeColor, height: double.infinity),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final h = constraints.maxHeight;
+                      if (h < 18) return const SizedBox();
+                      if (h < 32) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Row(
+                            children: [
+                              Text(
+                                courseTimeStr,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  session.courseTitle,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.black87,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              courseTimeStr,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              session.courseTitle,
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.black87,
+                                height: 1.0,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   String _weekdayName(int day) {
