@@ -15,6 +15,7 @@ import 'ui/screens/transaction_history_screen.dart';
 import 'ui/screens/splash_screen.dart';
 import 'ui/screens/notifications_screen.dart';
 import 'ui/screens/notification_detail_screen.dart';
+import 'ui/screens/activity_detail_screen.dart';
 
 // --- 2. 管理後台頁面 ---
 import '../ui/admin/admin_scaffold.dart';
@@ -31,6 +32,7 @@ import '../ui/admin/courses/course_detail_screen.dart';
 import '../ui/admin/students/student_detail_screen.dart';
 import '../ui/admin/transactions/admin_transaction_screen.dart';
 import '../ui/admin/table_management_screen.dart';
+import '../ui/admin/activities/activity_management_screen.dart';
 
 // --- 4. Model ---
 import 'data/models/course_model.dart';
@@ -162,6 +164,16 @@ final appRouter = GoRouter(
       ],
     ),
 
+    // --- 活動詳情頁面 ---
+    GoRoute(
+      path: '/activity/:activityId',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final activityId = state.pathParameters['activityId']!;
+        return ActivityDetailScreen(activityId: activityId);
+      },
+    ),
+
     // --- Admin 後台區域 ---
     ShellRoute(
       builder: (context, state, child) {
@@ -254,6 +266,11 @@ final appRouter = GoRouter(
           path: '/admin/staff_list',
           pageBuilder: (context, state) =>
               const NoTransitionPage(child: StaffListScreen()),
+        ),
+        GoRoute(
+          path: '/admin/activities',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: ActivityManagementScreen()),
         ),
       ],
     ),

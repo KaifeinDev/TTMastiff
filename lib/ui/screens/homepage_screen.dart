@@ -1,10 +1,13 @@
-import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/services/student_repository.dart';
+import '../../data/services/activity_repository.dart';
 import '../../data/models/student_model.dart';
+import '../../data/models/activity_model.dart';
 import 'widgets/gender_icon.dart';
 
 class HomepageScreen extends StatefulWidget {
@@ -15,11 +18,13 @@ class HomepageScreen extends StatefulWidget {
 }
 
 class _HomepageScreenState extends State<HomepageScreen> {
-  final PageController _pageController = PageController();
+  late final PageController _pageController;
   int _currentPage = 0;
-  Timer? _autoScrollTimer;
   
   final _studentRepository = StudentRepository(Supabase.instance.client);
+  final _activityRepository = ActivityRepository(Supabase.instance.client);
+
+  final Map<String, Uint8List> _activityImageCache = {};
   
   // 個人資訊狀態
   List<StudentModel> _students = [];
@@ -28,42 +33,19 @@ class _HomepageScreenState extends State<HomepageScreen> {
   String? _userPhone;
   bool _isLoadingUserInfo = true;
 
-  // 輪播圖片列表
-  final List<String> _displayImages = [
-    'assets/images/display1.jpg',
-    'assets/images/display2.jpg',
-    'assets/images/display3.jpg',
-  ];
-
-  // 活動列表（使用 banner 圖片）
-  final List<Map<String, dynamic>> _activities = [
-    {
-      'image': 'assets/images/banner2.jpg',
-      'name': '春季網球訓練營',
-      'startTime': DateTime(2024, 3, 1, 9, 0),
-      'endTime': DateTime(2024, 3, 31, 18, 0),
-    },
-    {
-      'image': 'assets/images/banner3.jpg',
-      'name': '週末友誼賽',
-      'startTime': DateTime(2024, 3, 15, 14, 0),
-      'endTime': DateTime(2024, 3, 15, 17, 0),
-    },
-    {
-      'image': 'assets/images/banner4.jpg',
-      'name': '網球技巧提升班',
-      'startTime': DateTime(2024, 3, 20, 10, 0),
-      'endTime': DateTime(2024, 4, 20, 12, 0),
-    },
-  ];
+  // 活動資料
+  List<ActivityModel> _carouselActivities = [];
+  List<ActivityModel> _recentActivities = [];
+  bool _isLoadingActivities = true;
 
   @override
   void initState() {
     super.initState();
-    // 自動輪播
-    _startAutoScroll();
+    _pageController = PageController();
     // 載入個人資訊
     _loadUserInfo();
+    // 載入活動資料
+    _loadActivities();
   }
   
   Future<void> _loadUserInfo() async {
@@ -118,31 +100,76 @@ class _HomepageScreenState extends State<HomepageScreen> {
 
   @override
   void dispose() {
-    _autoScrollTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
 
-  void _startAutoScroll() {
-    _autoScrollTimer?.cancel();
-    _autoScrollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (!mounted || !_pageController.hasClients) {
-        timer.cancel();
-        return;
-      }
-      
-      // 獲取當前頁面索引
-      final currentPage = _pageController.page?.round() ?? _currentPage;
-      
-      // 計算下一頁索引（循環播放）
-      final nextPage = (currentPage + 1) % _displayImages.length;
-      
-      _pageController.animateToPage(
-        nextPage,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+  Future<void> _loadActivities() async {
+    try {
+      final carousel = await _activityRepository.getActivities(
+        type: 'carousel',
+        status: 'active',
       );
-    });
+      final recent = await _activityRepository.getActivities(
+        type: 'recent',
+        status: 'active',
+      );
+
+      if (mounted) {
+        setState(() {
+          _carouselActivities = carousel;
+          _recentActivities = recent;
+          _isLoadingActivities = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('載入活動失敗: $e');
+      if (mounted) {
+        setState(() => _isLoadingActivities = false);
+      }
+    }
+  }
+
+  Uint8List? _getCachedBytes(String cacheKey, String? base64Image) {
+    if (_activityImageCache.containsKey(cacheKey)) {
+      return _activityImageCache[cacheKey];
+    }
+    if (base64Image == null || base64Image.isEmpty) return null;
+    try {
+      final bytes = base64Decode(base64Image);
+      _activityImageCache[cacheKey] = bytes;
+      return bytes;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildImageFromBase64(String? base64Image, {Uint8List? bytes}) {
+    if (base64Image == null || base64Image.isEmpty) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: Icon(Icons.image, size: 64, color: Colors.grey),
+        ),
+      );
+    }
+
+    try {
+      final imageBytes = bytes ?? base64Decode(base64Image);
+      return Image.memory(
+        imageBytes,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        gaplessPlayback: true,
+      );
+    } catch (e) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: Icon(Icons.broken_image, size: 64, color: Colors.grey),
+        ),
+      );
+    }
   }
 
   @override
@@ -194,10 +221,19 @@ class _HomepageScreenState extends State<HomepageScreen> {
             const SizedBox(height: 16),
             
             // 橫式圖片輪播器（左右 padding 與下方對齊）
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildImageCarousel(),
-            ),
+            if (_isLoadingActivities)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  height: 200,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              )
+            else if (_carouselActivities.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildImageCarousel(),
+              ),
             const SizedBox(height: 24),
             
             // 近期活動標題
@@ -213,7 +249,20 @@ class _HomepageScreenState extends State<HomepageScreen> {
             const SizedBox(height: 16),
             
             // 直式圖片展示
-            ..._activities.map((activity) => _buildActivityCard(activity)),
+            if (_isLoadingActivities)
+              const Center(child: CircularProgressIndicator())
+            else if (_recentActivities.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Text(
+                    '暫無活動',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ),
+              )
+            else
+              ..._recentActivities.map((activity) => _buildActivityCard(activity)),
             const SizedBox(height: 16),
           ],
         ),
@@ -418,6 +467,10 @@ class _HomepageScreenState extends State<HomepageScreen> {
   }
 
   Widget _buildImageCarousel() {
+    if (_carouselActivities.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
@@ -431,76 +484,95 @@ class _HomepageScreenState extends State<HomepageScreen> {
                   _currentPage = index;
                 });
               },
-              itemCount: _displayImages.length,
+              itemCount: _carouselActivities.length,
               itemBuilder: (context, index) {
-                return Image.asset(
-                  _displayImages[index],
-                  fit: BoxFit.cover,
-                  width: double.infinity,
+                final a = _carouselActivities[index];
+                final bytes = _getCachedBytes('carousel:${a.id}', a.image);
+                return RepaintBoundary(
+                  child: _buildImageFromBase64(a.image, bytes: bytes),
                 );
               },
             ),
             // 指示器
-            Positioned(
-              bottom: 16,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _displayImages.length,
-                  (index) => Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _currentPage == index
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.5),
+            if (_carouselActivities.length > 1)
+              Positioned(
+                bottom: 16,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    _carouselActivities.length,
+                    (index) => GestureDetector(
+                      onTap: () {
+                        _pageController.animateToPage(
+                          index,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _currentPage == index
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.5),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActivityCard(Map<String, dynamic> activity) {
+  Widget _buildActivityCard(ActivityModel activity) {
     final dateFormat = DateFormat('yyyy/MM/dd HH:mm');
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              activity['image'] as String,
-              width: double.infinity,
-              height: 200,
-              fit: BoxFit.cover,
+    return InkWell(
+      onTap: () {
+        context.push('/activity/${activity.id}');
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: double.infinity,
+                height: 200,
+                child: RepaintBoundary(
+                  child: _buildImageFromBase64(
+                    activity.image,
+                    bytes: _getCachedBytes('recent:${activity.id}', activity.image),
+                  ),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            activity['name'] as String,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+            const SizedBox(height: 8),
+            Text(
+              activity.title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${dateFormat.format(activity['startTime'] as DateTime)} ~ ${dateFormat.format(activity['endTime'] as DateTime)}',
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 12,
+            const SizedBox(height: 4),
+            Text(
+              '${dateFormat.format(activity.startTime)} ~ ${dateFormat.format(activity.endTime)}',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 12,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

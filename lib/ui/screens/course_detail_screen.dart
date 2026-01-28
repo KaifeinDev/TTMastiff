@@ -324,10 +324,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               : "暫無課程描述";
           return Text(
             description,
-            style: TextStyle(color: Colors.grey.shade600, height: 1.5),
+          style: TextStyle(color: Colors.grey.shade600, height: 1.5),
           );
         },
-      ),
+        ),
       ],
     );
   }
