@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart';
 import 'package:ttmastiff/core/utils/util.dart';
-
+import 'package:ttmastiff/ui/admin/courses/widgets/session_edit_dialog.dart';
 // Models
 import '../../../../data/models/session_model.dart';
-import '../../../../data/models/table_model.dart';
 
 class CoachWeeklyMatrixScreen extends StatefulWidget {
   const CoachWeeklyMatrixScreen({super.key});
@@ -23,6 +22,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
   // 資料
   List<SessionModel> _weekSessions = [];
   List<Map<String, dynamic>> _allCoaches = [];
+  Set<String> _selectedCoachIds = {};
 
   // 設定
   final double _rowHeight = 300.0;
@@ -101,6 +101,22 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
         setState(() {
           _weekSessions = results[0] as List<SessionModel>;
           _allCoaches = List<Map<String, dynamic>>.from(results[1] as List);
+          // 🔥 新增：如果是第一次載入（或名單原本是空的），預設全選
+          if (_selectedCoachIds.isEmpty && _allCoaches.isNotEmpty) {
+            _selectedCoachIds = _allCoaches
+                .map((c) => c['id'].toString())
+                .toSet();
+          } else {
+            // 如果已經有選過的紀錄，要確保選單裡面的 ID 還在最新的教練列表中
+            // (這步是防呆，避免刪除教練後 ID 還殘留)
+            final allIds = _allCoaches.map((c) => c['id'].toString()).toSet();
+            _selectedCoachIds = _selectedCoachIds.intersection(allIds);
+
+            // 如果交集後變空了(例如原本選的都被刪了)，那就全選回來
+            if (_selectedCoachIds.isEmpty) {
+              _selectedCoachIds = allIds;
+            }
+          }
           _isLoading = false;
         });
       }
@@ -121,12 +137,19 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredCoaches = _allCoaches;
+    final filteredCoaches = _allCoaches
+        .where((c) => _selectedCoachIds.contains(c['id']))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('教練週排班矩陣'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list_alt),
+            tooltip: '篩選教練',
+            onPressed: _showCoachFilterDialog,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAllData),
         ],
       ),
@@ -145,6 +168,85 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showCoachFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        // 使用 StatefulBuilder 讓 Dialog 內部可以局部刷新 Checkbox
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('篩選顯示教練'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 全選/全不選按鈕 (選用)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            child: const Text('全選'),
+                            onPressed: () {
+                              setStateDialog(() {
+                                _selectedCoachIds = _allCoaches
+                                    .map((c) => c['id'].toString())
+                                    .toSet();
+                              });
+                            },
+                          ),
+                          TextButton(
+                            child: const Text('清空'),
+                            onPressed: () {
+                              setStateDialog(() {
+                                _selectedCoachIds.clear();
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                      // 教練列表
+                      ..._allCoaches.map((coach) {
+                        final id = coach['id'];
+                        final isSelected = _selectedCoachIds.contains(id);
+                        return CheckboxListTile(
+                          title: Text(coach['full_name'] ?? '未知'),
+                          value: isSelected,
+                          onChanged: (bool? value) {
+                            setStateDialog(() {
+                              if (value == true) {
+                                _selectedCoachIds.add(id);
+                              } else {
+                                _selectedCoachIds.remove(id);
+                              }
+                            });
+                          },
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    // 關閉 Dialog，並觸發主畫面 setState 更新
+                    Navigator.of(context).pop();
+                    this.setState(() {});
+                  },
+                  child: const Text('確定'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -567,26 +669,79 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
           borderRadius: BorderRadius.circular(4),
         ),
         textStyle: const TextStyle(color: Colors.white, fontSize: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: borderColor, width: 1),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: Row(
-              children: [
-                Container(width: 3, color: themeColor, height: double.infinity),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final h = constraints.maxHeight;
-                      if (h < 18) return const SizedBox();
-                      if (h < 32) {
+        child: InkWell(
+          onTap: () async {
+            // 1. 開啟編輯視窗
+            // 請確保你的 SessionEditDialog 支援傳入 session 進行編輯模式
+            // 如果你的 Dialog 需要 'onSave' callback，也可以在這裡處理
+            await showDialog(
+              context: context,
+              builder: (context) => SessionEditDialog(
+                session: session,
+                category: session.course!.category,
+              ),
+            );
+
+            // 2. 視窗關閉後，重新載入資料 (因為可能被修改或刪除了)
+            _loadAllData();
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: borderColor, width: 1),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 3,
+                    color: themeColor,
+                    height: double.infinity,
+                  ),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final h = constraints.maxHeight;
+                        if (h < 18) return const SizedBox();
+                        if (h < 32) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Row(
+                              children: [
+                                Text(
+                                  courseTimeStr,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    session.courseTitle,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.black87,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
                         return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Row(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 2,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
                                 courseTimeStr,
@@ -594,60 +749,28 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black87,
+                                  height: 1.0,
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  session.courseTitle,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.black87,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
+                              const SizedBox(height: 6),
+                              Text(
+                                session.courseTitle,
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.black87,
+                                  height: 1.0,
                                 ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                             ],
                           ),
                         );
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              courseTimeStr,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                                height: 1.0,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              session.courseTitle,
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.black87,
-                                height: 1.0,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
