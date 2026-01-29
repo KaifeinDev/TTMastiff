@@ -1,8 +1,12 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart';
 import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/ui/admin/courses/widgets/session_edit_dialog.dart';
+import 'package:ttmastiff/ui/admin/courses/widgets/batch_session_dialog.dart';
+import 'package:ttmastiff/data/models/course_model.dart';
+
 // Models
 import '../../../../data/models/session_model.dart';
 
@@ -86,8 +90,10 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
     super.dispose();
   }
 
-  Future<void> _loadAllData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadAllData({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() => _isLoading = true);
+    }
     try {
       final start = DateTime(_startDate.year, _startDate.month, _startDate.day);
       final end = start.add(const Duration(days: 7));
@@ -248,6 +254,145 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
         );
       },
     );
+  }
+
+  // A. 處理空白處點擊
+  void _handleEmptySlotTap(
+    BuildContext context,
+    Map<String, dynamic> coach,
+    DateTime date,
+    double tapY,
+    double totalHeight,
+  ) async {
+    // 1. 計算點擊的時間 (反推)
+    final double totalHours = _endHour - _startHour;
+    final double percent = tapY / totalHeight;
+    final double rawHour = _startHour + (percent * totalHours);
+
+    // 2. 時間磁吸處理 (自動對齊最近的 30 分鐘)
+    int hour = rawHour.floor();
+    int minute = ((rawHour - hour) * 60).round();
+
+    if (minute < 15) {
+      minute = 0;
+    } else if (minute < 45) {
+      minute = 30;
+    } else {
+      minute = 0;
+      hour += 1;
+    }
+
+    // 4. 彈出課程選擇選單 (等待使用者選擇)
+    final CourseModel? selectedCourse = await _showCourseSelectionSheet(
+      context,
+    );
+
+    if (selectedCourse != null && mounted) {
+      // 6. 開啟 BatchSessionDialog 並帶入參數
+      await showDialog(
+        context: context,
+        builder: (context) => BatchSessionDialog(
+          courseId: selectedCourse.id, // 帶入課程 ID
+          defaultStartTime: TimeOfDay.fromDateTime(
+            selectedCourse.defaultStartTime,
+          ),
+          defaultEndTime: TimeOfDay.fromDateTime(selectedCourse.defaultEndTime),
+          category: selectedCourse.category, // 帶入課程類別 (personal/group)
+          defaultPrice: selectedCourse.price, // 帶入課程價格
+          // 💡 建議確認 BatchSessionDialog 是否有參數可以接收 coachId
+          // 如果有的話，建議補上： initialCoachId: coach['id'],
+          // 這樣打開視窗時，才會自動選中你剛剛點擊的那位教練
+        ),
+      );
+
+      // 7. 關閉視窗後刷新資料
+      _loadAllData(showLoading: false);
+    }
+  }
+
+  // B. 顯示課程選擇 BottomSheet
+  Future<CourseModel?> _showCourseSelectionSheet(BuildContext context) async {
+    // 這裡通常建議從 API 拉取，或是如果資料量不大，可以在 initState 就先拉好存起來
+    // 這裡示範即時拉取
+    try {
+      // 假設你有 getPublishedCourses 方法
+      final courses = await courseRepository.getPublishedCourses();
+
+      if (!context.mounted) return null;
+
+      if (courses.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('沒有已發布的課程，請先建立課程')));
+        return null;
+      }
+
+      return await showModalBottomSheet<CourseModel>(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+
+        builder: (context) {
+          return SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Text(
+                    '請選擇要新增的課程',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: courses.length,
+                    itemBuilder: (context, index) {
+                      final course = courses[index];
+                      final now = DateTime.now();
+                      final startDt = DateTime(
+                        now.year,
+                        now.month,
+                        now.day,
+                        course.defaultStartTime.hour,
+                        course.defaultStartTime.minute,
+                      );
+                      final endDt = DateTime(
+                        now.year,
+                        now.month,
+                        now.day,
+                        course.defaultEndTime.hour,
+                        course.defaultEndTime.minute,
+                      );
+                      final courseTimeStr =
+                          "${DateFormat('HH:mm').format(startDt)} - ${DateFormat('HH:mm').format(endDt)}";
+                      return ListTile(
+                        leading: Text((index + 1).toString()),
+                        title: Text(course.title),
+                        subtitle: Text(
+                          '時間: $courseTimeStr • 價格: \$${course.price}',
+                        ),
+                        onTap: () {
+                          Navigator.pop(context, course); // 回傳選中的課程
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      showErrorDialog(context, e, title: '讀取課程失敗');
+      return null;
+    }
   }
 
   Widget _buildDateControlBar() {
@@ -597,13 +742,34 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
         color: isToday ? Colors.orange.shade50.withOpacity(0.3) : Colors.white,
         border: Border(bottom: border, right: border),
       ),
-      child: Stack(
-        children: [
-          _buildBackgroundGridLines(isToday: isToday),
-          ...coachSessions.map(
-            (session) => _buildSessionBlock(session, _rowHeight),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return GestureDetector(
+            // 🔥 1. 設定點擊行為：opaque 確保點擊空白處也能觸發
+            behavior: HitTestBehavior.opaque,
+
+            // 🔥 2. 捕捉點擊位置
+            onLongPressStart: (details) {
+              HapticFeedback.mediumImpact();
+              // details.localPosition.dy 就是點擊的 Y 軸位置
+              _handleEmptySlotTap(
+                context,
+                coach,
+                date,
+                details.localPosition.dy,
+                constraints.maxHeight,
+              );
+            },
+            child: Stack(
+              children: [
+                _buildBackgroundGridLines(isToday: isToday),
+                ...coachSessions.map(
+                  (session) => _buildSessionBlock(session, _rowHeight),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -683,7 +849,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
             );
 
             // 2. 視窗關閉後，重新載入資料 (因為可能被修改或刪除了)
-            _loadAllData();
+            _loadAllData(showLoading: false);
           },
           child: Container(
             decoration: BoxDecoration(
