@@ -128,10 +128,7 @@ class CourseRepository {
         tableNames = tableNameList.isEmpty ? null : tableNameList.join('、');
       }
 
-      session = session.copyWith(
-        coachName: coachName,
-        tableNames: tableNames,
-      );
+      session = session.copyWith(coachName: coachName, tableNames: tableNames);
 
       return session;
     } catch (e) {
@@ -210,6 +207,18 @@ class CourseRepository {
         .order('created_at', ascending: false);
 
     // 將資料庫的 Map 轉換成 CourseModel 物件
+    return (data as List).map((e) => CourseModel.fromJson(e)).toList();
+  }
+
+  // 🔥 [新增] 只取得 "已發布 (is_published = true)" 的課程
+  // 專門給排課選單使用
+  Future<List<CourseModel>> getPublishedCourses() async {
+    final data = await _supabase
+        .from('courses')
+        .select('*')
+        .eq('is_published', true) // 關鍵：只抓 true 的
+        .order('created_at', ascending: false);
+
     return (data as List).map((e) => CourseModel.fromJson(e)).toList();
   }
 
