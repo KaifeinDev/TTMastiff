@@ -498,4 +498,19 @@ class SessionRepository {
 
     return ConflictResult(type: ConflictType.none);
   }
+
+  /// 一次抓取一段時間範圍內的課程 (用於週曆視圖)
+  Future<List<SessionModel>> fetchSessionsByRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final response = await _supabase
+        .from('sessions')
+        .select('*, courses(*)') // 根據您的 DB 結構調整
+        .gte('start_time', start.toIso8601String())
+        .lte('end_time', end.toIso8601String());
+
+    final data = response as List<dynamic>;
+    return data.map((json) => SessionModel.fromJson(json)).toList();
+  }
 }
