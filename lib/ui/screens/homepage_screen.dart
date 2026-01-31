@@ -37,6 +37,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
   List<ActivityModel> _carouselActivities = [];
   List<ActivityModel> _recentActivities = [];
   bool _isLoadingActivities = true;
+  int _unreadCount = 0;
 
   @override
   void initState() {
@@ -46,6 +47,26 @@ class _HomepageScreenState extends State<HomepageScreen> {
     _loadUserInfo();
     // 載入活動資料
     _loadActivities();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 當從其他頁面返回時，重新載入未讀數量
+    _refreshUnreadCount();
+  }
+
+  Future<void> _refreshUnreadCount() async {
+    try {
+      final unreadCount = await _activityRepository.getUnreadCount();
+      if (mounted) {
+        setState(() {
+          _unreadCount = unreadCount;
+        });
+      }
+    } catch (e) {
+      debugPrint('更新未讀數量失敗: $e');
+    }
   }
   
   Future<void> _loadUserInfo() async {
@@ -114,11 +135,13 @@ class _HomepageScreenState extends State<HomepageScreen> {
         type: 'recent',
         status: 'active',
       );
+      final unreadCount = await _activityRepository.getUnreadCount();
 
       if (mounted) {
         setState(() {
           _carouselActivities = carousel;
           _recentActivities = recent;
+          _unreadCount = unreadCount;
           _isLoadingActivities = false;
         });
       }
@@ -182,11 +205,30 @@ class _HomepageScreenState extends State<HomepageScreen> {
         ),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              context.push('/notifications');
-            },
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () async {
+                  await context.push('/notifications');
+                  // 從通知頁面返回時，重新載入未讀數量
+                  _refreshUnreadCount();
+                },
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  right: 10,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
         bottom: PreferredSize(

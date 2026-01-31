@@ -130,4 +130,36 @@ class ActivityRepository {
   Future<void> deleteActivity(String id) async {
     await _supabase.from('activities').delete().eq('id', id);
   }
+
+  /// 取得用戶的活動通知（包含讀取狀態）
+  Future<List<ActivityModel>> getActivityNotifications() async {
+    final response = await _supabase
+        .from('activities')
+        .select()
+        .eq('status', 'active')
+        .order('start_time', ascending: false);
+
+    final data = response as List<dynamic>;
+    return data.map((json) => ActivityModel.fromJson(json)).toList();
+  }
+
+  /// 標記活動通知為已讀
+  Future<void> markActivityAsRead(String activityId) async {
+    await _supabase
+        .from('activities')
+        .update({'notification_status': 'read'})
+        .eq('id', activityId);
+  }
+
+  /// 取得未讀通知數量
+  Future<int> getUnreadCount() async {
+    final response = await _supabase
+        .from('activities')
+        .select('id')
+        .eq('status', 'active')
+        .eq('notification_status', 'unread')
+        .count(CountOption.exact);
+
+    return response.count;
+  }
 }
