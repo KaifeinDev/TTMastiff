@@ -24,6 +24,7 @@ import 'ui/admin/students/user_list_screen.dart';
 import 'ui/admin/salary_management/salary_management_screen.dart';
 import 'ui/admin/salary_management/staff_list_screen.dart';
 import 'ui/admin/salary_management/salary_analytics_screen.dart';
+import 'ui/admin/coach/coach_weekly_matrix_screen.dart';
 
 // --- 3. 新增的課程管理頁面 (請確認檔案已建立) ---
 // 原本的 course_manage_screen.dart 建議改名為 course_list_screen.dart
@@ -271,6 +272,11 @@ final appRouter = GoRouter(
           path: '/admin/activities',
           pageBuilder: (context, state) =>
               const NoTransitionPage(child: ActivityManagementScreen()),
+         ),
+        GoRoute(
+          path: '/admin/coach_matrix',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: CoachWeeklyMatrixScreen()),
         ),
       ],
     ),

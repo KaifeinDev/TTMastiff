@@ -124,6 +124,13 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           textColor: textColor,
           iconColor: iconColor,
         ),
+        _AdminMenuItem(
+          icon: Icons.calendar_view_week_rounded, // 或 Icons.grid_on_rounded
+          title: '教練排班', // 或 '排班矩陣'
+          route: '/admin/coach_matrix', // 記得在 routes 中註冊此路徑
+          textColor: textColor,
+          iconColor: iconColor,
+        ),
       ],
     );
   }
