@@ -9,8 +9,9 @@ CREATE TABLE IF NOT EXISTS activities (
   type TEXT NOT NULL CHECK (type IN ('carousel', 'recent')), -- 輪播或近期活動
   "order" INTEGER NOT NULL DEFAULT 0, -- 顯示順序
   status TEXT NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')), -- 上架中或已下架
+  notification_status TEXT NOT NULL DEFAULT 'unread' CHECK (notification_status IN ('read', 'unread')), -- 通知讀取狀態
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ
+  updated_at TIMESTAMPTZ,
 );
 
 -- 建立索引以提升查詢效能

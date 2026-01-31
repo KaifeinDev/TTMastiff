@@ -46,9 +46,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   Future<void> _loadActivityNotifications() async {
     try {
-      final activities = await _activityRepository.getActivities(
-        status: 'active',
-      );
+      final activities = await _activityRepository.getActivityNotifications();
       
       // 由新到舊排序（依開始時間）
       activities.sort((a, b) => b.startTime.compareTo(a.startTime));
@@ -131,55 +129,74 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Widget _buildActivityNotificationItem(ActivityModel activity) {
+    final isUnread = activity.notificationStatus == 'unread';
     final dateFormat = DateFormat('yyyy/MM/dd HH:mm');
     
     return InkWell(
-      onTap: () {
+      onTap: () async {
+        // 標記為已讀
+        if (isUnread) {
+          await _activityRepository.markActivityAsRead(activity.id);
+          // 更新本地狀態
+          setState(() {
+            final index = _activityNotifications.indexWhere((a) => a.id == activity.id);
+            if (index != -1) {
+              _activityNotifications[index] = activity.copyWith(
+                notificationStatus: 'read',
+              );
+            }
+          });
+          // 通知首頁更新未讀數量（通過重新取得未讀數量）
+          // 這裡可以觸發一個事件或使用 callback，但最簡單的方式是讓首頁在返回時重新載入
+        }
         context.push('/activity/${activity.id}');
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    activity.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+      child: Container(
+        color: isUnread ? Colors.grey.shade100 : Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activity.title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    activity.description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
+                    const SizedBox(height: 4),
+                    Text(
+                      activity.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    dateFormat.format(activity.startTime),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                    const SizedBox(height: 8),
+                    Text(
+                      dateFormat.format(activity.startTime),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right,
-              color: Colors.grey.shade400,
-            ),
-          ],
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.grey.shade400,
+              ),
+            ],
+          ),
         ),
       ),
     );

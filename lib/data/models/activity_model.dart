@@ -8,6 +8,7 @@ class ActivityModel {
   final String type; // 'carousel' 或 'recent'
   final int order; // 顯示順序
   final String status; // 'active' 或 'inactive'
+  final String notificationStatus; // 'read' 或 'unread'
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -21,6 +22,7 @@ class ActivityModel {
     required this.type,
     required this.order,
     required this.status,
+    this.notificationStatus = 'unread',
     required this.createdAt,
     this.updatedAt,
   });
@@ -36,6 +38,7 @@ class ActivityModel {
       type: json['type'] ?? 'recent',
       order: json['order'] ?? 0,
       status: json['status'] ?? 'inactive',
+      notificationStatus: json['notification_status'] ?? 'unread',
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
@@ -53,6 +56,7 @@ class ActivityModel {
       'type': type,
       'order': order,
       'status': status,
+      'notification_status': notificationStatus,
     };
   }
 
@@ -66,6 +70,7 @@ class ActivityModel {
     String? type,
     int? order,
     String? status,
+    String? notificationStatus,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -79,6 +84,7 @@ class ActivityModel {
       type: type ?? this.type,
       order: order ?? this.order,
       status: status ?? this.status,
+      notificationStatus: notificationStatus ?? this.notificationStatus,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
