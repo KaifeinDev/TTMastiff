@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart';
 
-// Models
+// Models & Repositories
 import '../../data/models/session_model.dart';
 import '../../data/models/student_model.dart';
 import '../../data/models/course_model.dart';
+import 'widgets/level_icon.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final String courseId;
@@ -21,6 +23,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   CourseModel? _course;
   List<SessionModel> _upcomingSessions = [];
   List<StudentModel> _myStudents = [];
+
+  // 會員等級 (beginner / intermediate / advanced)
+  String? _memberLevel;
 
   // UI State
   bool _isLoading = true;
@@ -46,11 +51,28 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         studentRepository.getMyStudents(),
       ]);
 
+      // 取得會員等級（從 profiles.membership）
+      String? membership;
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        try {
+          final profile = await Supabase.instance.client
+              .from('profiles')
+              .select('membership')
+              .eq('id', user.id)
+              .single();
+          membership = profile['membership'] as String?;
+        } catch (e) {
+          debugPrint('載入會員資格失敗: $e');
+        }
+      }
+
       if (mounted) {
         setState(() {
           _course = results[0] as CourseModel;
           _upcomingSessions = results[1] as List<SessionModel>;
           _myStudents = results[2] as List<StudentModel>;
+          _memberLevel = membership ?? 'beginner';
 
           // UX 優化：預設選取「主要學員」
           // if (_myStudents.isNotEmpty) {
@@ -81,17 +103,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     }
   }
 
-  /// 💰 計算總金額
-  /// 邏輯：(所選 Session 的價格總和) * (所選學生人數)
-  int get _totalCost {
-    int sessionsTotal = 0;
-    for (var sessionId in _selectedSessionIds) {
-      // 找出對應的 session 物件來讀取價格
-      final session = _upcomingSessions.firstWhere((s) => s.id == sessionId);
-      sessionsTotal += session.displayPrice; // 使用 Session 裡的智慧價格
-    }
-    return sessionsTotal * _selectedStudentIds.length;
-  }
+  /// 💰 計算總金額（含會員折扣）
+  /// 邏輯：(所選 Session 的折扣後價格總和) * (所選學生人數)
+  int get _totalCost => _discountedTotalCost;
 
   Future<void> _onBatchBookPressed() async {
     if (_selectedStudentIds.isEmpty || _selectedSessionIds.isEmpty) {
@@ -310,10 +324,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               : "暫無課程描述";
           return Text(
             description,
-            style: TextStyle(color: Colors.grey.shade600, height: 1.5),
+          style: TextStyle(color: Colors.grey.shade600, height: 1.5),
           );
         },
-      ),
+        ),
       ],
     );
   }
@@ -431,13 +445,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             ),
             const Spacer(),
             // 顯示單堂價格
-            Text(
-              "\$${session.displayPrice}",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isFull ? Colors.grey : Colors.black87,
-              ),
-            ),
+            _buildSessionPrice(session, isFull),
           ],
         ),
         value: isSelected,
@@ -452,6 +460,45 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         },
       ),
     );
+  }
+
+  /// 根據會員等級計算單堂價格折扣，並顯示折扣標籤
+  Widget _buildSessionPrice(SessionModel session, bool isFull) {
+    final basePrice = session.displayPrice;
+    final finalPrice = getDiscountedPrice(basePrice, _memberLevel);
+    final discountLabel = getDiscountLabel(_memberLevel);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          "\$${finalPrice}",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isFull ? Colors.grey : Colors.black87,
+          ),
+        ),
+        if (discountLabel != null)
+          Text(
+            discountLabel,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 計算套用會員折扣後的總價
+  int get _discountedTotalCost {
+    int sessionsTotal = 0;
+    for (var sessionId in _selectedSessionIds) {
+      final session = _upcomingSessions.firstWhere((s) => s.id == sessionId);
+      final discounted = getDiscountedPrice(session.displayPrice, _memberLevel);
+      sessionsTotal += discounted;
+    }
+    return sessionsTotal * _selectedStudentIds.length;
   }
 
   Widget _buildBottomBar() {
