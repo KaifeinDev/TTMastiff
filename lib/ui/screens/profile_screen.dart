@@ -12,6 +12,7 @@ import '../../core/utils/util.dart';
 import 'package:ttmastiff/main.dart';
 import '../../data/services/booking_repository.dart';
 import 'widgets/gender_icon.dart';
+import 'widgets/level_icon.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -33,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _userEmail;
   String? _userPhone;
   int _credits = 0;
+  String? _membership; // profiles.membership
 
   @override
   void initState() {
@@ -87,6 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // 電話優先看 profile，沒有才看 auth user
           _userPhone = profileData['phone'] ?? user.phone;
           _credits = profileData['credits'] ?? 0;
+          _membership = profileData['membership'] as String? ?? 'beginner';
 
           _students = studentsList;
           _primaryStudent = primary; // 🌟 UI 顯示頭像跟姓名要靠這個
@@ -563,6 +566,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ],
                                         ),
                                       ),
+                                    if (_membership != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.wallet_membership,
+                                              size: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              getLevelText(_membership),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     const SizedBox(height: 8),
                                     // Container(
                                     //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -864,13 +887,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            // '${student.birthDate.year}/${student.birthDate.month}/${student.birthDate.day}',
-                                            student.birthDate.toDateWithAge(),
-                                            style: TextStyle(
-                                              color: Colors.grey.shade700,
-                                              fontSize: 13,
-                                            ),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.cake,
+                                                size: 14,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                student.birthDate.toDateWithAge(),
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.stars,
+                                                size: 14,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${student.points}',
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),

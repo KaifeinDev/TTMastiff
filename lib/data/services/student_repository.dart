@@ -47,7 +47,6 @@ class StudentRepository {
       'medical_note': medicalNote,
       'avatar_url': avatarUrl,
       'is_primary': false, // 明確指定為子帳號
-      'level': 'beginner', // 預設程度
     });
   }
 
@@ -69,6 +68,14 @@ class StudentRepository {
           'avatar_url': newAvatarUrl,
           'medical_note': note,
         })
+        .eq('id', id);
+  }
+
+  // 更新學員點數
+  Future<void> updateStudentPoints(String id, int points) async {
+    await _supabase
+        .from('students')
+        .update({'points': points})
         .eq('id', id);
   }
 

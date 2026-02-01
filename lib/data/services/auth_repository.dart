@@ -53,6 +53,7 @@ class AuthRepository {
         'referral_source': referralSource,
         'credits': 0,
         'role': 'user',
+        'membership': 'beginner', // 預設會員等級
       });
 
       // 3. 建立 Primary Student (由程式碼完全控制，包含所有細節)
@@ -74,7 +75,6 @@ class AuthRepository {
         'medical_note': medicalNote,
         'avatar_url': avatarUrl,
         'is_primary': true,
-        'level': 'beginner',
       });
     } catch (e) {
       // 這裡可以印出詳細錯誤，方便除錯
