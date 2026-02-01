@@ -139,7 +139,7 @@ class _PayrollEditDialogState extends State<PayrollEditDialog> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Theme.of(context).colorScheme.background,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -224,10 +224,10 @@ class _PayrollEditDialogState extends State<PayrollEditDialog> {
                 ),
                 Text(
                   '\$${calc['total']}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ],
@@ -237,6 +237,7 @@ class _PayrollEditDialogState extends State<PayrollEditDialog> {
             // 狀態選擇
             DropdownButtonFormField<String>(
               value: _status,
+              dropdownColor: Colors.white,
               decoration: const InputDecoration(
                 labelText: '結算狀態',
                 isDense: true,
@@ -259,7 +260,7 @@ class _PayrollEditDialogState extends State<PayrollEditDialog> {
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
+            backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Colors.white,
           ),
           onPressed: () {
@@ -333,14 +334,14 @@ class _PayrollEditDialogState extends State<PayrollEditDialog> {
         Text(
           label,
           style: TextStyle(
-            color: isHighlight ? Colors.blue[800] : Colors.black87,
+            color: isHighlight ? Theme.of(context).colorScheme.primary : Colors.black87,
             fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal,
           ),
         ),
         Text(
           value,
           style: TextStyle(
-            color: isHighlight ? Colors.blue[800] : Colors.black87,
+            color: isHighlight ? Theme.of(context).colorScheme.primary : Colors.black87,
             fontWeight: FontWeight.bold,
           ),
         ),

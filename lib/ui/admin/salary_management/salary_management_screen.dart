@@ -89,14 +89,14 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text('薪資管理'),
-        backgroundColor: Colors.blue.shade50,
+        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: Column(
         children: [
           // 1. 月份選擇器 (保留固定在最上方，方便隨時切換月份)
           Container(
-            color: Colors.blue.shade50,
+            color: Colors.white,
             padding: const EdgeInsets.only(bottom: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -214,8 +214,8 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
                       _filteredList.isEmpty
                           ? SliverToBoxAdapter(
                               child: Container(
-                                height: 200,
                                 alignment: Alignment.center,
+                                color: Colors.grey[50],
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -278,7 +278,7 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
 
   Widget _buildFilterChip(String label, String value, {Color? color}) {
     final isSelected = _statusFilter == value;
-    final themeColor = color ?? Colors.blueGrey;
+    final themeColor = color ?? Theme.of(context).colorScheme.primary;
 
     return ChoiceChip(
       label: Text(label),
@@ -291,7 +291,7 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
         }
       },
       selectedColor: themeColor.withOpacity(0.15),
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey.shade50,
       side: BorderSide(color: isSelected ? themeColor : Colors.grey.shade300),
       labelStyle: TextStyle(
         color: isSelected ? themeColor : Colors.grey[600],

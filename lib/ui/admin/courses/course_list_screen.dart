@@ -235,16 +235,30 @@ class _CourseListScreenState extends State<CourseListScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('課程管理 (模板)'),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Theme.of(context).primaryColor,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Theme.of(context).primaryColor,
-          tabs: const [
-            Tab(text: '上架中'),
-            Tab(text: '已封存'),
-          ],
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black87),
+        title: const Text(
+          '課程管理 (模板)',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          )),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              labelColor: Theme.of(context).primaryColor,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Theme.of(context).primaryColor,
+              tabs: const [
+                Tab(text: '上架中'),
+                Tab(text: '已封存'),
+              ],
+            ),
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -353,7 +367,7 @@ class _CourseListScreenState extends State<CourseListScreen>
                                             : Colors.orange.shade100)
                                       : (isArchived
                                             ? Colors.grey.shade300
-                                            : Colors.blue.shade100),
+                                            : Colors.purple.shade100),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -364,7 +378,7 @@ class _CourseListScreenState extends State<CourseListScreen>
                                         ? Colors.grey.shade600
                                         : (course.category == 'group'
                                               ? Colors.orange.shade900
-                                              : Colors.blue.shade900),
+                                              : Colors.purple.shade900),
                                   ),
                                 ),
                               ),
@@ -393,13 +407,14 @@ class _CourseListScreenState extends State<CourseListScreen>
                     ),
                     // 操作按鈕區
                     if (_isAdmin)
-                      Column(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           // 1. 編輯按鈕
                           IconButton(
-                            icon: const Icon(
+                            icon:  Icon(
                               Icons.edit_outlined,
-                              color: Colors.blue,
+                              color: Colors.grey.shade700,
                             ),
                             tooltip: '編輯資訊',
                             onPressed: () => _showCourseDialog(course),
@@ -410,7 +425,7 @@ class _CourseListScreenState extends State<CourseListScreen>
                               isArchived
                                   ? Icons.unarchive_outlined
                                   : Icons.inventory_2_outlined,
-                              color: isArchived ? Colors.green : Colors.orange,
+                              color: Colors.grey.shade700,
                             ),
                             tooltip: isArchived ? '重新上架' : '封存課程',
                             onPressed: () => _togglePublishStatus(course),
@@ -418,9 +433,9 @@ class _CourseListScreenState extends State<CourseListScreen>
                           // 3. 刪除按鈕 (可以只在封存頁顯示，或是都顯示)
                           if (isArchived) // 建議只在封存頁才顯示刪除，避免誤刪
                             IconButton(
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.delete_outline,
-                                color: Colors.grey,
+                                color: Colors.red.shade700,
                               ),
                               tooltip: '永久刪除 (僅限無紀錄課程)',
                               onPressed: () => _deleteCourse(course.id),

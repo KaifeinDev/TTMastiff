@@ -32,15 +32,16 @@ class PayrollDashboard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      color: Colors.blue.shade50, //延續月份選擇器的背景色
+      color: Colors.white, //延續月份選擇器的背景色
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
           boxShadow: [
             BoxShadow(
-              color: Colors.blue.withOpacity(0.1),
+              color: Colors.grey.withOpacity(0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -54,8 +55,8 @@ class PayrollDashboard extends StatelessWidget {
               title: '預估總支出',
               value: '\$${currencyFmt.format(totalPayout)}',
               icon: Icons.payments_outlined,
-              iconColor: Colors.blueAccent,
-              valueColor: Colors.blueAccent,
+              iconColor: Theme.of(context).colorScheme.primary,
+              valueColor: Theme.of(context).colorScheme.primary,
               isLarge: true,
             ),
             _buildVerticalDivider(),
@@ -84,7 +85,7 @@ class PayrollDashboard extends StatelessWidget {
   }
 
   Widget _buildVerticalDivider() {
-    return Container(height: 40, width: 1, color: Colors.grey.shade200);
+    return Container(height: 40, width: 1, color: Colors.white);
   }
 
   Widget _buildStatItem(

@@ -134,6 +134,260 @@ class _UserListScreenState extends State<UserListScreen> {
     }
   }
 
+  Widget _buildFilterSection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isDesktop = screenWidth > 900;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '篩選條件',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 16),
+          if (isDesktop)
+            // 電腦版：所有條件和搜尋按鈕同一行
+            Row(
+              children: [
+                SizedBox(
+                  width: 150, // 課程選擇器固定寬度
+                  child: _buildCourseSelector(),
+                ),
+                const SizedBox(width: 16),
+                if (_selectedCourse != null) ...[
+                  SizedBox(
+                    width: 280, // 場次選擇器固定寬度
+                    child: _buildSessionSelector(),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                Flexible(
+                  child: _buildNameField(),
+                ),
+                const SizedBox(width: 16),
+                Flexible(
+                  child: _buildPhoneField(),
+                ),
+                const SizedBox(width: 16),
+                _buildSearchButton(),
+              ],
+            )
+          else
+            // 手機版：垂直佈局
+            Column(
+              children: [
+                _buildCourseSelector(isMobile: true),
+                const SizedBox(height: 16),
+                if (_selectedCourse != null) ...[
+                  _buildSessionSelector(isMobile: true),
+                  const SizedBox(height: 16),
+                ],
+                _buildNameField(isMobile: true),
+                const SizedBox(height: 16),
+                _buildPhoneField(isMobile: true),
+                const SizedBox(height: 16),
+                _buildSearchButton(),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCourseSelector({bool isMobile = false}) {
+    return DropdownButtonFormField<CourseModel?>(
+      value: _selectedCourse,
+      isExpanded: true, // 桌面版也需要 isExpanded 來正確截斷文字
+      dropdownColor: Colors.white,
+      decoration: InputDecoration(
+        labelText: '選擇課程',
+        border: const OutlineInputBorder(),
+        prefixIcon: const Icon(Icons.book),
+      ),
+      items: [
+        const DropdownMenuItem<CourseModel?>(
+          value: null,
+          child: Text('全部課程'),
+        ),
+        ..._courses.map((course) => DropdownMenuItem<CourseModel?>(
+              value: course,
+              child: Text(
+                course.title,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            )),
+      ],
+      onChanged: _onCourseChanged,
+    );
+  }
+
+  Widget _buildSessionSelector({bool isMobile = false}) {
+    return DropdownButtonFormField<SessionModel?>(
+      value: _selectedSession,
+      isExpanded: true, // 桌面版也需要 isExpanded 來正確截斷文字
+      dropdownColor: Colors.white,
+      decoration: InputDecoration(
+        labelText: '選擇場次',
+        border: const OutlineInputBorder(),
+        prefixIcon: _isLoadingFilter
+            ? const SizedBox(
+                width: 30,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.calendar_today),
+        constraints: isMobile ? null : const BoxConstraints(minWidth: 200),
+      ),
+      selectedItemBuilder: (context) {
+        // 自定義選中項的顯示，確保文字可以截斷
+        return [
+          const Text('全部場次', overflow: TextOverflow.ellipsis),
+          ..._sessions.map((session) {
+            final dateFormat = DateFormat('MM/dd (E) HH:mm', 'zh_TW');
+            return Text(
+              '${dateFormat.format(session.startTime)} - ${DateFormat('HH:mm').format(session.endTime)}',
+              overflow: TextOverflow.ellipsis,
+            );
+          }),
+        ];
+      },
+      items: [
+        const DropdownMenuItem<SessionModel?>(
+          value: null,
+          child: Text('全部場次'),
+        ),
+        ..._sessions.map((session) {
+          final dateFormat = DateFormat('MM/dd (E) HH:mm', 'zh_TW');
+          return DropdownMenuItem<SessionModel?>(
+            value: session,
+            child: Text(
+              '${dateFormat.format(session.startTime)} - ${DateFormat('HH:mm').format(session.endTime)}',
+            ),
+          );
+        }),
+      ],
+      onChanged: (session) {
+        setState(() => _selectedSession = session);
+      },
+    );
+  }
+
+  Widget _buildNameField({bool isMobile = false}) {
+    return isMobile
+        ? TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: '姓名（選填）',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.person),
+              hintText: '輸入姓名進行模糊搜尋',
+            ),
+            textInputAction: TextInputAction.next,
+          )
+        : IntrinsicWidth(
+            child: TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: '姓名（選填）',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person),
+                hintText: '輸入姓名進行模糊搜尋',
+              ),
+              textInputAction: TextInputAction.next,
+            ),
+          );
+  }
+
+  Widget _buildPhoneField({bool isMobile = false}) {
+    return isMobile
+        ? TextField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: '電話（選填）',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.phone),
+              hintText: '輸入電話進行模糊搜尋',
+            ),
+            textInputAction: TextInputAction.done,
+          )
+        : IntrinsicWidth(
+            child: TextField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: '電話（選填）',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.phone),
+                hintText: '輸入電話進行模糊搜尋',
+              ),
+              textInputAction: TextInputAction.done,
+            ),
+          );
+  }
+
+  Widget _buildSearchButton() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isDesktop = screenWidth > 900;
+    
+    return isDesktop
+        ? IconButton(
+            onPressed: _isLoading ? null : _searchStudents,
+            icon: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.search),
+            style: IconButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.all(2),
+            ),
+          )
+        : SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _isLoading ? null : _searchStudents,
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.search),
+              label: _isLoading
+                  ? const SizedBox.shrink()
+                  : const Text(
+                      '查詢',
+                      style: TextStyle(fontSize: 16),
+                    ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+              ),
+            ),
+          );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,259 +397,151 @@ class _UserListScreenState extends State<UserListScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
       ),
-      backgroundColor: Colors.grey.shade100,
-      body: Column(
-        children: [
-          // 篩選區域
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '篩選條件',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-
-                // 課程選擇
-                DropdownButtonFormField<CourseModel>(
-                  value: _selectedCourse,
-                  isExpanded: true, // 讓下拉選單可以展開，避免溢出
-                  decoration: const InputDecoration(
-                    labelText: '選擇課程',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.book),
-                  ),
-                  items: [
-                    const DropdownMenuItem<CourseModel>(
-                      value: null,
-                      child: Text('全部課程'),
-                    ),
-                    ..._courses.map((course) {
-                      return DropdownMenuItem<CourseModel>(
-                        value: course,
-                        child: Text(
-                          course.title,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      );
-                    }),
-                  ],
-                  onChanged: _onCourseChanged,
-                ),
-                const SizedBox(height: 16),
-
-                // 場次選擇
-                if (_selectedCourse != null)
-                  DropdownButtonFormField<SessionModel>(
-                    value: _selectedSession,
-                    decoration: InputDecoration(
-                      labelText: '選擇場次',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.calendar_today),
-                      suffixIcon: _isLoadingFilter
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : null,
-                    ),
-                    items: [
-                      const DropdownMenuItem<SessionModel>(
-                        value: null,
-                        child: Text('全部場次'),
-                      ),
-                      ..._sessions.map((session) {
-                        final dateFormat = DateFormat(
-                          'MM/dd (E) HH:mm',
-                          'zh_TW',
-                        );
-                        return DropdownMenuItem<SessionModel>(
-                          value: session,
-                          child: Text(
-                            '${dateFormat.format(session.startTime)} - ${DateFormat('HH:mm').format(session.endTime)}',
-                          ),
-                        );
-                      }),
-                    ],
-                    onChanged: (session) {
-                      setState(() => _selectedSession = session);
-                    },
-                  ),
-
-                const SizedBox(height: 16),
-
-                // 名字搜尋
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: '姓名（選填）',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
-                    hintText: '輸入姓名進行模糊搜尋',
-                  ),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 16),
-
-                // 電話搜尋
-                TextField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: '電話（選填）',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.phone),
-                    hintText: '輸入電話進行模糊搜尋',
-                  ),
-                  textInputAction: TextInputAction.done,
-                ),
-                const SizedBox(height: 16),
-
-                // 查詢按鈕
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _isLoading ? null : _searchStudents,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('查詢', style: TextStyle(fontSize: 16)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 學員列表
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _studentDataList.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.people_outline,
-                          size: 64,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          '目前還沒有學員報名這堂課！',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _studentDataList.length,
-                    itemBuilder: (context, index) {
-                      final studentData = _studentDataList[index];
-                      final student = studentData['student'] as StudentModel;
-                      final parentPhone = studentData['parentPhone'] as String?;
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundImage: student.avatarUrl != null
-                                ? NetworkImage(student.avatarUrl!)
-                                : null,
-                            child: student.avatarUrl == null
-                                ? Text(
-                                    student.name.isNotEmpty
-                                        ? student.name[0]
-                                        : '?',
-                                    style: const TextStyle(fontSize: 20),
-                                  )
-                                : null,
-                          ),
-                          title: Text(
-                            student.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Colors.grey.shade50,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _studentDataList.isEmpty && !_isLoading
+              ? SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // 篩選區域（可滾動）
+                      _buildFilterSection(),
+                      // 空狀態
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.4,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.cake_outlined,
-                                    size: 16,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    student.birthDate.toDateWithAge(),
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
+                              Icon(
+                                Icons.people_outline,
+                                size: 64,
+                                color: Colors.grey.shade300,
                               ),
-                              if (parentPhone != null &&
-                                  parentPhone.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.phone_outlined,
-                                      size: 16,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      parentPhone,
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
+                              const SizedBox(height: 16),
+                              Text(
+                                '目前還沒有學員報名這堂課！',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 16,
                                 ),
-                              ],
+                              ),
                             ],
                           ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            _showStudentDetail(studentData);
-                          },
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
-          ),
-        ],
-      ),
+                )
+              : ListView(
+                  children: [
+                    // 篩選區域（可滾動）
+                    _buildFilterSection(),
+                    // 學員列表區域（淺灰背景）
+                    Container(
+                      color: Colors.grey.shade50,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Column(
+                        children: [
+                          ..._studentDataList.map((studentData) {
+                            final student = studentData['student'] as StudentModel;
+                            final parentPhone = studentData['parentPhone'] as String?;
+                            final isPrimary = student.isPrimary;
+                            final name = student.name.trim();
+                            final initials = name.isEmpty
+                                ? '?'
+                                : (name.length >= 2
+                                    ? name.substring(name.length - 2)
+                                    : name);
+
+                            return Card(
+                              margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  radius: 25,
+                                  backgroundColor: isPrimary
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withOpacity(0.12),
+                                  child: Text(
+                                    initials,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: isPrimary
+                                          ? Colors.white
+                                          : Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  student.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.cake_outlined,
+                                          size: 16,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          student.birthDate.toDateWithAge(),
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (parentPhone != null &&
+                                        parentPhone.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.phone_outlined,
+                                            size: 16,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            parentPhone,
+                                            style: TextStyle(
+                                              color: Colors.grey.shade600,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () {
+                                  _showStudentDetail(studentData);
+                                },
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
     );
   }
 

@@ -1,39 +1,43 @@
 import 'package:flutter/material.dart';
 
-/// 獨立的 Avatar Widget，避免 NetworkImage 導致持續 rebuild
+/// 獨立的 Avatar Widget，使用本人/非本人兩種顏色
 class StudentAvatar extends StatelessWidget {
-  final String? avatarUrl;
   final String name;
   final double radius;
+  final bool isPrimary;
 
   const StudentAvatar({
     super.key,
-    required this.avatarUrl,
     required this.name,
     required this.radius,
+    required this.isPrimary,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: NetworkImage(avatarUrl!),
-        onBackgroundImageError: (exception, stackTrace) {
-          // 圖片加載失敗時使用默認顯示
-        },
-        child: null, // 有圖片時不顯示文字
-      );
-    } else {
-      return CircleAvatar(
-        radius: radius,
-        backgroundColor: Colors.grey.shade300,
-        child: Text(
-          name.isNotEmpty ? name[0] : '?',
-          style: TextStyle(fontSize: radius * 0.8),
+    final nameTrimmed = name.trim();
+    final initials = nameTrimmed.isEmpty
+        ? '?'
+        : (nameTrimmed.length >= 2
+            ? nameTrimmed.substring(nameTrimmed.length - 2)
+            : nameTrimmed);
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: isPrimary
+          ? Theme.of(context).colorScheme.primary
+          : Theme.of(context).colorScheme.primary.withOpacity(0.12),
+      child: Text(
+        initials,
+        style: TextStyle(
+          fontSize: radius * 0.7,
+          fontWeight: FontWeight.w600,
+          color: isPrimary
+              ? Colors.white
+              : Theme.of(context).colorScheme.primary,
         ),
-      );
-    }
+      ),
+    );
   }
 }
 

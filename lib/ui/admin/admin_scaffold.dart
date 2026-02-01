@@ -17,27 +17,73 @@ class _AdminScaffoldState extends State<AdminScaffold> {
 
     final currentPath = GoRouterState.of(context).uri.toString();
 
-    return Scaffold(
+    // 為後台設置局部主題，讓 DropdownMenuItem 背景為白色
+    return Theme(
+      data: Theme.of(context).copyWith(
+        menuTheme: MenuThemeData(
+          style: MenuStyle(
+            backgroundColor: WidgetStateProperty.all(Colors.white),
+          ),
+        ),
+        colorScheme: Theme.of(context).colorScheme.copyWith(
+              surface: Colors.white,
+              surfaceContainerHighest: Colors.white,
+              surfaceContainerHigh: Colors.white,
+              surfaceContainer: Colors.white,
+              surfaceContainerLow: Colors.white,
+              surfaceContainerLowest: Colors.white,
+              surfaceTint: Colors.transparent,
+            ),
+      ),
+      child: Scaffold(
       appBar: AppBar(
-        title: const Text('TTMastiff 球館管理系統'),
-        backgroundColor: Colors.blueGrey.shade900,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'TTMastiff 球館管理系統', 
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
             icon: const Icon(Icons.home),
             tooltip: '回前台 App',
+            color: Colors.white,
             onPressed: () => context.go('/home'),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(
+            height: 1,
+            thickness: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+        ),
       ),
-      drawer: isDesktop ? null : Drawer(child: _buildSidebar(context)),
+      drawer: isDesktop
+          ? null
+          : Drawer(
+              backgroundColor: Theme.of(context).colorScheme.background,
+              child: _buildSidebar(context),
+            ),
       body: Row(
         children: [
           if (isDesktop)
             Container(
               width: 260,
-              color: Colors.blueGrey.shade800,
-              child: _buildSidebar(context, isDark: true),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.background,
+                border: Border(
+                  right: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: _buildSidebar(context, isDark: false),
             ),
           Expanded(
             child: Container(
@@ -50,6 +96,7 @@ class _AdminScaffoldState extends State<AdminScaffold> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -159,11 +206,11 @@ class _AdminMenuItem extends StatelessWidget {
     ).uri.toString().startsWith(route);
 
     return ListTile(
-      leading: Icon(icon, color: isSelected ? Colors.blueAccent : iconColor),
+      leading: Icon(icon, color: isSelected ? Theme.of(context).colorScheme.primary : iconColor),
       title: Text(
         title,
         style: TextStyle(
-          color: isSelected ? Colors.blueAccent : textColor,
+          color: isSelected ? Theme.of(context).colorScheme.primary : textColor,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),

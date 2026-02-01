@@ -272,8 +272,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: _openBatchGenerator,
-          tooltip: '批量排課', // 滑鼠靠上去會顯示這個文字
-          backgroundColor: Colors.blue.shade50, // 建議用顯眼的顏色
+          tooltip: '批量排課', // 滑鼠靠上去會顯示/ 建議用顯眼的顏色
           child: const Icon(Icons.add),
         ),
         body: Column(
@@ -284,10 +283,10 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
             // 2. TabBar
             Container(
               color: Colors.white,
-              child: const TabBar(
-                labelColor: Colors.blue,
+              child: TabBar(
+                labelColor: Theme.of(context).colorScheme.primary,
                 unselectedLabelColor: Colors.grey,
-                indicatorColor: Colors.blue,
+                indicatorColor: Theme.of(context).colorScheme.primary,
                 tabs: [
                   Tab(text: '即將開始'),
                   Tab(text: '歷史紀錄'),
@@ -314,6 +313,45 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
     );
   }
 
+  // 根據課程類型返回對應顏色
+  Color _getCategoryColor(int shade) {
+    if (_courseData.category == 'group') {
+      switch (shade) {
+        case 50:
+          return Colors.orange.shade50;
+        case 100:
+          return Colors.orange.shade100;
+        case 300:
+          return Colors.orange.shade300;
+        case 700:
+          return Colors.orange.shade700;
+        case 800:
+          return Colors.orange.shade800;
+        case 900:
+          return Colors.orange.shade900;
+        default:
+          return Colors.orange.shade700;
+      }
+    } else {
+      switch (shade) {
+        case 50:
+          return Colors.purple.shade50;
+        case 100:
+          return Colors.purple.shade100;
+        case 300:
+          return Colors.purple.shade300;
+        case 700:
+          return Colors.purple.shade700;
+        case 800:
+          return Colors.purple.shade800;
+        case 900:
+          return Colors.purple.shade900;
+        default:
+          return Colors.purple.shade700;
+      }
+    }
+  }
+
   Widget _buildSessionCard(SessionModel s, bool isHistory) {
     // 處理教練名字 (若有)
     final coachNames = s.coachIds.map((id) => _coachMap[id] ?? '未知').join(', ');
@@ -338,8 +376,8 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              // 歷史紀錄用灰色頭，一般用淡藍色頭
-              color: isHistory ? Colors.grey.shade200 : Colors.blue.shade50,
+              // 歷史紀錄用灰色頭，一般根據課程類型用對應顏色
+              color: isHistory ? Colors.grey.shade200 : _getCategoryColor(50),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(12),
               ),
@@ -353,7 +391,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                     Icon(
                       Icons.calendar_today,
                       size: 16,
-                      color: isHistory ? Colors.grey : Colors.blue.shade700,
+                      color: isHistory ? Colors.grey : _getCategoryColor(700),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -364,7 +402,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                         fontSize: 15,
                         color: isHistory
                             ? Colors.grey.shade600
-                            : Colors.blue.shade900,
+                            : _getCategoryColor(900),
                       ),
                     ),
                   ],
@@ -528,7 +566,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50.withOpacity(0.3), // 淡淡的背景色區隔
+                color: _getCategoryColor(50).withOpacity(0.3), // 淡淡的背景色區隔
                 border: Border(top: BorderSide(color: Colors.grey.shade100)),
               ),
               child: Column(
@@ -539,7 +577,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                       Icon(
                         Icons.people_alt,
                         size: 14,
-                        color: Colors.blue.shade300,
+                        color: _getCategoryColor(300),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -565,14 +603,14 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          border: Border.all(color: Colors.blue.shade100),
+                          border: Border.all(color: _getCategoryColor(100)),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           name,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.blue.shade800,
+                            color: _getCategoryColor(800),
                           ),
                         ),
                       );
@@ -766,7 +804,9 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                 _buildCompactStat(
                   '待進行',
                   '$upcoming',
-                  color: Colors.blue.shade700,
+                  color: _courseData.category == 'group'
+                      ? Colors.orange.shade700
+                      : Colors.purple.shade700,
                 ),
                 _buildCompactStat('已結束', '$history', color: Colors.grey),
               ],

@@ -421,10 +421,10 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
             },
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.calendar_month_outlined,
                   size: 20,
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -634,7 +634,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
       height: _rowHeight,
       width: _dateColWidth,
       decoration: BoxDecoration(
-        color: isToday ? Colors.orange.shade50.withOpacity(0.5) : Colors.white,
+        color: isToday ? Theme.of(context).colorScheme.background : Colors.white,
         border: Border(bottom: border, right: border),
       ),
       child: Stack(
@@ -654,7 +654,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
                     DateFormat('dd').format(date),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isToday ? Colors.deepOrange : Colors.black87,
+                      color: isToday ? Theme.of(context).colorScheme.primary : Colors.black87,
                       fontSize: 18,
                     ),
                   ),
@@ -670,7 +670,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
                     ),
                     decoration: isToday
                         ? BoxDecoration(
-                            color: Colors.deepOrange,
+                            color: Theme.of(context).colorScheme.primary,
                             borderRadius: BorderRadius.circular(10),
                           )
                         : null,
@@ -739,7 +739,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
       width: width,
       height: _rowHeight,
       decoration: BoxDecoration(
-        color: isToday ? Colors.orange.shade50.withOpacity(0.3) : Colors.white,
+        color: isToday ? Theme.of(context).colorScheme.background : Colors.white,
         border: Border(bottom: border, right: border),
       ),
       child: LayoutBuilder(
@@ -810,7 +810,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
     final double blockHeight = durationPercent * totalHeight;
 
     final isPersonal = session.category == 'personal';
-    final themeColor = isPersonal ? Colors.orange : Colors.blue;
+    final themeColor = isPersonal ? Colors.purple : Colors.orange;
     final bgColor = themeColor.withOpacity(0.15);
     final borderColor = themeColor.withOpacity(0.4);
 

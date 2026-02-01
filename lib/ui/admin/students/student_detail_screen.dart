@@ -464,8 +464,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   children: [100, 500, 1000].map((amount) {
                     return ActionChip(
                       label: Text('+$amount'),
-                      backgroundColor: Colors.blue.shade50, // 淡淡的藍色背景
-                      labelStyle: TextStyle(color: Colors.blue.shade700),
+                      backgroundColor: Theme.of(context).colorScheme.background, // 淡淡的藍色背景
+                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
                       onPressed: () {
                         // 邏輯：取得當前數值，加上按鈕面額
                         final current =
@@ -634,9 +634,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                         child: Row(
                           children: [
                             StudentAvatar(
-                              avatarUrl: _student!.avatarUrl,
                               name: _student!.name,
                               radius: 32,
+                              isPrimary: _student!.isPrimary,
                             ),
                             const SizedBox(width: 12),
 
@@ -798,7 +798,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     value: '$_points',
                     onEdit: () => _showPointsEditDialog(),
                   ),
-                ],  
+                ],
               ),
             ),
           ),
@@ -866,10 +866,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                               ),
                             ),
                             if (course != null)
-                              const Icon(
+                              Icon(
                                 Icons.arrow_forward_ios,
                                 size: 16,
-                                color: Colors.blue,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                           ],
                         ),

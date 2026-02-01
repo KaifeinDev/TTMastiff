@@ -291,9 +291,9 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                       8,
                     ), // 右邊 padding 減少，給箭頭空間
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Colors.orange.shade50,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red.shade200),
+                      border: Border.all(color: Colors.orange.shade200),
                     ),
                     child: Row(
                       children: [
@@ -301,13 +301,13 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                         Icon(
                           Icons.assignment_late_outlined,
                           size: 16,
-                          color: Colors.red.shade800,
+                          color: Colors.orange.shade800,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           '待收款:',
                           style: TextStyle(
-                            color: Colors.red.shade900,
+                            color: Colors.orange.shade800,
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           ),
@@ -367,7 +367,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                                                     text: '${e.key} ',
                                                     style: TextStyle(
                                                       color:
-                                                          Colors.red.shade800,
+                                                          Colors.orange.shade800,
                                                       fontWeight:
                                                           FontWeight.normal,
                                                     ),
@@ -376,7 +376,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                                                     text: '\$$amount',
                                                     style: TextStyle(
                                                       color:
-                                                          Colors.red.shade900,
+                                                          Colors.orange.shade900,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                     ),
@@ -394,7 +394,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                                                 height:
                                                     12, // 線的高度 (比文字矮一點點比較優雅)
                                                 color: Colors
-                                                    .red
+                                                    .orange
                                                     .shade200, // 淺紅色的線
                                               ),
                                           ],
@@ -412,7 +412,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                         Icon(
                           Icons.chevron_right,
                           size: 18,
-                          color: Colors.red.shade300,
+                          color: Colors.orange.shade300,
                         ),
                       ],
                     ),
@@ -454,7 +454,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                                   const Icon(
                                     Icons.calendar_month,
                                     size: 18,
-                                    color: Colors.blueGrey,
+                                    color: Colors.grey,
                                   ),
                                   const SizedBox(width: 6),
                                   Flexible(
@@ -578,7 +578,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
               onPressed: () => _executeReconcile(_selectedIds.toList()),
               label: Text('確認收款 (${_selectedIds.length})'),
               icon: const Icon(Icons.check),
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.green.shade200,
             )
           : null,
     );
@@ -594,7 +594,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
         child: Text(
           label,
           style: TextStyle(
-            color: Colors.blue.shade700,
+            color: Theme.of(context).colorScheme.primary,
             fontWeight: FontWeight.bold,
             fontSize: 14,
           ),
@@ -614,12 +614,17 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
 
     if (isSelected) {
       if (isAlert) {
-        bgColor = Colors.red.shade50;
-        textColor = Colors.red.shade700;
-        borderColor = Colors.red.shade200;
+        bgColor = Colors.orange.shade50;
+        textColor = Colors.orange.shade700;
+        borderColor = Colors.orange.shade200;
+      } else if (value == true) {
+        bgColor = Colors.green.shade50;
+        textColor = Colors.green.shade700;
+        borderColor = Colors.green.shade200;
       } else {
-        bgColor = Colors.blueGrey.shade800;
-        textColor = Colors.white;
+        bgColor = Colors.grey.shade300;
+        textColor = Colors.black54;
+        borderColor = Colors.black54;
       }
     }
 

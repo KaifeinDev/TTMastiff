@@ -103,7 +103,7 @@ class SalaryCard extends StatelessWidget {
         statusText = '已結算';
         break;
       default:
-        statusColor = Colors.grey;
+        statusColor = Colors.blue;
         statusText = '未結算';
     }
 
@@ -224,7 +224,7 @@ class SalaryCard extends StatelessWidget {
                                 Icon(
                                   Icons.copy,
                                   size: 12,
-                                  color: Colors.blue[300],
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ],
                             ],
@@ -280,10 +280,10 @@ class SalaryCard extends StatelessWidget {
                         children: [
                           Text(
                             '\$${_fmt.format(currentRate)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 30, // 字體加大
                               fontWeight: FontWeight.w800,
-                              color: Colors.blueAccent,
+                              color: Theme.of(context).colorScheme.primary,
                               height: 1.0,
                             ),
                           ),
@@ -317,7 +317,7 @@ class SalaryCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blueGrey[800],
+                        color: Colors.grey[800],
                         height: 1.0,
                       ),
                     ),
@@ -346,7 +346,7 @@ class SalaryCard extends StatelessWidget {
                           nextGoalText,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.orange[800],
+                            color: Theme.of(context).colorScheme.primary ,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -407,10 +407,10 @@ class SalaryCard extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: onAction,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isUnsettled ? Colors.blue : Colors.orange,
+                    backgroundColor: isUnsettled ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.primaryContainer,
                     foregroundColor: Colors.white,
                     elevation: 2, // 增加陰影，讓它看起來是浮起來的按鈕
-                    shadowColor: (isUnsettled ? Colors.blue : Colors.orange)
+                    shadowColor: (isUnsettled ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.primaryContainer)
                         .withOpacity(0.4),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
@@ -423,10 +423,14 @@ class SalaryCard extends StatelessWidget {
                   icon: Icon(
                     isUnsettled ? Icons.calculate : Icons.edit_note,
                     size: 18,
+                    color: isUnsettled ? Colors.white : Colors.black,
                   ),
                   label: Text(
                     isUnsettled ? '結算' : '修改',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isUnsettled ? Colors.white : Colors.black,
+                    ),
                   ),
                 ),
               ],
@@ -468,8 +472,8 @@ class SalaryCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: thresholdHours >= 135
-                        ? [Colors.blueAccent, Colors.purpleAccent]
-                        : [Colors.blue.shade400, Colors.blueAccent],
+                        ? [Colors.red.shade200, Theme.of(context).colorScheme.primary]
+                        : [Colors.red.shade200, Theme.of(context).colorScheme.primary],
                   ),
                   borderRadius: BorderRadius.circular(4),
                 ),

@@ -123,12 +123,12 @@ class TransactionDesktopTable extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 12,
-                        backgroundColor: Colors.blue.shade50,
+                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                         child: Text(
                           (tx.userFullName ?? 'U').substring(0, 1),
                           style: TextStyle(
                             fontSize: 10,
-                            color: Colors.blue.shade700,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ),
@@ -243,8 +243,8 @@ class TransactionDesktopTable extends StatelessWidget {
       label = '已收款';
     } else {
       // [待收款] -> 紅色
-      bgColor = Colors.red.shade50;
-      textColor = Colors.red.shade700;
+      bgColor = Colors.orange.shade50;
+      textColor = Colors.orange.shade800;
       icon = Icons.add_circle_outline;
       label = '待收款';
     }

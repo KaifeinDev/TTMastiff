@@ -338,8 +338,11 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     color: _dateRange == null ? Colors.grey : Colors.black,
                   ),
                 ),
-                leading: const Icon(Icons.date_range, color: Colors.blue),
-                tileColor: Colors.blue.shade50,
+                leading: Icon(
+                  Icons.date_range,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                tileColor: Theme.of(context).colorScheme.surface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -368,8 +371,8 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     FilterChip(
                       label: Text(_weekdayName(i)),
                       selected: _selectedWeekdays.contains(i),
-                      selectedColor: Colors.blue.shade100,
-                      checkmarkColor: Colors.blue,
+                      selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                      checkmarkColor: Theme.of(context).colorScheme.primary,
                       onSelected: (selected) {
                         setState(() {
                           if (selected) {
@@ -456,12 +459,12 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
 
                           return InputChip(
                             avatar: CircleAvatar(
-                              backgroundColor: Colors.blue.shade100,
+                              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                               child: Text(
                                 coach['full_name'].substring(0, 1), // 取首字當頭像
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.blue.shade800,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ),
@@ -473,8 +476,8 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                                 _updateCapacity(); // 連動人數
                               });
                             },
-                            backgroundColor: Colors.blue.shade50,
-                            deleteIconColor: Colors.blue.shade300,
+                            backgroundColor: Theme.of(context).colorScheme.surface,
+                            deleteIconColor: Theme.of(context).colorScheme.primaryContainer,
                           );
                         }),
 
@@ -544,7 +547,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                           // 加號按鈕
                           IconButton(
                             icon: const Icon(Icons.add_circle_outline),
-                            color: Colors.blue,
+                            color: Theme.of(context).colorScheme.primary,
                             onPressed: () => _manualAdjustCapacity(1),
                           ),
                         ],
@@ -591,7 +594,9 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _generate,
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
           child: _isLoading
               ? const SizedBox(
                   width: 20,

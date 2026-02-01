@@ -268,9 +268,11 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       builder: (context, child) {
         // (選填) 這裡可以自定義日曆的主題顏色
         return Theme(
-          data: Theme.of(
-            context,
-          ).copyWith(colorScheme: ColorScheme.light(primary: Colors.blue)),
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Theme.of(context).colorScheme.primary,
+            ),
+          ),
           child: child!,
         );
       },
@@ -385,7 +387,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
             Container(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50.withOpacity(0.5),
+                color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
                 ),
@@ -425,9 +427,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                   const SizedBox(height: 12),
                   TabBar(
                     controller: _tabController,
-                    labelColor: Colors.blue.shade800,
+                    labelColor: Theme.of(context).colorScheme.primary,
                     unselectedLabelColor: Colors.grey,
-                    indicatorColor: Colors.blue,
+                    indicatorColor: Theme.of(context).colorScheme.primary,
                     tabs: const [
                       Tab(text: '學員名單'),
                       Tab(text: '場次設定'),
@@ -652,7 +654,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                           style: TextStyle(
                             fontSize: 13,
                             color: isSelected
-                                ? Colors.blue.shade900
+                                ? Theme.of(context).colorScheme.primary
                                 : Colors.black87,
                             fontWeight: isSelected
                                 ? FontWeight.bold
@@ -662,16 +664,16 @@ class _SessionEditDialogState extends State<SessionEditDialog>
 
                         // 🔥 2. 顏色設定
                         selected: isSelected,
-                        selectedColor: Colors.blue.shade50,
+                        selectedColor: Theme.of(context).colorScheme.surface,
                         backgroundColor: Colors.white,
                         disabledColor: Colors.grey.shade100,
-                        checkmarkColor: Colors.blue.shade700,
+                        checkmarkColor: Theme.of(context).colorScheme.primary,
 
                         // 🔥 3. 形狀設定 (StadiumBorder)
                         shape: StadiumBorder(
                           side: BorderSide(
                             color: isSelected
-                                ? Colors.blue.shade200
+                                ? Theme.of(context).colorScheme.primaryContainer
                                 : Colors.grey.shade300,
                           ),
                         ),
@@ -725,12 +727,12 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
 
                       avatar: CircleAvatar(
-                        backgroundColor: Colors.blue.shade100,
+                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                         child: Text(
                           (coach['full_name'] as String).substring(0, 1),
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.blue.shade900,
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -739,17 +741,19 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                         coach['full_name'],
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.blue.shade900,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
 
                       // 🔥 2. 統一顏色設定
-                      backgroundColor: Colors.blue.shade50,
-                      deleteIconColor: Colors.blue.shade400,
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                      deleteIconColor: Theme.of(context).colorScheme.primaryContainer,
 
                       // 🔥 3. 統一邊框形狀 (StadiumBorder)
                       shape: StadiumBorder(
-                        side: BorderSide(color: Colors.blue.shade200),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                        ),
                       ),
 
                       onDeleted: _isExpired || !_isAdmin
@@ -818,9 +822,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                           onPressed: () => _adjustCapacity(-1),
                         ),
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.add_circle_outline,
-                            color: Colors.blue,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           onPressed: () => _adjustCapacity(1),
                         ),
@@ -838,7 +842,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                 : ElevatedButton(
                     onPressed: _isSavingSettings ? null : _submitSettings,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                     ),
                     child: _isSavingSettings
                         ? const CircularProgressIndicator()

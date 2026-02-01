@@ -288,7 +288,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                         CircleAvatar(
                           radius: 24,
                           backgroundColor: table.isActive
-                              ? Colors.blue.shade100
+                              ? Colors.green.shade100
                               : Colors.grey.shade200,
                           child: Text(
                             table.name.replaceAll(
@@ -297,7 +297,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                             ), // 嘗試只顯示數字，或直接用 index+1
                             style: TextStyle(
                               color: table.isActive
-                                  ? Colors.blue.shade900
+                                  ? Colors.green.shade900
                                   : Colors.grey,
                               fontWeight: FontWeight.bold,
                             ),
@@ -385,7 +385,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                             ),
                             const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              icon: const Icon(Icons.edit, color: Colors.grey),
                               onPressed: () => _showEditDialog(table),
                             ),
                             // 🔥 修改 3: 刪除按鈕已註解

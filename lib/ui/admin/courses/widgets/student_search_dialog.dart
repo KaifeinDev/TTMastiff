@@ -111,7 +111,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                           leading: CircleAvatar(
                             backgroundColor: isAdded
                                 ? Colors.grey
-                                : Colors.blue.shade100,
+                                : Colors.grey.shade200,
                             child: Text(student.name.substring(0, 1)),
                           ),
                           title: Text(student.name),

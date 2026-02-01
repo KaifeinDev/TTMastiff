@@ -259,9 +259,9 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
             children: [
               // 1. 左側：回到今天按鈕
               IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.today_outlined,
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.primary,
                 ), // 用藍色凸顯功能
                 tooltip: '回到今天',
                 onPressed: () {
@@ -630,7 +630,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
 
         // 顏色邏輯
         final isPersonal = session.category == 'personal';
-        final themeColor = isPersonal ? Colors.orange : Colors.blue;
+        final themeColor = isPersonal ? Colors.purple : Colors.orange;
         final bgColor = themeColor.withOpacity(0.12);
         final borderColor = themeColor.withOpacity(0.3); // 統一邊框色
 

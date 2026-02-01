@@ -128,155 +128,243 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
     }
   }
 
+  void _adjustPrice(int amount) {
+    // 1. 嘗試將目前文字轉為整數，若為空或格式錯誤則預設為 0
+    int currentValue = int.tryParse(_priceController.text) ?? 0;
+
+    // 2. 計算新數值
+    int newValue = currentValue + amount;
+
+    // 3. 避免價格變成負數
+    if (newValue < 0) newValue = 0;
+
+    // 4. 更新 Controller 顯示
+    _priceController.text = newValue.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
-    void _adjustPrice(int amount) {
-      // 1. 嘗試將目前文字轉為整數，若為空或格式錯誤則預設為 0
-      int currentValue = int.tryParse(_priceController.text) ?? 0;
-
-      // 2. 計算新數值
-      int newValue = currentValue + amount;
-
-      // 3. 避免價格變成負數
-      if (newValue < 0) newValue = 0;
-
-      // 4. 更新 Controller 顯示
-      _priceController.text = newValue.toString();
-    }
-
-    return AlertDialog(
-      title: Text(widget.course == null ? '新增課程模板' : '編輯課程模板'),
-      content: SingleChildScrollView(
-        child: SizedBox(
-          width: 400,
-          child: Form(
-            key: _formKey,
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final maxW = c.maxWidth.clamp(320, 560).toDouble();
+          final maxH = c.maxHeight.clamp(520, 720).toDouble();
+          return SizedBox(
+            width: maxW,
+            height: maxH,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextFormField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(
-                    labelText: '課程名稱',
-                    border: OutlineInputBorder(),
-                    filled: true,
-                  ),
-                  validator: (v) => v!.isEmpty ? '請輸入名稱' : null,
-                ),
-                const SizedBox(height: 16),
-
-                DropdownButtonFormField<String>(
-                  value: _category,
-                  decoration: const InputDecoration(
-                    labelText: '課程類別',
-                    border: OutlineInputBorder(),
-                    filled: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'group',
-                      child: Text('團體課 (Group)'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'personal',
-                      child: Text('個人課 (Personal)'),
-                    ),
-                  ],
-                  onChanged: (val) => setState(() => _category = val!),
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _priceController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: '預設價格',
-                    border: OutlineInputBorder(),
-                    prefixText: '\$ ',
-                    filled: true,
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min, // 這一行非常重要！讓 Row 只佔據最小寬度
-                      children: [
-                        // 減號按鈕
-                        IconButton(
-                          icon: const Icon(
-                            Icons.remove_circle_outline,
-                            color: Colors.grey,
-                          ),
-                          onPressed: () => _adjustPrice(-50), // 假設一次減 50 元
-                        ),
-                        // 加號按鈕
-                        IconButton(
-                          icon: const Icon(
-                            Icons.add_circle_outline,
-                            color: Colors.blue,
-                          ),
-                          onPressed: () => _adjustPrice(50), // 假設一次加 50 元
-                        ),
-                      ],
-                    ),
-                  ),
-                  validator: (v) => v!.isEmpty ? '請輸入價格' : null,
-                ),
-                const SizedBox(height: 16),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.access_time),
-                        onPressed: () => _pickTime(true),
-                        label: Text('開始: ${_startTime.format(context)}'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.course == null ? '新增課程模板' : '編輯課程模板',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.access_time_filled),
-                        onPressed: () => _pickTime(false),
-                        label: Text('結束: ${_endTime.format(context)}'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
+                      IconButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                        tooltip: '關閉',
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: Form(
+                    key: _formKey,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextFormField(
+                            controller: _titleController,
+                            decoration: const InputDecoration(
+                              labelText: '課程名稱',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty) ? '請輸入名稱' : null,
+                          ),
+                          const SizedBox(height: 16),
+
+                          DropdownButtonFormField<String>(
+                            value: _category,
+                            dropdownColor: Colors.white,
+                            decoration: const InputDecoration(
+                              labelText: '課程類別',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'group',
+                                child: Text('團體課 (Group)'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'personal',
+                                child: Text('個人課 (Personal)'),
+                              ),
+                            ],
+                            onChanged: _isLoading
+                                ? null
+                                : (val) => setState(() => _category = val!),
+                          ),
+                          const SizedBox(height: 16),
+
+                          TextFormField(
+                            controller: _priceController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: '預設價格',
+                              border: const OutlineInputBorder(),
+                              prefixText: '\$ ',
+                              suffixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline,
+                                      color: Colors.grey,
+                                    ),
+                                    onPressed: _isLoading
+                                        ? null
+                                        : () => _adjustPrice(-50),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      color: Colors.redAccent,
+                                    ),
+                                    onPressed: _isLoading
+                                        ? null
+                                        : () => _adjustPrice(50),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty) ? '請輸入價格' : null,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 時間欄位：做成跟 TextField 一樣的外觀
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _TimeField(
+                                  label: '開始時間',
+                                  valueText: _startTime.format(context),
+                                  onTap: _isLoading
+                                      ? null
+                                      : () => _pickTime(true),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _TimeField(
+                                  label: '結束時間',
+                                  valueText: _endTime.format(context),
+                                  onTap: _isLoading
+                                      ? null
+                                      : () => _pickTime(false),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          TextFormField(
+                            controller: _descController,
+                            decoration: const InputDecoration(
+                              labelText: '描述 (選填)',
+                              border: OutlineInputBorder(),
+                              alignLabelWithHint: true,
+                            ),
+                            minLines: 2,
+                            maxLines: 4,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _descController,
-                  decoration: const InputDecoration(
-                    labelText: '描述 (選填)',
-                    border: OutlineInputBorder(),
-                    filled: true,
                   ),
-                  maxLines: 2,
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          child: const Text('取消'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _isLoading ? null : _submit,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Text(widget.course == null ? '新增' : '更新'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _TimeField extends StatelessWidget {
+  final String label;
+  final String valueText;
+  final VoidCallback? onTap;
+
+  const _TimeField({
+    required this.label,
+    required this.valueText,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          suffixIcon: const Icon(Icons.access_time),
+        ),
+        child: Text(
+          valueText.isEmpty ? '請選擇' : valueText,
+          style: TextStyle(
+            color: valueText.isEmpty ? Colors.grey.shade600 : null,
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _submit,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('儲存'),
-        ),
-      ],
     );
   }
 }

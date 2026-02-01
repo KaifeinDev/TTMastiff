@@ -25,8 +25,8 @@ class TransactionDashboard extends StatelessWidget {
           _buildStatCard(
             title: '待收款',
             amount: currencyFormat.format(pendingCash),
-            bgColor: Colors.red.shade50,
-            textColor: Colors.red.shade700,
+            bgColor: Colors.orange.shade50,
+            textColor: Colors.orange.shade800,
             icon: Icons.pending_actions,
           ),
           const SizedBox(width: 12),

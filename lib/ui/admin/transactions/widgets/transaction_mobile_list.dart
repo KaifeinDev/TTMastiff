@@ -55,8 +55,8 @@ class TransactionMobileList extends StatelessWidget {
       } else {
         // [待收款] -> 加號 (Add)
         icon = Icons.add;
-        iconColor = Colors.red.shade700; // 建議待收款用藍色或橘色，區分 "已完成" 的綠色
-        iconBgColor = Colors.red.shade50;
+        iconColor = Colors.orange.shade700; // 建議待收款用藍色或橘色，區分 "已完成" 的綠色
+        iconBgColor = Colors.orange.shade50;
       }
     }
 
@@ -147,7 +147,7 @@ class TransactionMobileList extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: tx.isReconciled
                               ? Colors.green.shade50
-                              : Colors.red.shade50,
+                              : Colors.orange.shade50,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -156,7 +156,7 @@ class TransactionMobileList extends StatelessWidget {
                             fontSize: 10,
                             color: tx.isReconciled
                                 ? Colors.green
-                                : Colors.red.shade500,
+                                : Colors.orange.shade500,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

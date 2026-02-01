@@ -93,10 +93,6 @@ class MyApp extends StatelessWidget {
           elevation: 1,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: const Color.fromARGB(255, 242, 148, 136), // 你想要的顏色
-              width: 1,
-            ),
           ),
         ),
         // 全局 Dialog 主題設定
@@ -122,6 +118,13 @@ class MyApp extends StatelessWidget {
         tabBarTheme: const TabBarThemeData(
           labelStyle: TextStyle(
             fontWeight: FontWeight.bold,
+          ),
+        ),
+        // 全局 Menu 主題設定（包含 DropdownButton 的下拉清單）
+        menuTheme: MenuThemeData(
+          style: MenuStyle(
+            backgroundColor: WidgetStateProperty.all(Colors.white),
+            surfaceTintColor: WidgetStateProperty.all(Colors.transparent),
           ),
         ),
       ),

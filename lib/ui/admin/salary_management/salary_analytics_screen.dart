@@ -89,7 +89,13 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
                 // 年份選擇
                 DropdownButton<int>(
                   value: _selectedYear,
-                  items: [2024, 2025, 2026, 2027].map((y) => DropdownMenuItem(value: y, child: Text('$y年'))).toList(),
+                  dropdownColor: Colors.white,
+                  items: [2024, 2025, 2026, 2027].map((y) {
+                    return DropdownMenuItem<int>(
+                      value: y,
+                      child: Text('$y年'),
+                    );
+                  }).toList(),
                   onChanged: (val) {
                     if (val != null) {
                       setState(() => _selectedYear = val);
@@ -99,21 +105,24 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
                 ),
                 const SizedBox(width: 16),
                 // 員工選擇
-                Expanded(
+                Flexible(
                   child: DropdownButton<String?>(
                     value: _selectedStaffId,
                     isExpanded: true,
-                    hint: const Text('全體員工'),
+                    dropdownColor: Colors.white,
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('全體員工')),
-                      ..._staffList.map((s) => DropdownMenuItem(
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('全體員工'),
+                      ),
+                      ..._staffList.map((s) => DropdownMenuItem<String?>(
                         value: s['id'] as String,
                         child: Text(s['full_name'] ?? '未命名'),
                       )),
                     ],
                     onChanged: (val) {
                       setState(() => _selectedStaffId = val);
-                      _loadChartData(); // 本地重算即可，其實不需要重抓 API，但為了簡單先重抓
+                      _loadChartData();
                     },
                   ),
                 ),
@@ -165,11 +174,11 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
                         LineChartBarData(
                           spots: _generateSpots(_thisYearData),
                           isCurved: true,
-                          color: Colors.blue,
+                          color: Theme.of(context).colorScheme.primary,
                           barWidth: 4,
                           isStrokeCapRound: true,
                           dotData: const FlDotData(show: true),
-                          belowBarData: BarAreaData(show: true, color: Colors.blue.withOpacity(0.1)),
+                          belowBarData: BarAreaData(show: true, color: Theme.of(context).colorScheme.primary.withOpacity(0.1)),
                         ),
                       ],
                       // 互動 Tooltip
@@ -197,7 +206,7 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildLegend(Colors.blue, '今年 ($_selectedYear)'),
+                _buildLegend(Theme.of(context).colorScheme.primary, '今年 ($_selectedYear)'),
                 const SizedBox(width: 24),
                 _buildLegend(Colors.grey.shade400, '去年 (${_selectedYear - 1})', isDashed: true),
               ],

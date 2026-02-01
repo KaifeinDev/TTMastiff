@@ -691,6 +691,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         // 2. 錢包/點數區塊
                         Card(
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(
+                              color: const Color.fromARGB(255, 242, 148, 136),
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               vertical: 18,
