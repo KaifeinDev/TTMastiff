@@ -10,6 +10,8 @@ class BookingModel {
   final String sessionId;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final String? guestName;
+  final String? guestPhone;
 
   // 關聯物件
   final SessionModel session;
@@ -26,6 +28,8 @@ class BookingModel {
     this.updatedAt,
     required this.session,
     this.student,
+    this.guestName,
+    this.guestPhone,
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
@@ -42,6 +46,8 @@ class BookingModel {
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at']).toLocal()
           : null,
+      guestName: json['guest_name'],
+      guestPhone: json['guest_phone'],
 
       // 處理關聯資料
       session: SessionModel.fromJson(json['sessions']),
