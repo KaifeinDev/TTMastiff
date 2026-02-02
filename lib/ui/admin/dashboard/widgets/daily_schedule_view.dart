@@ -337,6 +337,10 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
             ],
           ),
         ),
+
+        // 待排定區塊
+        _buildPendingSessionBar(),
+
         // --- 2. 核心排程表 (Excel 佈局) ---
         Expanded(
           child: LayoutBuilder(
@@ -831,5 +835,121 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
         );
       });
     }).toList();
+  }
+
+  // 🔍 篩選出「待排定」或「資料不完整」的課程
+  List<SessionModel> get _pendingSessions {
+    return _sessions.where((s) {
+      // 條件 1: 沒有分配桌子 (這是最嚴重的，因為會導致在表格上消失)
+      final noTable = s.tables.isEmpty;
+      // 條件 2: 沒有分配教練 (選用，視你的需求決定這算不算異常)
+      final noCoach = s.coachIds.isEmpty;
+
+      return noTable || noCoach;
+    }).toList();
+  }
+
+  // ⚠️ 建構「待排定課程」的橫幅區域
+  Widget _buildPendingSessionBar() {
+    final pendingList = _pendingSessions;
+
+    // 如果沒有問題課程，就隱藏這個區塊
+    if (pendingList.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      color: Colors.orange.shade50, // 警示色背景
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 16,
+                color: Colors.orange.shade800,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '待排定 / 資料不完整 (${pendingList.length})',
+                style: TextStyle(
+                  color: Colors.orange.shade900,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 橫向捲動的卡片列表
+          SizedBox(
+            height: 50, // 固定高度
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: pendingList.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final session = pendingList[index];
+
+                // 判斷缺什麼
+                final bool noTable = session.tables.isEmpty;
+                final bool noCoach = session.coachIds.isEmpty;
+                List<String> missingItems = [];
+                if (noTable) missingItems.add("缺桌次");
+                if (noCoach) missingItems.add("缺教練");
+
+                return ActionChip(
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.white,
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(color: Colors.orange.shade200),
+                  ),
+                  avatar: CircleAvatar(
+                    backgroundColor: Colors.orange.shade100,
+                    child: Text(
+                      DateFormat('HH:mm').format(session.startTime),
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(session.courseTitle),
+                      const SizedBox(width: 4),
+                      // 顯示缺少的項目標籤
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.red.shade100),
+                        ),
+                        child: Text(
+                          missingItems.join("/"),
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  onPressed: () => _openSessionEdit(session), // 點擊直接開啟編輯
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
