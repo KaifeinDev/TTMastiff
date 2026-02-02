@@ -5,13 +5,11 @@ import 'package:ttmastiff/main.dart';
 
 import '../../../data/models/student_model.dart';
 import '../../../data/models/booking_model.dart';
-import 'widgets/student_info_row.dart';
-import 'widgets/student_status_chip.dart';
-import 'widgets/student_avatar.dart';
+import '../../component/widget/attendance_status_chip.dart';
+import '../../component/user_info_card.dart';
 import '../courses/widgets/session_edit_dialog.dart';
 import '../../../core/utils/util.dart';
 import 'package:ttmastiff/data/services/booking_repository.dart';
-import '../../screens/widgets/level_icon.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StudentDetailScreen extends StatefulWidget {
@@ -41,6 +39,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   StudentModel? _student;
   String? _parentName;
   String? _parentPhone;
+  String? _parentEmail; // 家長信箱
   List<BookingModel> _bookings = [];
   int _parentCredits = 0;
   String? _membership; // profiles.membership
@@ -151,10 +150,16 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         debugPrint('讀取會員資格失敗: $e');
       }
 
+      // 讀取 email（從 profiles 表或通過 RPC 函數）
+      String? email;
+      final user = Supabase.instance.client.auth.currentUser;
+      email = user?.email;
+
       if (mounted) {
         setState(() {
           _parentCredits = credits;
           _membership = membership ?? 'beginner';
+          _parentEmail = email;
           _isLoadingCredits = false;
         });
       }
@@ -614,192 +619,30 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ─── 方案三：尊榮金幣風 ───
+          // 個人資訊卡（使用 UserInfoCard，整合所有資訊）
           Card(
             elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // 左半部 (頭像與個資) - 維持不變
-                      // 1. 左半部 (頭像與個資)
-                      Expanded(
-                        flex: 4,
-                        child: Row(
-                          children: [
-                            StudentAvatar(
-                              name: _student!.name,
-                              radius: 32,
-                              isPrimary: _student!.isPrimary,
-                            ),
-                            const SizedBox(width: 12),
-
-                            // 這裡的 Expanded 限制了文字區塊的最大寬度
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center, // 垂直置中
-                                children: [
-                                  // ─── 姓名 (加入 FittedBox) ───
-                                  FittedBox(
-                                    fit: BoxFit.scaleDown, // 空間不足時縮小
-                                    alignment:
-                                        Alignment.centerLeft, // 🔥 關鍵：縮小時靠左對齊
-                                    child: Text(
-                                      _student!.name,
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      maxLines: 1, // 強制單行，觸發縮小機制
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 4),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // 中間分隔線
-                      Container(
-                        height: 50,
-                        width: 1,
-                        color: Colors.grey.shade300,
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-
-                      // 🔥 右半部：方案三 (Gold) 🔥
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Icon(
-                                  Icons.monetization_on,
-                                  color: Colors.amber.shade700,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 4),
-                                _isLoadingCredits
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : Flexible(
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            NumberFormat(
-                                              '#,###',
-                                            ).format(_parentCredits),
-                                            style: TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.w800,
-                                              color: Colors.grey.shade800,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                              ],
-                            ),
-                            Text(
-                              'Credits',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.amber.shade800,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            const SizedBox(height: 4),
-                            SizedBox(
-                              height: 24,
-                              child: TextButton.icon(
-                                onPressed: () => _showTopUpDialog(context),
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  alignment: Alignment.centerRight,
-                                ),
-                                icon: const Icon(Icons.add_card, size: 14),
-                                label: const Text(
-                                  '儲值',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // 下半部資訊 (維持不變)
-                  const SizedBox(height: 16),
-                  Divider(height: 1, color: Colors.grey.shade200),
-                  const SizedBox(height: 16),
-                  StudentInfoRow(
-                    icon: Icons.cake,
-                    label: '生日',
-                    value: _student!.birthDate.toDateWithAge(),
-                  ),
-                  if (!isSelf) ...[
-                    const SizedBox(height: 12),
-                    StudentInfoRow(
-                      icon: Icons.person,
-                      label: '家長',
-                      value: _parentName ?? '未提供',
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  StudentInfoRow(
-                    icon: Icons.phone,
-                    label: isSelf ? '電話' : '電話',
-                    value: _parentPhone ?? '未提供',
-                  ),
-                  if (_student!.medicalNote != null &&
-                      _student!.medicalNote!.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    StudentInfoRow(
-                      icon: Icons.medical_information,
-                      label: '醫療備註',
-                      value: _student!.medicalNote!,
-                    ),
-                  ],
-                  if (isSelf) ...[
-                    const SizedBox(height: 12),
-                    StudentInfoRow(
-                      icon: Icons.wallet_membership,
-                      label: '會員',
-                      value: getLevelText(_membership),
-                      onEdit: () => _showLevelEditDialog(),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  StudentInfoRow(
-                    icon: Icons.stars,
-                    label: '點數',
-                    value: '$_points',
-                    onEdit: () => _showPointsEditDialog(),
-                  ),
-                ],
-              ),
+            child: UserInfoCard(
+              displayName: _student!.name,
+              gender: _student!.gender,
+              email: _parentEmail,
+              phone: _parentPhone,
+              birthDateText: _student!.birthDate.toDateWithAge(),
+              membership: _membership,
+              points: _points,
+              credits: _parentCredits,
+              isLoadingCredits: _isLoadingCredits,
+              isAdmin: true,
+              isSelf: isSelf,
+              onMembershipEdit: isSelf ? () => _showLevelEditDialog() : null,
+              onPointsEdit: () => _showPointsEditDialog(),
+              onCreditsTopUp: isSelf ? () => _showTopUpDialog(context) : null,
+              medicalNote: _student!.medicalNote,
+              moveAvatarToTopRight: true,
+              isPrimary: isSelf,
             ),
           ),
           const SizedBox(height: 24),
@@ -908,7 +751,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                               ),
                             ),
                             const Spacer(),
-                            StudentStatusChip(status: booking.attendanceStatus),
+                            AttendanceStatusChip(status: booking.attendanceStatus),
                           ],
                         ),
                       ],

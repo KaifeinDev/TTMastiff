@@ -3,10 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart';
 
 // Models & Repositories
-import '../../data/models/session_model.dart';
-import '../../data/models/student_model.dart';
-import '../../data/models/course_model.dart';
-import 'widgets/level_icon.dart';
+import '../../../data/models/session_model.dart';
+import '../../../data/models/student_model.dart';
+import '../../../data/models/course_model.dart';
+import '../../component/widget/membership_utils.dart';
+import '../../component/widget/course_category_badge.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CourseDetailScreen extends StatefulWidget {
@@ -299,22 +300,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         // 標籤
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: _course!.category == 'personal'
-                ? Colors.purple.shade50
-                : Color.fromARGB(30, 255, 122, 50),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            _course!.category == 'personal' ? '一對一' : '團體班',
-            style: TextStyle(
-              fontSize: 12,
-              color: _course!.category == 'personal'
-                  ? Colors.purple
-                  : const Color.fromARGB(255, 255, 123, 0),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          child: CourseCategoryBadge(category: _course!.category),
         ),
         const SizedBox(height: 8),
         Builder(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/data/models/transaction_model.dart';
+import '../../../component/widget/transaction_status_badge.dart';
 
 class TransactionMobileList extends StatelessWidget {
   final List<TransactionModel> transactions;
@@ -136,55 +137,12 @@ class TransactionMobileList extends StatelessWidget {
                         color: isRefunded ? Colors.grey : Colors.green,
                       ),
                     ),
-                    if (!isRefunded) ...[
-                      const SizedBox(height: 4),
-                      // 對帳狀態小標籤
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: tx.isReconciled
-                              ? Colors.green.shade50
-                              : Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          tx.isReconciled ? '已收款' : '待收款',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: tx.isReconciled
-                                ? Colors.green
-                                : Colors.orange.shade500,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (isRefunded) ...[
-                      const SizedBox(height: 4),
-                      // 對帳狀態小標籤
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '已退款',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
+                    const SizedBox(height: 4),
+                    // 對帳狀態小標籤
+                    TransactionStatusBadge(
+                      isReconciled: tx.isReconciled,
+                      status: tx.status,
+                    ),
                   ],
                 ),
               ],

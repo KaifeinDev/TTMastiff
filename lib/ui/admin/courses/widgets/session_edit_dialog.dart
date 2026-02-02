@@ -10,6 +10,8 @@ import '../../../../data/models/booking_model.dart';
 import '../../../../data/models/student_model.dart';
 import '../../../../data/models/table_model.dart';
 import '../../../../core/utils/util.dart';
+import '../../../../core/constants/attendance_status.dart';
+import '../../../component/widget/attendance_status_chip.dart';
 import 'student_search_dialog.dart';
 
 class SessionEditDialog extends StatefulWidget {
@@ -479,9 +481,11 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                     child: Text(booking.student?.name[0] ?? '?'),
                   ),
                   title: Text(booking.student?.name ?? '未知'),
-                  subtitle: _buildStatusBadge(
-                    booking.attendanceStatus,
-                    booking.status,
+                  subtitle: AttendanceStatusChip(
+                    status: booking.status == 'cancelled'
+                        ? AttendanceStatus.cancelled
+                        : (booking.attendanceStatus ?? AttendanceStatus.pending),
+                    showBackground: false, // 只顯示文字顏色，不顯示背景和邊框
                   ),
                   trailing: booking.status == 'cancelled' || _isExpired
                       ? null
@@ -517,37 +521,6 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     );
   }
 
-  Widget _buildStatusBadge(String attendance, String status) {
-    if (status == 'cancelled') {
-      return const Text('已取消', style: TextStyle(color: Colors.grey));
-    }
-    String text = '待上課';
-    Color color = Colors.blue;
-    switch (attendance) {
-      case 'attended':
-        {
-          text = '已出席';
-          color = Colors.green;
-        }
-        break;
-      case 'leave':
-        {
-          text = '已請假';
-          color = Colors.orange;
-        }
-        break;
-      case 'absent':
-        {
-          text = '曠課';
-          color = Colors.red;
-        }
-        break;
-    }
-    return Text(
-      text,
-      style: TextStyle(color: color, fontWeight: FontWeight.bold),
-    );
-  }
 
   void _showAddCoachDialog(BuildContext context) {
     // 1. 過濾出「尚未選擇」的教練

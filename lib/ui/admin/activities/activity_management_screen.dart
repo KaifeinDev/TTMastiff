@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import '../../../data/models/activity_model.dart';
 import '../../../data/services/activity_repository.dart';
+import '../../../core/constants/activity_types.dart';
+import '../../../core/constants/activity_status.dart';
 
 import 'widgets/activity_edit_dialog.dart';
 import 'widgets/dashed_card.dart';
@@ -46,16 +48,16 @@ class _ActivityManagementScreenState
   Future<void> _loadActivities() async {
     setState(() => _isLoading = true);
     try {
-      final carousel = await _activityRepository.getActivities(type: 'carousel');
-      final recent = await _activityRepository.getActivities(type: 'recent');
+      final carousel = await _activityRepository.getActivities(type: ActivityTypes.carousel);
+      final recent = await _activityRepository.getActivities(type: ActivityTypes.recent);
 
       if (mounted) {
         setState(() {
-          _carouselActive = carousel.where((a) => a.status == 'active').toList();
+          _carouselActive = carousel.where((a) => a.status == ActivityStatus.active).toList();
           _carouselInactive =
-              carousel.where((a) => a.status == 'inactive').toList();
-          _recentActive = recent.where((a) => a.status == 'active').toList();
-          _recentInactive = recent.where((a) => a.status == 'inactive').toList();
+              carousel.where((a) => a.status == ActivityStatus.inactive).toList();
+          _recentActive = recent.where((a) => a.status == ActivityStatus.active).toList();
+          _recentInactive = recent.where((a) => a.status == ActivityStatus.inactive).toList();
           _isLoading = false;
         });
       }
@@ -138,7 +140,7 @@ class _ActivityManagementScreenState
           _buildSection(
             title: '輪播',
             activities: _carouselActive,
-            type: 'carousel',
+            type: ActivityTypes.carousel,
             isActive: true,
           ),
           const Divider(height: 1),
@@ -146,7 +148,7 @@ class _ActivityManagementScreenState
           _buildSection(
             title: '近期活動',
             activities: _recentActive,
-            type: 'recent',
+            type: ActivityTypes.recent,
             isActive: true,
           ),
         ],
@@ -163,7 +165,7 @@ class _ActivityManagementScreenState
           _buildSection(
             title: '輪播',
             activities: _carouselInactive,
-            type: 'carousel',
+            type: ActivityTypes.carousel,
             isActive: false,
           ),
           const Divider(height: 1),
@@ -171,7 +173,7 @@ class _ActivityManagementScreenState
           _buildSection(
             title: '近期活動',
             activities: _recentInactive,
-            type: 'recent',
+            type: ActivityTypes.recent,
             isActive: false,
           ),
         ],
@@ -413,7 +415,7 @@ class _ActivityManagementScreenState
                   const PopupMenuItem(value: 'deactivate', child: Text('下架')),
                   PopupMenuItem(
                     value: 'switch',
-                    child: Text(type == 'carousel' ? '改到近期活動' : '改到輪播'),
+                    child: Text(type == ActivityTypes.carousel ? '改到近期活動' : '改到輪播'),
                   ),
                 ]
               : const [
@@ -463,7 +465,7 @@ class _ActivityManagementScreenState
               ),
               ListTile(
                 leading: const Icon(Icons.swap_horiz),
-                title: Text(type == 'carousel' ? '改到近期活動' : '改到輪播'),
+                title: Text(type == ActivityTypes.carousel ? '改到近期活動' : '改到輪播'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _switchActivityType(activity, type);
@@ -526,7 +528,7 @@ class _ActivityManagementScreenState
 
   Future<void> _activateActivity(ActivityModel activity) async {
     try {
-      await _activityRepository.updateActivityStatus(activity.id, 'active');
+      await _activityRepository.updateActivityStatus(activity.id, ActivityStatus.active);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('活動已重新上架')),
@@ -544,7 +546,7 @@ class _ActivityManagementScreenState
 
   Future<void> _switchActivityType(ActivityModel activity, String currentType) async {
     try {
-      final newType = currentType == 'carousel' ? 'recent' : 'carousel';
+      final newType = currentType == ActivityTypes.carousel ? ActivityTypes.recent : ActivityTypes.carousel;
       await _activityRepository.updateActivityType(activity.id, newType);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -603,7 +605,7 @@ class _ActivityManagementScreenState
   Future<void> _openCreateDialog(String type) async {
     await ActivityEditDialog.show(
       context,
-      titleText: '新增${type == 'carousel' ? '輪播' : '近期活動'}',
+      titleText: '新增${type == ActivityTypes.carousel ? '輪播' : '近期活動'}',
       fixedType: type,
       onSubmit: ({
         required String title,
@@ -620,7 +622,7 @@ class _ActivityManagementScreenState
           endTime: endTime,
           image: base64Image,
           type: type,
-          status: 'active',
+          status: ActivityStatus.active,
         );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

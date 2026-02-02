@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/data/models/transaction_model.dart';
+import '../../../component/widget/transaction_status_badge.dart';
 
 class TransactionDesktopTable extends StatelessWidget {
   final List<TransactionModel> transactions;
@@ -199,7 +200,10 @@ class TransactionDesktopTable extends StatelessWidget {
                 ),
 
                 // 6. 狀態
-                DataCell(_buildStatusChip(tx)),
+                DataCell(TransactionStatusBadge(
+                  isReconciled: tx.isReconciled,
+                  status: tx.status,
+                )),
 
                 // 7. 操作
                 DataCell(
@@ -221,56 +225,4 @@ class TransactionDesktopTable extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip(TransactionModel tx) {
-    final isRefunded = tx.status == 'refunded';
-
-    Color bgColor;
-    Color textColor;
-    IconData icon;
-    String label;
-
-    if (isRefunded) {
-      // [已作廢] -> 灰色
-      bgColor = Colors.grey.shade100;
-      textColor = Colors.grey;
-      icon = Icons.block;
-      label = '已作廢';
-    } else if (tx.isReconciled) {
-      // [已收款] -> 綠色
-      bgColor = Colors.green.shade50;
-      textColor = Colors.green.shade700;
-      icon = Icons.check_circle_outline;
-      label = '已收款';
-    } else {
-      // [待收款] -> 紅色
-      bgColor = Colors.orange.shade50;
-      textColor = Colors.orange.shade800;
-      icon = Icons.add_circle_outline;
-      label = '待收款';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: textColor.withOpacity(0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: textColor),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

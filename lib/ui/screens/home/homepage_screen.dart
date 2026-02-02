@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/services/student_repository.dart';
-import '../../data/services/activity_repository.dart';
-import '../../data/models/student_model.dart';
-import '../../data/models/activity_model.dart';
-import 'widgets/gender_icon.dart';
+import '../../../data/services/student_repository.dart';
+import '../../../data/services/activity_repository.dart';
+import '../../../data/models/student_model.dart';
+import '../../../data/models/activity_model.dart';
+import '../../component/user_info_card.dart';
+import '../../component/widget/gender_icon.dart';
 
 class HomepageScreen extends StatefulWidget {
   const HomepageScreen({super.key});
@@ -29,6 +30,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
   // 個人資訊狀態
   List<StudentModel> _students = [];
   StudentModel? _primaryStudent;
+  String? _membership; // 會員等級
   String? _userEmail;
   String? _userPhone;
   bool _isLoadingUserInfo = true;
@@ -79,12 +81,12 @@ class _HomepageScreenState extends State<HomepageScreen> {
     setState(() => _isLoadingUserInfo = true);
 
     try {
-      // 1. 平行載入：抓取 Profile (錢包/電話) & 抓取 Students (頭像/姓名)
+      // 1. 平行載入：抓取 Profile (會員等級/電話) & 抓取 Students (頭像/姓名)
       final results = await Future.wait<dynamic>([
-        // Task A: 抓 Profile
+        // Task A: 抓 Profile (會員等級/電話)
         Supabase.instance.client
             .from('profiles')
-            .select()
+            .select('membership, phone')
             .eq('id', user.id)
             .single(),
         // Task B: 抓 Students
@@ -93,6 +95,8 @@ class _HomepageScreenState extends State<HomepageScreen> {
 
       final profileData = results[0] as Map<String, dynamic>;
       final studentsList = results[1] as List<StudentModel>;
+      final membership = profileData['membership'] as String?;
+      final phone = profileData['phone'] as String?;
 
       // 2. 找出本人 (isPrimary = true)
       StudentModel? primary;
@@ -105,11 +109,11 @@ class _HomepageScreenState extends State<HomepageScreen> {
 
       if (mounted) {
         setState(() {
-          _userEmail = user.email;
-          // 電話優先看 profile，沒有才看 auth user
-          _userPhone = profileData['phone'] ?? user.phone;
           _students = studentsList;
           _primaryStudent = primary; // 🌟 UI 顯示頭像跟姓名要靠這個
+          _membership = membership;
+          _userEmail = user.email;
+          _userPhone = phone ?? user.phone;
           _isLoadingUserInfo = false;
         });
       }
@@ -327,184 +331,88 @@ class _HomepageScreenState extends State<HomepageScreen> {
     final displayName = _primaryStudent?.name ?? '用戶';
     final primaryGender = _primaryStudent?.gender;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 主帳號資訊
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 主帳號資訊
+        UserInfoCard(
+          displayName: displayName,
+          gender: primaryGender,
+          email: _userEmail,
+          phone: _userPhone,
+          membership: _membership,
+          isPrimary: true, // 主帳號是本人
+        ),
+        
+        // 家庭成員列表
+        if (_students.isNotEmpty && _students.length > 1) ...[
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Builder(
-                builder: (_) {
-                  final name = displayName.trim();
-                  final initials = name.length >= 2
-                      ? name.substring(name.length - 2)
-                      : name;
-
-                  return CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    child: Text(
-                      initials,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  );
-                },
+              const Icon(
+                Icons.people_outline,
+                size: 20,
+                color: Colors.grey,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          displayName,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        if (primaryGender != null) ...[
-                          const SizedBox(width: 4),
-                          buildGenderIcon(primaryGender),
-                        ],
-                      ],
-                    ),
-                    if (_userEmail != null && _userEmail!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.email,
-                              size: 14,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                _userEmail!,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (_userPhone != null && _userPhone!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.phone_iphone,
-                              size: 14,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _userPhone!,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+              const SizedBox(width: 6),
+              Text(
+                '家庭成員',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
                 ),
               ),
             ],
           ),
-          
-          // 家庭成員列表（精簡顯示）
-          if (_students.isNotEmpty && _students.length > 1) ...[
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Center(
-                  child: const Icon(
-                    Icons.people_outline,
-                    size: 20,
-                    color: Colors.grey,
-                  ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _students
+                .where((s) => !s.isPrimary) // 排除主帳號
+                .map((student) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
-                const SizedBox(width: 6),
-                Center(
-                  child: Text(
-                    '家庭成員',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _students
-                  .where((s) => !s.isPrimary) // 排除主帳號
-                  .map((student) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      if (student.gender != null) ...[
-                        Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: buildGenderIcon(student.gender),
-                          ),
-                        ),
-                      ],
-                      Center(
-                        child: Text(
-                          student.name,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                        ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (student.gender != null) ...[
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: GenderIcon(gender: student.gender),
                       ),
+                      const SizedBox(width: 4),
                     ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
+                    Text(
+                      student.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
         ],
-      ),
+      ],
     );
   }
 

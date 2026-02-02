@@ -1,28 +1,30 @@
 import 'package:flutter/material.dart';
 
-/// 獨立的 Avatar Widget，使用本人/非本人兩種顏色
+/// 學員頭像 Widget（用於列表顯示）
 class StudentAvatar extends StatelessWidget {
   final String name;
-  final double radius;
   final bool isPrimary;
+  final double radius;
+  final String? heroTag;
 
   const StudentAvatar({
     super.key,
     required this.name,
-    required this.radius,
-    required this.isPrimary,
+    this.isPrimary = false,
+    this.radius = 25,
+    this.heroTag,
   });
 
   @override
   Widget build(BuildContext context) {
-    final nameTrimmed = name.trim();
-    final initials = nameTrimmed.isEmpty
+    final name = this.name.trim();
+    final initials = name.isEmpty
         ? '?'
-        : (nameTrimmed.length >= 2
-            ? nameTrimmed.substring(nameTrimmed.length - 2)
-            : nameTrimmed);
+        : (name.length >= 2
+            ? name.substring(name.length - 2)
+            : name);
 
-    return CircleAvatar(
+    final avatar = CircleAvatar(
       radius: radius,
       backgroundColor: isPrimary
           ? Theme.of(context).colorScheme.primary
@@ -30,7 +32,7 @@ class StudentAvatar extends StatelessWidget {
       child: Text(
         initials,
         style: TextStyle(
-          fontSize: radius * 0.7,
+          fontSize: radius * 0.72,
           fontWeight: FontWeight.w600,
           color: isPrimary
               ? Colors.white
@@ -38,6 +40,14 @@ class StudentAvatar extends StatelessWidget {
         ),
       ),
     );
+
+    if (heroTag != null) {
+      return Hero(
+        tag: heroTag!,
+        child: avatar,
+      );
+    }
+
+    return avatar;
   }
 }
-
