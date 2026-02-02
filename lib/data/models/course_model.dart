@@ -6,7 +6,7 @@ class CourseModel {
   final String? description;
   final int price;
   final String? imageUrl;
-  final String category; // 'group' or 'personal'
+  final String category; // 'group' or 'personal' or 'rental'
   final DateTime defaultStartTime;
   final DateTime defaultEndTime;
   final bool isPublished; // ✨ 新增：對應 SQL 的 is_published

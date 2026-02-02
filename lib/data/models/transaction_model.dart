@@ -12,6 +12,7 @@ class TransactionModel {
   final Map<String, dynamic> metadata;
 
   // 對帳相關
+  final String paymentMethod; // 'credit', 'cash'
   final bool isReconciled;
   final DateTime? reconciledAt;
   final String? reconciledBy; // 對帳人 ID
@@ -35,6 +36,7 @@ class TransactionModel {
     this.relatedBookingId,
     this.performedBy,
     this.metadata = const {},
+    required this.paymentMethod,
     this.isReconciled = false,
     this.reconciledAt,
     this.reconciledBy,
@@ -76,6 +78,7 @@ class TransactionModel {
           : {},
 
       // 對帳欄位 (處理 null 安全)
+      paymentMethod: json['payment_method'] ?? 'credit',
       isReconciled: json['is_reconciled'] ?? false,
       reconciledAt: json['reconciled_at'] != null
           ? DateTime.parse(json['reconciled_at']).toLocal()
@@ -105,6 +108,7 @@ class TransactionModel {
       'related_booking_id': relatedBookingId,
       'performed_by': performedBy,
       'metadata': metadata,
+      'payment_method': paymentMethod,
       'is_reconciled': isReconciled,
       'reconciled_at': reconciledAt?.toIso8601String(),
       'reconciled_by': reconciledBy,
