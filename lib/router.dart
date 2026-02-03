@@ -3,19 +3,19 @@ import 'package:go_router/go_router.dart';
 import 'package:ttmastiff/main.dart';
 
 // --- 1. 一般頁面 ---
-import 'ui/screens/login&register/login_screen.dart';
-import 'ui/screens/login&register/register_screen.dart';
-import 'ui/screens/home/homepage_screen.dart';
-import 'ui/screens/courses/courses_screen.dart';
-import 'ui/screens/courses/course_detail_screen.dart'; // 這是前台的課程詳情
-import 'ui/screens/booking/my_bookings_screen.dart';
-import 'ui/screens/profile/profile_screen.dart';
-import 'ui/screens/scaffold_with_nav_bar.dart';
-import 'ui/screens/profile/transaction_history_screen.dart';
-import 'ui/screens/login&register/splash_screen.dart';
-import 'ui/screens/home/notifications_screen.dart';
-import 'ui/screens/home/notification_detail_screen.dart';
-import 'ui/screens/home/activity_detail_screen.dart';
+import 'ui/user/login&register/login_screen.dart';
+import 'ui/user/login&register/register_screen.dart';
+import 'ui/user/home/homepage_screen.dart';
+import 'ui/user/courses/courses_screen.dart';
+import 'ui/user/courses/course_detail_screen.dart'; // 這是前台的課程詳情
+import 'ui/user/booking/my_bookings_screen.dart';
+import 'ui/user/profile/profile_screen.dart';
+import 'ui/user/scaffold_with_nav_bar.dart';
+import 'ui/user/profile/transaction_history_screen.dart';
+import 'ui/user/login&register/splash_screen.dart';
+import 'ui/user/home/notifications_screen.dart';
+import 'ui/user/home/notification_detail_screen.dart';
+import 'ui/user/home/activity_detail_screen.dart';
 
 // --- 2. 管理後台頁面 ---
 import '../ui/admin/admin_scaffold.dart';
