@@ -1,6 +1,26 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/course_types.dart';
 
+/// 課程類別工具函數
+class CourseCategoryUtils {
+  /// 根據課程類別返回主題顏色
+  static Color getCategoryColor(String category) {
+    final isPersonal = category == CourseTypes.personal;
+    return isPersonal ? Colors.purple : Colors.orange;
+  }
+
+  /// 根據課程類別返回是否為個人班
+  static bool isPersonal(String category) {
+    return category == CourseTypes.personal;
+  }
+
+  /// 根據課程類別返回顯示文字
+  static String getCategoryText(String category) {
+    final isPersonal = category == CourseTypes.personal;
+    return isPersonal ? '一對一' : '團體班';
+  }
+}
+
 /// 課程類別 Badge Widget
 class CourseCategoryBadge extends StatelessWidget {
   final String category;
@@ -12,9 +32,8 @@ class CourseCategoryBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPersonal = category == CourseTypes.personal;
-    final color = isPersonal ? Colors.purple : Colors.orange;
-    final text = isPersonal ? '一對一' : '團體班';
+    final color = CourseCategoryUtils.getCategoryColor(category);
+    final text = CourseCategoryUtils.getCategoryText(category);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
