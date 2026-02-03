@@ -200,6 +200,63 @@ class BookingRepository {
     };
   }
 
+  /// 🔥 [新增] 專門處理租桌/批次建立的預約與交易
+  Future<void> createRentalBookings({
+    required List<Map<String, dynamic>> rentalDataList,
+  }) async {
+    if (rentalDataList.isEmpty) return;
+
+    List<Map<String, dynamic>> bookingsPayload = [];
+    List<Map<String, dynamic>> transactionsPayload = [];
+
+    for (var data in rentalDataList) {
+      final String sessionId = data['session_id'];
+      final String studentId = data['student_id'];
+      final String? targetUserId = data['target_user_id']; // 從前端傳來的 Parent ID
+      final int price = data['price'];
+      final String paymentMethod = data['payment_method'];
+      final Map<String, dynamic>? guestInfo = data['guest_info'];
+
+      // 邏輯判斷：User ID (散客為 null，會員為 targetUserId)
+      final bool isGuest = guestInfo != null;
+
+      // 1. 準備 Booking
+      bookingsPayload.add({
+        'session_id': sessionId,
+        'user_id': targetUserId,
+        'student_id': studentId,
+        'status': 'confirmed',
+        'price_snapshot': price,
+        'guest_name': guestInfo?['name'],
+        'guest_phone': guestInfo?['phone'],
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      // 2. 準備 Transaction
+      final bool isCash = paymentMethod == 'cash';
+      transactionsPayload.add({
+        'user_id': targetUserId,
+        'type': isCash ? 'income' : 'spending',
+        'amount': isCash ? price : -price,
+        'payment_method': paymentMethod,
+        'is_reconciled': !isCash,
+        'status': 'valid',
+        'created_at': DateTime.now().toIso8601String(),
+        'description': isCash
+            ? '現場租桌 (現金)${isGuest ? " - ${guestInfo['name']}" : ""}'
+            : '租桌扣點',
+      });
+    }
+
+    // 3. 執行批次寫入
+    if (bookingsPayload.isNotEmpty) {
+      await _supabase.from('bookings').insert(bookingsPayload);
+    }
+    if (transactionsPayload.isNotEmpty) {
+      await _supabase.from('transactions').insert(transactionsPayload);
+    }
+  }
+
   /// 取得當前用戶的所有預約 (包含 Session, Course, Student 詳細資料)
   Future<List<BookingModel>> fetchMyBookings() async {
     final userId = _supabase.auth.currentUser?.id;
@@ -222,7 +279,7 @@ class BookingRepository {
         .gte('sessions.end_time', limitDate.toIso8601String())
         .order('sessions(start_time)', ascending: false);
     final data = List<Map<String, dynamic>>.from(response);
-    
+
     // 收集所有 session 的 coach_ids 和 table_ids
     final Set<String> allCoachIds = {};
     final Set<String> allTableIds = {};
@@ -241,7 +298,7 @@ class BookingRepository {
         }
       }
     }
-    
+
     // 批量查詢教練資料
     Map<String, Map<String, dynamic>> coachMap = {};
     if (allCoachIds.isNotEmpty) {
@@ -249,12 +306,10 @@ class BookingRepository {
           .from('profiles')
           .select('id, full_name')
           .inFilter('id', allCoachIds.toList());
-  
-      coachMap = {
-        for (var coach in coachesData) coach['id'] as String: coach
-      };
+
+      coachMap = {for (var coach in coachesData) coach['id'] as String: coach};
     }
-    
+
     // 批量查詢桌子資料
     Map<String, Map<String, dynamic>> tableMap = {};
     if (allTableIds.isNotEmpty) {
@@ -262,12 +317,10 @@ class BookingRepository {
           .from('tables')
           .select('id, name')
           .inFilter('id', allTableIds.toList());
-  
-      tableMap = {
-        for (var table in tablesData) table['id'] as String: table
-      };
+
+      tableMap = {for (var table in tablesData) table['id'] as String: table};
     }
-    
+
     // 將教練名稱和桌子名稱填入對應的 session
     for (var booking in data) {
       final session = booking['sessions'];
@@ -280,9 +333,11 @@ class BookingRepository {
               .where((name) => name != null && name.isNotEmpty)
               .map((name) => name!)
               .toList();
-          session['coach_name'] = coachNames.isEmpty ? null : coachNames.join(', ');
+          session['coach_name'] = coachNames.isEmpty
+              ? null
+              : coachNames.join(', ');
         }
-        
+
         // 填入桌子名稱
         if (session['table_ids'] != null) {
           final tableIds = List<String>.from(session['table_ids'] ?? []);
@@ -291,11 +346,13 @@ class BookingRepository {
               .where((name) => name != null && name.isNotEmpty)
               .map((name) => name!)
               .toList();
-          session['table_names'] = tableNames.isEmpty ? null : tableNames.join('、');
+          session['table_names'] = tableNames.isEmpty
+              ? null
+              : tableNames.join('、');
         }
       }
     }
-    
+
     return data.map((e) => BookingModel.fromJson(e)).toList();
   }
 
