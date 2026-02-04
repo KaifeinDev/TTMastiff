@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/session_model.dart';
 import 'credit_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/main.dart';
 
 enum ConflictType {
   none, // 無衝突
@@ -102,16 +103,16 @@ class SessionRepository {
     }
   }
 
-  // 批次建立 Sessions (維持原樣，建立時通常還是傳 Map 比較方便)
+  // 批次建立 Sessions (支援衝突檢查 + 租桌自動預約/記帳)
   Future<void> batchCreateSessions({
     required String courseId,
     required List<Map<String, dynamic>> sessionsData,
   }) async {
     if (sessionsData.isEmpty) return;
 
-    // A. 預先檢查每一筆資料是否有衝突
-    // 注意：這會對每一筆新增進行查詢，如果一次新增非常多筆(如50筆以上)，
-    // 建議改用後端 Edge Function 處理，但在 App 端這樣寫邏輯最清楚。
+    // -----------------------------------------------------------------------
+    // A. 預先檢查每一筆資料是否有衝突 (保持不變)
+    // -----------------------------------------------------------------------
     for (var data in sessionsData) {
       // 1. 解析資料
       final startTime = DateTime.parse(data['start_time']);
@@ -126,7 +127,6 @@ class SessionRepository {
         tableIds: tableIds,
         coachIds: coachIds,
         courseId: courseId,
-        // 新增時不需要 excludeSessionId
       );
 
       // 3. 若有衝突，直接拋出錯誤，整批都不會建立
@@ -137,12 +137,87 @@ class SessionRepository {
       }
     }
 
-    // B. 全部檢查通過，執行批次寫入
-    final List<Map<String, dynamic>> payload = sessionsData.map((data) {
-      return {'course_id': courseId, ...data};
+    // -----------------------------------------------------------------------
+    // B. 建立 Sessions (只專注做這件事)
+    // -----------------------------------------------------------------------
+
+    // 1. 準備乾淨的 Session 資料
+    final List<Map<String, dynamic>> cleanSessionsPayload = sessionsData.map((
+      data,
+    ) {
+      final Map<String, dynamic> cleanData = Map.from(data);
+      // 移除所有不屬於 Session 的擴充欄位
+      cleanData.removeWhere(
+        (key, value) => [
+          'is_rental',
+          'renter_id',
+          'target_user_id',
+          'payment_method',
+          'guest_info',
+          'price',
+        ].contains(key),
+      );
+
+      cleanData['course_id'] = courseId;
+      return cleanData;
     }).toList();
 
-    await _supabase.from('sessions').insert(payload);
+    // 2. 插入並取回 ID
+    final List<dynamic> createdSessions = await _supabase
+        .from('sessions')
+        .insert(cleanSessionsPayload)
+        .select();
+
+    final List<String> createdSessionIds = createdSessions
+        .map((s) => s['id'] as String)
+        .toList();
+
+    // -----------------------------------------------------------------------
+    // C. 呼叫 BookingRepository 處理預約與金流
+    // -----------------------------------------------------------------------
+    try {
+      // 組裝要交給 BookingRepo 的資料
+      List<Map<String, dynamic>> rentalRequests = [];
+
+      for (int i = 0; i < createdSessions.length; i++) {
+        final originalData = sessionsData[i];
+        final String sessionId = createdSessions[i]['id'];
+        print(
+          'student_id: ${originalData['renter_id']}\ntarget_user_id: ${originalData['target_user_id']}',
+        );
+
+        // 如果是租桌 (有 renter_id)
+        if (originalData['renter_id'] != null) {
+          rentalRequests.add({
+            'session_id': sessionId,
+            'student_id': originalData['renter_id'],
+            'target_user_id': originalData['target_user_id'], // 前端傳來的 parent_id
+            'price': originalData['price'] ?? 0,
+            'payment_method': originalData['payment_method'] ?? 'credit',
+            'guest_info': originalData['guest_info'],
+          });
+        }
+      }
+
+      // 🔥 直接呼叫 BookingRepository 的新功能！
+      if (rentalRequests.isNotEmpty) {
+        // 假設您可以存取 bookingRepository (視您的 Dependency Injection 方式而定)
+        // 可能是 global 的 bookingRepository，或是透過建構子注入的
+        await bookingRepository.createRentalBookings(
+          rentalDataList: rentalRequests,
+        );
+      }
+    } catch (e) {
+      print('建立預約失敗，回滾 Sessions...: $e');
+      // Rollback 機制保持不變
+      if (createdSessionIds.isNotEmpty) {
+        await _supabase
+            .from('sessions')
+            .delete()
+            .filter('id', 'in', createdSessionIds);
+      }
+      rethrow;
+    }
   }
 
   // 🔥 [修改] 取得指定 Course 的所有 Sessions -> 回傳 List<SessionModel>

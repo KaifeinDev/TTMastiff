@@ -4,13 +4,18 @@ import 'package:ttmastiff/main.dart'; // 確保能存取 Repository
 import 'package:ttmastiff/data/models/table_model.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/utils/util.dart';
+import '../../../../data/models/student_model.dart'; // 引入 StudentModel
+import 'student_search_dialog.dart'; // 引入 StudentSearchDialog
+
+// 假設散客 ID (請替換成您資料庫實際的 ID)
+const String kWalkInGuestId = '1c3c19d0-bc31-4188-b10b-b5ec30715303';
 
 class BatchSessionDialog extends StatefulWidget {
   final String courseId;
   final TimeOfDay defaultStartTime;
   final TimeOfDay defaultEndTime;
-  final String category; // 'group' or 'personal'
-  final int defaultPrice;
+  final String category; // 'group', 'personal', 'rental'
+  final int defaultPrice; // 如果是 rental，這裡代表「時薪」
 
   const BatchSessionDialog({
     super.key,
@@ -27,65 +32,132 @@ class BatchSessionDialog extends StatefulWidget {
 
 class _BatchSessionDialogState extends State<BatchSessionDialog> {
   DateTimeRange? _dateRange;
-  // 紀錄星期幾要上課 (1=週一, 7=週日)
   final Set<int> _selectedWeekdays = {};
 
-  // 教練資料 (配合 Repository 目前回傳 List<Map>)
+  // 本地維護的起訖時間
+  late TimeOfDay _startTime;
+  late TimeOfDay _endTime;
+
+  // 教練相關
   List<Map<String, dynamic>> _allCoaches = [];
   final List<String> _selectedCoachIds = [];
-  List<TableModel> _tables = [];
-  List<String> _selectedTableIds = [];
-  bool _isLoadingTables = true;
 
+  // 租桌相關
+  Map<String, dynamic>? _selectedRenter;
+  final TextEditingController _guestNameController = TextEditingController();
+  final TextEditingController _guestPhoneController = TextEditingController();
+  String _paymentMethod = 'credit'; // 'credit' or 'cash'
+
+  // 桌次與容量
+  List<TableModel> _tables = [];
+  final List<String> _selectedTableIds = [];
+  bool _isLoadingTables = true;
   final TextEditingController _capacityController = TextEditingController();
-  // final TextEditingController _locationController = TextEditingController(
-  //   text: '第1桌',
-  // );
+
+  // 手動調整最終價格
+  final TextEditingController _finalPriceController = TextEditingController();
 
   bool _isLoading = false;
+  // 🔥 [移除] _userSearchController 已不需要
+
+  // Helper
+  bool get _isRental => widget.category == 'rental';
+
+  // 我們改為判斷選中的人，其姓名是否包含 "散客" (或者您可以用 role 欄位判斷)
+  bool get _isGuestSelected {
+    if (_selectedRenter == null) return false;
+    final name = _selectedRenter!['full_name'].toString();
+    // 簡單判斷：名字有 "散客" 或是 "Guest" 就當作是散客帳號
+    return name.contains('散客') || name.contains('Guest');
+  }
 
   @override
   void initState() {
     super.initState();
-    _fetchCoaches();
+    // 1. 初始化時間
+    _startTime = widget.defaultStartTime;
+    _endTime = widget.defaultEndTime;
+
+    // 2. 初始化價格 (計算一次)
+    _calculateAndSetPrice();
+
+    // 3. 載入資料
+    if (!_isRental) {
+      _fetchCoaches();
+    }
     _loadTables();
-    _updateCapacity(); // 初始化人數
+    _updateCapacity();
   }
 
   @override
   void dispose() {
     _capacityController.dispose();
-    // _locationController.dispose();
+    _guestNameController.dispose();
+    _guestPhoneController.dispose();
+    // 🔥 [移除] _userSearchController.dispose();
+    _finalPriceController.dispose();
     super.dispose();
+  }
+
+  // --- 核心邏輯區 ---
+
+  // 計算價格邏輯
+  void _calculateAndSetPrice() {
+    if (!_isRental) {
+      _finalPriceController.text = widget.defaultPrice.toString();
+      return;
+    }
+
+    final startMinutes = _startTime.hour * 60 + _startTime.minute;
+    final endMinutes = _endTime.hour * 60 + _endTime.minute;
+
+    int durationMinutes = endMinutes - startMinutes;
+    if (durationMinutes < 0) durationMinutes += 24 * 60;
+
+    double hours = durationMinutes / 60.0;
+    if (hours <= 0) hours = 1.0;
+
+    int totalPrice = (hours * widget.defaultPrice).round();
+
+    setState(() {
+      _finalPriceController.text = totalPrice.toString();
+    });
+  }
+
+  Future<void> _pickTime(bool isStart) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: isStart ? _startTime : _endTime,
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+        _calculateAndSetPrice();
+      });
+    }
   }
 
   Future<void> _fetchCoaches() async {
     try {
       final coaches = await coachRepository.getCoaches();
-      if (mounted) {
-        setState(() => _allCoaches = coaches);
-      }
+      if (mounted) setState(() => _allCoaches = coaches);
     } catch (e) {
-      if (mounted) {
-        showErrorDialog(context, e, title: '載入教練失敗');
-      }
+      if (mounted) showErrorDialog(context, e, title: '載入教練失敗');
     }
   }
 
   Future<void> _loadTables() async {
     try {
       final tables = await tableRepository.getTables();
-      // 只顯示啟用中的桌子
       final activeTables = tables.where((t) => t.isActive).toList();
-
       if (mounted) {
         setState(() {
           _tables = activeTables;
           _isLoadingTables = false;
-          // 預設選第一張桌子
-          // if (_tables.isNotEmpty) {
-          //   _selectedTableId = _tables.first.id;
-          // }
         });
       }
     } catch (e) {
@@ -96,54 +168,60 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
     }
   }
 
-  // 自動計算建議人數
+  Future<void> _showRenterSearchDialog() async {
+    final StudentModel? selectedStudent = await showDialog<StudentModel>(
+      context: context,
+      builder: (context) => const StudentSearchDialog(
+        existingStudentIds: {},
+        // 移除 allowGuest: true
+      ),
+    );
+
+    if (selectedStudent != null) {
+      setState(() {
+        // 使用真實選到的資料
+        _selectedRenter = {
+          'id': selectedStudent.id, // 這是資料庫真實 ID，不會報錯了
+          'full_name': selectedStudent.name,
+          'parent_id': selectedStudent.parentId,
+        };
+
+        // 自動判斷支付方式
+        // 這裡直接呼叫 getter 判斷
+        if (_selectedRenter!['full_name'].toString().contains('散客')) {
+          _paymentMethod = 'cash';
+        } else {
+          _paymentMethod = 'credit';
+        }
+      });
+    }
+  }
+
   void _updateCapacity() {
-    if (widget.category == 'personal') {
+    if (_isRental) {
+      _capacityController.text = '1';
+    } else if (widget.category == 'personal') {
       _capacityController.text = '1';
     } else {
-      // 邏輯：團體課 = 教練數 * 4 (若無教練預設為 4)
       int count = _selectedCoachIds.isEmpty ? 1 : _selectedCoachIds.length;
       _capacityController.text = (count * 4).toString();
     }
   }
 
   void _manualAdjustCapacity(int change) {
-    // 1. 取得當前輸入框的數字，如果是空的就當作 0
     int currentValue = int.tryParse(_capacityController.text) ?? 0;
-
-    // 2. 計算新數值
     int newValue = currentValue + change;
-
-    // 3. 防止變成負數
     if (newValue < 0) newValue = 0;
-
-    // 4. 更新畫面
-    setState(() {
-      _capacityController.text = newValue.toString();
-    });
+    setState(() => _capacityController.text = newValue.toString());
   }
 
-  // 預覽功能：計算會產生多少堂課
   int _calculateSessionCount() {
     if (_dateRange == null || _selectedWeekdays.isEmpty) return 0;
     int count = 0;
-
-    // 建立不含時間的日期物件，避免跨日問題
-    DateTime day = DateTime(
-      _dateRange!.start.year,
-      _dateRange!.start.month,
-      _dateRange!.start.day,
-    );
-    final endDay = DateTime(
-      _dateRange!.end.year,
-      _dateRange!.end.month,
-      _dateRange!.end.day,
-    );
-
+    DateTime day = _dateRange!.start;
+    final endDay = _dateRange!.end;
     while (!day.isAfter(endDay)) {
-      if (_selectedWeekdays.contains(day.weekday)) {
-        count++;
-      }
+      if (_selectedWeekdays.contains(day.weekday)) count++;
       day = day.add(const Duration(days: 1));
     }
     return count;
@@ -156,171 +234,453 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       ).showSnackBar(const SnackBar(content: Text('請選擇日期範圍與星期')));
       return;
     }
-
-    // if (_selectedTableIds == null) {
-    //   ScaffoldMessenger.of(
-    //     context,
-    //   ).showSnackBar(const SnackBar(content: Text('請選擇桌次')));
-    //   return;
-    // }
+    if (_selectedTableIds.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('請至少選擇一張桌子')));
+      return;
+    }
+    if (_isRental) {
+      if (_selectedRenter == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('租桌模式必須選擇一位租借人')));
+        return;
+      }
+      if (_isGuestSelected && _guestNameController.text.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('現場散客請輸入姓名')));
+        return;
+      }
+    }
 
     setState(() => _isLoading = true);
 
     try {
       List<Map<String, dynamic>> sessionsPayload = [];
       bool conflictFound = false;
-      String conflictDateStr = '';
+      String conflictDetails = '';
 
-      // 確保從日期的 00:00:00 開始計算
-      DateTime currentDay = DateTime(
-        _dateRange!.start.year,
-        _dateRange!.start.month,
-        _dateRange!.start.day,
-      );
+      DateTime currentDay = _dateRange!.start;
+      final endDay = _dateRange!.end;
+      final int finalPrice =
+          int.tryParse(_finalPriceController.text) ?? widget.defaultPrice;
 
-      final endDay = DateTime(
-        _dateRange!.end.year,
-        _dateRange!.end.month,
-        _dateRange!.end.day,
-      );
-
-      // 迴圈遍歷每一天
       while (!currentDay.isAfter(endDay)) {
-        // 如果這一天是被選中的星期 (ex: 週二)
         if (_selectedWeekdays.contains(currentDay.weekday)) {
-          // 組合具體的 StartTime
           final start = DateTime(
             currentDay.year,
             currentDay.month,
             currentDay.day,
-            widget.defaultStartTime.hour,
-            widget.defaultStartTime.minute,
+            _startTime.hour,
+            _startTime.minute,
           );
-
-          // 組合具體的 EndTime
           final end = DateTime(
             currentDay.year,
             currentDay.month,
             currentDay.day,
-            widget.defaultEndTime.hour,
-            widget.defaultEndTime.minute,
+            _endTime.hour,
+            _endTime.minute,
           );
-
-          final conflict = await sessionRepository.checkDetailConflict(
-            startTime: start,
-            endTime: end,
-            tableIds: _selectedTableIds,
-            coachIds: _selectedCoachIds, // 傳入選到的教練列表
-            courseId: widget.courseId,
-          );
-
-          if (conflict.hasConflict) {
-            // 根據衝突類型，你可以決定要 break 還是 continue
-            // 這裡示範：記錄錯誤並中斷
-            conflictFound = true;
-            // 組合詳細錯誤訊息
-            conflictDateStr =
-                '${DateFormat('MM/dd HH:mm').format(start)}\n原因：${conflict.message}';
-            break;
-          }
-
-          // 處理跨日問題 (如果結束時間比開始時間早，代表跨日)
           final finalEnd = end.isBefore(start)
               ? end.add(const Duration(days: 1))
               : end;
 
-          sessionsPayload.add({
+          final conflict = await sessionRepository.checkDetailConflict(
+            startTime: start,
+            endTime: finalEnd,
+            tableIds: _selectedTableIds,
+            coachIds: _selectedCoachIds,
+            courseId: widget.courseId,
+          );
+
+          if (conflict.hasConflict) {
+            conflictFound = true;
+            conflictDetails =
+                '${DateFormat('MM/dd HH:mm').format(start)}\n${conflict.message}';
+            break;
+          }
+
+          Map<String, dynamic> sessionData = {
             'start_time': start.toUtc().toIso8601String(),
             'end_time': finalEnd.toUtc().toIso8601String(),
-            'coach_ids': _selectedCoachIds, // Supabase 支援直接傳 List
-            // 選擇性：也可以把桌名寫入 location 欄位當作備份
-            // 'location': _tables.firstWhere((t) => t.id == _selectedTableId).name,
             'table_ids': _selectedTableIds,
-            'max_capacity': int.tryParse(_capacityController.text) ?? 4,
-            'price': widget.defaultPrice,
-          });
+            'max_capacity': int.tryParse(_capacityController.text) ?? 1,
+            'price': finalPrice,
+            'coach_ids': _selectedCoachIds,
+          };
+
+          if (_isRental) {
+            sessionData['is_rental'] = true;
+            sessionData['renter_id'] = _selectedRenter!['id'];
+            sessionData['target_user_id'] = _selectedRenter!['parent_id'];
+            sessionData['payment_method'] = _paymentMethod;
+            if (_isGuestSelected) {
+              sessionData['guest_info'] = {
+                'name': _guestNameController.text,
+                'phone': _guestPhoneController.text,
+              };
+            }
+          }
+
+          sessionsPayload.add(sessionData);
         }
         currentDay = currentDay.add(const Duration(days: 1));
       }
+
       if (conflictFound) {
-        // 使用 Dialog 顯示詳細錯誤，比 SnackBar 更清楚
-        await showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('排程衝突'),
-            content: Text(
-              conflictDateStr,
-              style: const TextStyle(fontSize: 16),
+        if (mounted) {
+          await showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('排程衝突'),
+              content: Text(conflictDetails),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('確定'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('確定'),
-              ),
-            ],
-          ),
-        );
-        return; // 中斷
+          );
+        }
+        return;
       }
 
-      // 批次寫入 DB
-      // 這裡傳 Map 是正確的，因為 Create 不需要 Model
       await sessionRepository.batchCreateSessions(
         courseId: widget.courseId,
         sessionsData: sessionsPayload,
       );
 
-      if (mounted) Navigator.pop(context, true); // 回傳 true 代表成功
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        showErrorDialog(context, e, title: '排課失敗');
-      }
+      if (mounted) showErrorDialog(context, e, title: '排程失敗');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showAddCoachDialog(BuildContext context) {
-    // 1. 過濾出「尚未選擇」的教練
-    final availableCoaches = _allCoaches.where((coach) {
-      final coachId = coach['id'] as String;
-      return !_selectedCoachIds.contains(coachId);
-    }).toList();
+  // --- UI Components ---
 
+  Widget _buildTimeAndPriceConfig() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => _pickTime(true),
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: '開始時間',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: Text(
+                      _startTime.format(context),
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(Icons.arrow_forward, color: Colors.grey),
+              const SizedBox(width: 12),
+              Expanded(
+                child: InkWell(
+                  onTap: () => _pickTime(false),
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: '結束時間',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: Text(
+                      _endTime.format(context),
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _finalPriceController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              labelText: _isRental ? '本次總費用 (可手動修改)' : '單堂費用',
+              prefixText: '\$ ',
+              suffixText: _isRental
+                  ? '(時薪: \$${widget.defaultPrice}/hr)'
+                  : null,
+              border: const OutlineInputBorder(),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 [修改] 重構後的選擇租借人 UI
+  Widget _buildRenterSelection() {
+    final isGuest = _isGuestSelected;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('租借人 (User)', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+
+        // 1. 選擇租借人的輸入框 (唯讀，點擊觸發 Dialog)
+        InkWell(
+          onTap: _showRenterSearchDialog,
+          borderRadius: BorderRadius.circular(4),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              prefixIcon: Icon(
+                isGuest ? Icons.storefront : Icons.person,
+                color: isGuest ? Colors.green : Colors.blue,
+              ),
+              suffixIcon: _selectedRenter != null
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          _selectedRenter = null;
+                          _paymentMethod = 'credit';
+                          _guestNameController.clear();
+                          _guestPhoneController.clear();
+                        });
+                      },
+                    )
+                  : const Icon(Icons.search),
+              hintText: '點擊搜尋會員...',
+            ),
+            child: Text(
+              _selectedRenter?['full_name'] ?? '請選擇租借人',
+              style: TextStyle(
+                color: _selectedRenter == null
+                    ? Colors.grey.shade600
+                    : Colors.black87,
+                fontWeight: isGuest ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        ),
+
+        // 2. 如果是散客，顯示額外的資料輸入框
+        if (isGuest) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '散客資訊 (必填)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _guestNameController,
+                        decoration: const InputDecoration(
+                          labelText: '姓名',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                          fillColor: Colors.white,
+                          filled: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _guestPhoneController,
+                        decoration: const InputDecoration(
+                          labelText: '電話 (選填)',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                          fillColor: Colors.white,
+                          filled: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // 3. 支付方式選擇 (只有在已選擇租借人後顯示)
+        if (_selectedRenter != null) ...[
+          const SizedBox(height: 16),
+          const Text('支付方式', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ChoiceChip(
+                label: const Text('錢包扣款 (Credit)'),
+                selected: _paymentMethod == 'credit',
+                // 如果是散客，禁用錢包選項
+                onSelected: isGuest
+                    ? null
+                    : (selected) => setState(() => _paymentMethod = 'credit'),
+                avatar: const Icon(Icons.account_balance_wallet, size: 18),
+              ),
+              const SizedBox(width: 12),
+              ChoiceChip(
+                label: const Text('現場現金 (Cash)'),
+                selected: _paymentMethod == 'cash',
+                onSelected: (selected) =>
+                    setState(() => _paymentMethod = 'cash'),
+                avatar: const Icon(Icons.attach_money, size: 18),
+                selectedColor: Colors.green.shade100,
+                side: _paymentMethod == 'cash'
+                    ? const BorderSide(color: Colors.green)
+                    : null,
+              ),
+            ],
+          ),
+          if (_paymentMethod == 'cash')
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                '註: 現金交易將標記為 "Pending"，需在帳務管理中核銷。',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCoachSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('指定教練：', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 8),
+        if (_allCoaches.isEmpty)
+          const Text('載入教練中或無教練資料', style: TextStyle(color: Colors.grey))
+        else
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 4.0,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ..._selectedCoachIds.map((id) {
+                final coach = _allCoaches.firstWhere(
+                  (c) => c['id'] == id,
+                  orElse: () => {'full_name': '未知'},
+                );
+                return InputChip(
+                  avatar: CircleAvatar(
+                    backgroundColor: Colors.blue.shade100,
+                    child: Text(
+                      coach['full_name'].substring(0, 1),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.blue.shade800,
+                      ),
+                    ),
+                  ),
+                  label: Text(coach['full_name']),
+                  onDeleted: () {
+                    setState(() {
+                      _selectedCoachIds.remove(id);
+                      _updateCapacity();
+                    });
+                  },
+                  backgroundColor: Colors.blue.shade50,
+                  deleteIconColor: Colors.blue.shade300,
+                );
+              }),
+              if (_selectedCoachIds.length < _allCoaches.length)
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 18, color: Colors.grey),
+                  label: const Text('新增教練'),
+                  backgroundColor: Colors.white,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  onPressed: () => _showAddCoachDialog(context),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  void _showAddCoachDialog(BuildContext context) {
+    final availableCoaches = _allCoaches
+        .where((c) => !_selectedCoachIds.contains(c['id']))
+        .toList();
     if (availableCoaches.isEmpty) return;
 
-    // 2. 顯示清單對話框
     showDialog(
       context: context,
-      builder: (ctx) {
-        return SimpleDialog(
-          title: const Text('選擇要加入的教練'),
-          children: availableCoaches.map((coach) {
-            return SimpleDialogOption(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-              child: Text(
-                coach['full_name'] ?? '未命名',
-                style: const TextStyle(fontSize: 16),
-              ),
-              onPressed: () {
-                // 3. 點選後加入清單並更新 UI
-                setState(() {
-                  _selectedCoachIds.add(coach['id']);
-                  _updateCapacity(); // 連動人數
-                });
-                Navigator.pop(ctx); // 關閉對話框
-              },
-            );
-          }).toList(),
-        );
-      },
+      builder: (ctx) => SimpleDialog(
+        title: const Text('選擇要加入的教練'),
+        children: availableCoaches.map((coach) {
+          return SimpleDialogOption(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+            child: Text(
+              coach['full_name'] ?? '未命名',
+              style: const TextStyle(fontSize: 16),
+            ),
+            onPressed: () {
+              setState(() {
+                _selectedCoachIds.add(coach['id']);
+                _updateCapacity();
+              });
+              Navigator.pop(ctx);
+            },
+          );
+        }).toList(),
+      ),
     );
+  }
+
+  String _weekdayName(int day) {
+    const names = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+    return names[day - 1];
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('批次排課'),
+      title: Text(_isRental ? '租桌設定 (建立 Booking)' : '批次排課 (建立課程)'),
       content: SizedBox(
         width: 500,
         child: SingleChildScrollView(
@@ -328,15 +688,12 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 1. 日期範圍選擇
+              // 1. 日期選擇
               ListTile(
                 title: Text(
                   _dateRange == null
-                      ? '點擊選擇日期範圍 (Start - End)'
+                      ? '點擊選擇日期範圍'
                       : '${DateFormat('yyyy/MM/dd').format(_dateRange!.start)} - ${DateFormat('yyyy/MM/dd').format(_dateRange!.end)}',
-                  style: TextStyle(
-                    color: _dateRange == null ? Colors.grey : Colors.black,
-                  ),
                 ),
                 leading: const Icon(Icons.date_range, color: Colors.blue),
                 tileColor: Colors.blue.shade50,
@@ -348,14 +705,13 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     context: context,
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(const Duration(days: 365)),
-                    helpText: '選擇課程區間',
                   );
                   if (range != null) setState(() => _dateRange = range);
                 },
               ),
               const SizedBox(height: 16),
 
-              // 2. 星期選擇 (Checkbox)
+              // 2. 星期選擇
               const Text(
                 '重複規則 (每週)：',
                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -368,28 +724,28 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     FilterChip(
                       label: Text(_weekdayName(i)),
                       selected: _selectedWeekdays.contains(i),
-                      selectedColor: Colors.blue.shade100,
-                      checkmarkColor: Colors.blue,
-                      onSelected: (selected) {
-                        setState(() {
-                          if (selected) {
-                            _selectedWeekdays.add(i);
-                          } else {
-                            _selectedWeekdays.remove(i);
-                          }
-                        });
-                      },
+                      onSelected: (val) => setState(
+                        () => val
+                            ? _selectedWeekdays.add(i)
+                            : _selectedWeekdays.remove(i),
+                      ),
                     ),
                 ],
               ),
-
               const SizedBox(height: 16),
+
+              // 3. 時間與價格
               const Text(
-                '選擇桌次 (可多選)',
+                '時間與費用',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
+              _buildTimeAndPriceConfig(),
+              const SizedBox(height: 16),
 
+              // 4. 桌次選擇
+              const Text('選擇桌次', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
               _isLoadingTables
                   ? const LinearProgressIndicator()
                   : Container(
@@ -402,159 +758,56 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                       child: Wrap(
                         spacing: 8.0,
                         children: _tables.map((table) {
-                          final isSelected = _selectedTableIds.contains(
-                            table.id,
-                          );
                           return FilterChip(
                             label: Text(table.name),
-                            selected: isSelected,
-                            onSelected: (bool selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedTableIds.add(table.id);
-                                } else {
-                                  _selectedTableIds.remove(table.id);
-                                }
-                              });
-                            },
+                            selected: _selectedTableIds.contains(table.id),
+                            onSelected: (val) => setState(
+                              () => val
+                                  ? _selectedTableIds.add(table.id)
+                                  : _selectedTableIds.remove(table.id),
+                            ),
                           );
                         }).toList(),
                       ),
                     ),
-
               const SizedBox(height: 16),
 
-              // ─── 教練選擇區塊 ───
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '指定教練：',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 如果還在載入或完全沒資料
-                  if (_allCoaches.isEmpty)
-                    const Text(
-                      '載入教練中或無教練資料',
-                      style: TextStyle(color: Colors.grey),
-                    )
-                  else
-                    Wrap(
-                      spacing: 8.0,
-                      runSpacing: 4.0, // 換行後的間距
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        // 1. 顯示「已選擇」的教練 (InputChip)
-                        ..._selectedCoachIds.map((id) {
-                          // 找到對應的教練資料
-                          final coach = _allCoaches.firstWhere(
-                            (c) => c['id'] == id,
-                            orElse: () => {'full_name': '未知教練'},
-                          );
-
-                          return InputChip(
-                            avatar: CircleAvatar(
-                              backgroundColor: Colors.blue.shade100,
-                              child: Text(
-                                coach['full_name'].substring(0, 1), // 取首字當頭像
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.blue.shade800,
-                                ),
-                              ),
-                            ),
-                            label: Text(coach['full_name']),
-                            onDeleted: () {
-                              // 點擊 X 移除
-                              setState(() {
-                                _selectedCoachIds.remove(id);
-                                _updateCapacity(); // 連動人數
-                              });
-                            },
-                            backgroundColor: Colors.blue.shade50,
-                            deleteIconColor: Colors.blue.shade300,
-                          );
-                        }),
-
-                        // 2. 顯示「+ 新增教練」按鈕 (只有當還有未選教練時才顯示)
-                        if (_selectedCoachIds.length < _allCoaches.length)
-                          if (widget.category == 'personal' &&
-                              _selectedCoachIds.isNotEmpty)
-                            const SizedBox.shrink()
-                          else
-                            ActionChip(
-                              avatar: const Icon(
-                                Icons.add,
-                                size: 18,
-                                color: Colors.grey,
-                              ),
-                              label: const Text('新增教練'),
-                              backgroundColor: Colors.white,
-                              side: BorderSide(
-                                color: Colors.grey.shade300,
-                              ), // 邊框樣式
-                              onPressed: () => _showAddCoachDialog(context),
-                            ),
-                      ],
-                    ),
-                ],
-              ),
+              // 5. 根據模式選人或選教練 (改用新的 UI)
+              if (_isRental)
+                _buildRenterSelection()
+              else
+                _buildCoachSelection(),
 
               const SizedBox(height: 24),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 地點輸入框
-                  // TextField(
-                  //   controller: _locationController,
-                  //   decoration: const InputDecoration(
-                  //     labelText: '桌次 / 地點',
-                  //     border: OutlineInputBorder(),
-                  //     prefixIcon: Icon(
-                  //       Icons.place_outlined,
-                  //     ), // 加個 icon 增加識別度(可選)
-                  //   ),
-                  // ),
-                  // const SizedBox(height: 16), // 上下間距
 
-                  // 人數上限輸入框 (按鈕整合在右側)
-                  TextField(
-                    controller: _capacityController,
-                    // 允許使用者直接點擊輸入數字
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      labelText: '人數上限',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.group_outlined),
-
-                      suffixIcon: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // 減號按鈕
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            color: Colors.grey,
-                            // 記得改回我們剛才定義的 _manualAdjustCapacity
-                            onPressed: () => _manualAdjustCapacity(-1),
-                          ),
-
-                          // 加號按鈕
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline),
-                            color: Colors.blue,
-                            onPressed: () => _manualAdjustCapacity(1),
-                          ),
-                        ],
+              // 6. 人數上限
+              TextField(
+                controller: _capacityController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(
+                  labelText: '人數上限',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.group_outlined),
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: () => _manualAdjustCapacity(-1),
                       ),
-                    ),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline),
+                        onPressed: () => _manualAdjustCapacity(1),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
+
               const SizedBox(height: 20),
-              // 預覽文字
+
+              // 7. 預覽資訊
               if (_dateRange != null && _selectedWeekdays.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -569,8 +822,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '預計產生 ${_calculateSessionCount()} 堂課程\n'
-                          '時間：${widget.defaultStartTime.format(context)} - ${widget.defaultEndTime.format(context)}',
+                          '預計產生 ${_calculateSessionCount()} 筆預約',
                           style: TextStyle(
                             color: Colors.amber.shade900,
                             fontWeight: FontWeight.bold,
@@ -605,10 +857,5 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
         ),
       ],
     );
-  }
-
-  String _weekdayName(int day) {
-    const names = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
-    return names[day - 1];
   }
 }
