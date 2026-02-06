@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import '../../../core/constants/gender_types.dart';
 
 /// 性別圖示 Widget
 class GenderIcon extends StatelessWidget {
   final String? gender;
 
-  const GenderIcon({
-    super.key,
-    this.gender,
-  });
+  const GenderIcon({super.key, this.gender});
 
   @override
   Widget build(BuildContext context) {
     if (gender == null) return const SizedBox.shrink();
-    
+
     switch (gender) {
       case GenderTypes.male:
         return const Icon(Icons.male, color: Colors.blueAccent);

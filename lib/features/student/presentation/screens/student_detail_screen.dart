@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
@@ -122,12 +123,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error loading data: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
-      }
+      logError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -152,7 +148,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             .single();
         membership = profile['membership'] as String?;
       } catch (e) {
-        debugPrint('讀取會員資格失敗: $e');
+        logError(e);
       }
 
       // 讀取 email（從 profiles 表或通過 RPC 函數）
@@ -169,7 +165,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         });
       }
     } catch (e) {
-      debugPrint('讀取點數失敗: $e');
+      logError(e);
     }
   }
 
@@ -185,12 +181,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         });
       }
     } catch (e) {
-      debugPrint('刷新預約失敗: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('資料刷新失敗: $e')));
-      }
+      logError(e);
     }
   }
 
@@ -268,7 +259,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                         .from('profiles')
                         .update({'membership': selectedLevel})
                         .eq('id', parentId);
-                    
+
                     // 更新本地狀態
                     setState(() {
                       _membership = selectedLevel!;
@@ -281,15 +272,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       );
                     }
                   } catch (e) {
-                    if (mounted) {
-                      Navigator.of(dialogContext).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('❌ 更新失敗: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
+                    logError(e);
                   }
                 },
                 child: const Text('確認'),
@@ -416,15 +399,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       );
                     }
                   } catch (e) {
-                    if (mounted) {
-                      Navigator.of(dialogContext).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('❌ 更新失敗: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
+                    logError(e);
                   }
                 },
                 child: const Text('確認'),
@@ -474,8 +449,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   children: [100, 500, 1000].map((amount) {
                     return ActionChip(
                       label: Text('+$amount'),
-                      backgroundColor: Theme.of(context).colorScheme.background, // 淡淡的藍色背景
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surface, // 淡淡的藍色背景
+                      labelStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                       onPressed: () {
                         // 邏輯：取得當前數值，加上按鈕面額
                         final current =
@@ -574,16 +553,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                             );
                           }
                         } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '儲值失敗: ${e.toString().replaceAll('Exception:', '')}',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
+                          logError(e);
                         } finally {
                           if (mounted) setDialogState(() => isLoading = false);
                         }
@@ -756,7 +726,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                               ),
                             ),
                             const Spacer(),
-                            AttendanceStatusChip(status: booking.attendanceStatus),
+                            AttendanceStatusChip(
+                              status: booking.attendanceStatus,
+                            ),
                           ],
                         ),
                       ],

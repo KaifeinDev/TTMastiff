@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/booking/data/repositories/booking_repository.dart';
 import '../../../data/models/session_model.dart';
 import '../../../../student/data/models/student_model.dart';
-import '../../../../student/presentation/widgets/student_search_dialog.dart'; 
+import '../../../../student/presentation/widgets/student_search_dialog.dart';
 
 class BatchEnrollDialog extends StatefulWidget {
   final String courseId;
@@ -111,12 +112,7 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) {
-        // 5. 失敗處理 (紅色) - 不關閉視窗，讓使用者可以重試
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('報名失敗: $e'), backgroundColor: Colors.red),
-        );
-      }
+      logError(e);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -128,7 +124,7 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
         _selectedSessionIds.length *
         _targetStudents.length *
         widget.pricePerSession;
-    
+
     final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Dialog(
@@ -139,9 +135,13 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final maxWidth = constraints.maxWidth.clamp(320, isMobile ? double.infinity : 900).toDouble();
-          final maxHeight = constraints.maxHeight.clamp(400, isMobile ? double.infinity : 700).toDouble();
-          
+          final maxWidth = constraints.maxWidth
+              .clamp(320, isMobile ? double.infinity : 900)
+              .toDouble();
+          final maxHeight = constraints.maxHeight
+              .clamp(400, isMobile ? double.infinity : 700)
+              .toDouble();
+
           return SizedBox(
             width: maxWidth,
             height: maxHeight,
@@ -165,9 +165,8 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                           children: [
                             Text(
                               '批次報名',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             Text(
                               '課程：${widget.courseTitle}',
@@ -204,7 +203,9 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                         _selectedSessionIds.clear();
                                       } else {
                                         _selectedSessionIds.addAll(
-                                          widget.upcomingSessions.map((s) => s.id),
+                                          widget.upcomingSessions.map(
+                                            (s) => s.id,
+                                          ),
                                         );
                                       }
                                     });
@@ -212,21 +213,22 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                 ),
                                 const SizedBox(height: 8),
                                 Container(
-                                  constraints: BoxConstraints(
-                                    maxHeight: 200,
-                                  ),
+                                  constraints: BoxConstraints(maxHeight: 200),
                                   child: widget.upcomingSessions.isEmpty
                                       ? const Center(child: Text('無未來場次'))
                                       : ListView.separated(
                                           shrinkWrap: true,
-                                          itemCount: widget.upcomingSessions.length,
+                                          itemCount:
+                                              widget.upcomingSessions.length,
                                           separatorBuilder: (_, __) =>
                                               const Divider(height: 1),
                                           itemBuilder: (context, index) {
                                             final session =
                                                 widget.upcomingSessions[index];
-                                            final isSelected = _selectedSessionIds
-                                                .contains(session.id);
+                                            final isSelected =
+                                                _selectedSessionIds.contains(
+                                                  session.id,
+                                                );
                                             final dateStr = DateFormat(
                                               'MM/dd (E) HH:mm',
                                               'zh_TW',
@@ -234,7 +236,9 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
 
                                             return CheckboxListTile(
                                               value: isSelected,
-                                              activeColor: Theme.of(context).colorScheme.primary,
+                                              activeColor: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
                                               contentPadding: EdgeInsets.zero,
                                               title: Text(
                                                 dateStr,
@@ -245,19 +249,24 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                               subtitle: Text(
                                                 '剩餘名額: ${session.remainingCapacity}',
                                                 style: TextStyle(
-                                                  color: session.remainingCapacity <= 0
+                                                  color:
+                                                      session.remainingCapacity <=
+                                                          0
                                                       ? Colors.red.shade700
                                                       : Colors.grey,
                                                 ),
                                               ),
                                               onChanged: (val) {
                                                 setState(() {
-                                                  if (val == true)
-                                                    _selectedSessionIds.add(session.id);
-                                                  else
+                                                  if (val == true) {
+                                                    _selectedSessionIds.add(
+                                                      session.id,
+                                                    );
+                                                  } else {
                                                     _selectedSessionIds.remove(
                                                       session.id,
                                                     );
+                                                  }
                                                 });
                                               },
                                             );
@@ -267,10 +276,11 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                 const SizedBox(height: 24),
                                 const Divider(),
                                 const SizedBox(height: 16),
-                                
+
                                 // 指定學生
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       '2. 指定學生 (${_targetStudents.length})',
@@ -281,11 +291,18 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                     ),
                                     ElevatedButton.icon(
                                       onPressed: _openSearchDialog,
-                                      icon: const Icon(Icons.person_add, size: 16),
+                                      icon: const Icon(
+                                        Icons.person_add,
+                                        size: 16,
+                                      ),
                                       label: const Text('新增學員'),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                                        foregroundColor: Theme.of(context).colorScheme.primary,
+                                        backgroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.primaryContainer,
+                                        foregroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                         elevation: 0,
                                       ),
                                     ),
@@ -293,13 +310,12 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                 ),
                                 const SizedBox(height: 8),
                                 Container(
-                                  constraints: BoxConstraints(
-                                    maxHeight: 200,
-                                  ),
+                                  constraints: BoxConstraints(maxHeight: 200),
                                   child: _targetStudents.isEmpty
                                       ? Center(
                                           child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
                                               Icon(
                                                 Icons.groups_outlined,
@@ -327,13 +343,17 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                           shrinkWrap: true,
                                           itemCount: _targetStudents.length,
                                           itemBuilder: (context, index) {
-                                            final student = _targetStudents[index];
+                                            final student =
+                                                _targetStudents[index];
                                             return Card(
-                                              margin: const EdgeInsets.only(bottom: 8),
+                                              margin: const EdgeInsets.only(
+                                                bottom: 8,
+                                              ),
                                               elevation: 0,
                                               color: Colors.grey.shade50,
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(8),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
                                                 side: BorderSide(
                                                   color: Colors.grey.shade200,
                                                 ),
@@ -341,11 +361,17 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                               child: ListTile(
                                                 leading: CircleAvatar(
                                                   backgroundColor:
-                                                      Theme.of(context).colorScheme.primaryContainer,
-                                                  foregroundColor:
-                                                      Theme.of(context).colorScheme.primary,
+                                                      Theme.of(context)
+                                                          .colorScheme
+                                                          .primaryContainer,
+                                                  foregroundColor: Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary,
                                                   child: Text(
-                                                    student.name.substring(0, 1),
+                                                    student.name.substring(
+                                                      0,
+                                                      1,
+                                                    ),
                                                   ),
                                                 ),
                                                 title: Text(student.name),
@@ -385,7 +411,9 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                             _selectedSessionIds.clear();
                                           } else {
                                             _selectedSessionIds.addAll(
-                                              widget.upcomingSessions.map((s) => s.id),
+                                              widget.upcomingSessions.map(
+                                                (s) => s.id,
+                                              ),
                                             );
                                           }
                                         });
@@ -396,14 +424,17 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                       child: widget.upcomingSessions.isEmpty
                                           ? const Center(child: Text('無未來場次'))
                                           : ListView.separated(
-                                              itemCount: widget.upcomingSessions.length,
+                                              itemCount: widget
+                                                  .upcomingSessions
+                                                  .length,
                                               separatorBuilder: (_, __) =>
                                                   const Divider(height: 1),
                                               itemBuilder: (context, index) {
-                                                final session =
-                                                    widget.upcomingSessions[index];
-                                                final isSelected = _selectedSessionIds
-                                                    .contains(session.id);
+                                                final session = widget
+                                                    .upcomingSessions[index];
+                                                final isSelected =
+                                                    _selectedSessionIds
+                                                        .contains(session.id);
                                                 final dateStr = DateFormat(
                                                   'MM/dd (E) HH:mm',
                                                   'zh_TW',
@@ -411,30 +442,38 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
 
                                                 return CheckboxListTile(
                                                   value: isSelected,
-                                                  activeColor: Theme.of(context).colorScheme.primary,
-                                                  contentPadding: EdgeInsets.zero,
+                                                  activeColor: Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary,
+                                                  contentPadding:
+                                                      EdgeInsets.zero,
                                                   title: Text(
                                                     dateStr,
                                                     style: const TextStyle(
-                                                      fontWeight: FontWeight.w500,
+                                                      fontWeight:
+                                                          FontWeight.w500,
                                                     ),
                                                   ),
                                                   subtitle: Text(
                                                     '剩餘名額: ${session.remainingCapacity}',
                                                     style: TextStyle(
-                                                      color: session.remainingCapacity <= 0
+                                                      color:
+                                                          session.remainingCapacity <=
+                                                              0
                                                           ? Colors.red.shade700
                                                           : Colors.grey,
                                                     ),
                                                   ),
                                                   onChanged: (val) {
                                                     setState(() {
-                                                      if (val == true)
-                                                        _selectedSessionIds.add(session.id);
-                                                      else
-                                                        _selectedSessionIds.remove(
+                                                      if (val == true) {
+                                                        _selectedSessionIds.add(
                                                           session.id,
                                                         );
+                                                      } else {
+                                                        _selectedSessionIds
+                                                            .remove(session.id);
+                                                      }
                                                     });
                                                   },
                                                 );
@@ -454,7 +493,8 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           '2. 指定學生 (${_targetStudents.length})',
@@ -466,11 +506,18 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                         // 🔥 新增學生按鈕
                                         ElevatedButton.icon(
                                           onPressed: _openSearchDialog,
-                                          icon: const Icon(Icons.person_add, size: 16),
+                                          icon: const Icon(
+                                            Icons.person_add,
+                                            size: 16,
+                                          ),
                                           label: const Text('新增學員'),
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                                            foregroundColor: Theme.of(context).colorScheme.primary,
+                                            backgroundColor: Theme.of(
+                                              context,
+                                            ).colorScheme.primaryContainer,
+                                            foregroundColor: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
                                             elevation: 0,
                                           ),
                                         ),
@@ -483,7 +530,8 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                       child: _targetStudents.isEmpty
                                           ? Center(
                                               child: Column(
-                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
                                                 children: [
                                                   Icon(
                                                     Icons.groups_outlined,
@@ -494,13 +542,15 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                                   Text(
                                                     '尚未加入任何學生',
                                                     style: TextStyle(
-                                                      color: Colors.grey.shade400,
+                                                      color:
+                                                          Colors.grey.shade400,
                                                     ),
                                                   ),
                                                   Text(
                                                     '請點擊右上方按鈕新增',
                                                     style: TextStyle(
-                                                      color: Colors.grey.shade400,
+                                                      color:
+                                                          Colors.grey.shade400,
                                                       fontSize: 12,
                                                     ),
                                                   ),
@@ -510,35 +560,51 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                           : ListView.builder(
                                               itemCount: _targetStudents.length,
                                               itemBuilder: (context, index) {
-                                                final student = _targetStudents[index];
+                                                final student =
+                                                    _targetStudents[index];
                                                 return Card(
-                                                  margin: const EdgeInsets.only(bottom: 8),
+                                                  margin: const EdgeInsets.only(
+                                                    bottom: 8,
+                                                  ),
                                                   elevation: 0,
                                                   color: Colors.grey.shade50,
                                                   shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(8),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
                                                     side: BorderSide(
-                                                      color: Colors.grey.shade200,
+                                                      color:
+                                                          Colors.grey.shade200,
                                                     ),
                                                   ),
                                                   child: ListTile(
                                                     leading: CircleAvatar(
                                                       backgroundColor:
-                                                          Theme.of(context).colorScheme.primaryContainer,
-                                                      foregroundColor:
-                                                          Theme.of(context).colorScheme.primary,
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .primaryContainer,
+                                                      foregroundColor: Theme.of(
+                                                        context,
+                                                      ).colorScheme.primary,
                                                       child: Text(
-                                                        student.name.substring(0, 1),
+                                                        student.name.substring(
+                                                          0,
+                                                          1,
+                                                        ),
                                                       ),
                                                     ),
                                                     title: Text(student.name),
                                                     trailing: IconButton(
                                                       icon: const Icon(
-                                                        Icons.remove_circle_outline,
+                                                        Icons
+                                                            .remove_circle_outline,
                                                         color: Colors.red,
                                                       ),
                                                       onPressed: () =>
-                                                          _removeStudent(student),
+                                                          _removeStudent(
+                                                            student,
+                                                          ),
                                                       tooltip: '移除',
                                                     ),
                                                   ),

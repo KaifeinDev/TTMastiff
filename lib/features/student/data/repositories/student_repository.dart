@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/student_model.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 class StudentRepository {
   final SupabaseClient _supabase;
@@ -222,7 +223,7 @@ class StudentRepository {
           }
         } catch (e) {
           // 如果查詢失敗，只記錄錯誤，不影響返回學員列表
-          print('⚠️ 查詢家長資訊失敗: $e');
+          logError('⚠️ 查詢家長資訊失敗: $e');
         }
       }
 
@@ -252,7 +253,7 @@ class StudentRepository {
             studentsBookings[bookingStudentId]!.add(booking);
           }
         } catch (e) {
-          print('⚠️ 查詢報名課程失敗: $e');
+          logError('⚠️ 查詢報名課程失敗: $e');
         }
       }
 
@@ -307,7 +308,7 @@ class StudentRepository {
 
       return data['membership'] as String?;
     } catch (e) {
-      print('查詢會員等級失敗: $e');
+      logError('查詢會員等級失敗: $e');
       return null;
     }
   }

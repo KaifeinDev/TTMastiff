@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:go_router/go_router.dart';
 
 class AdminScaffold extends StatefulWidget {
@@ -26,77 +27,77 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           ),
         ),
         colorScheme: Theme.of(context).colorScheme.copyWith(
-              surface: Colors.white,
-              surfaceContainerHighest: Colors.white,
-              surfaceContainerHigh: Colors.white,
-              surfaceContainer: Colors.white,
-              surfaceContainerLow: Colors.white,
-              surfaceContainerLowest: Colors.white,
-              surfaceTint: Colors.transparent,
-            ),
+          surface: Colors.white,
+          surfaceContainerHighest: Colors.white,
+          surfaceContainerHigh: Colors.white,
+          surfaceContainer: Colors.white,
+          surfaceContainerLow: Colors.white,
+          surfaceContainerLowest: Colors.white,
+          surfaceTint: Colors.transparent,
+        ),
       ),
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'TTMastiff 球館管理系統', 
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white),
-        ),
-        backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.8),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home),
-            tooltip: '回前台 App',
-            color: Colors.white,
-            onPressed: () => context.go('/home'),
+        appBar: AppBar(
+          title: const Text(
+            'TTMastiff 球館管理系統',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
           ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(
-            height: 1,
-            thickness: 1,
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
-        ),
-      ),
-      drawer: isDesktop
-          ? null
-          : Drawer(
-              backgroundColor: Theme.of(context).colorScheme.background,
-              child: _buildSidebar(context),
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.secondary.withValues(alpha: 0.8),
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.home),
+              tooltip: '回前台 App',
+              color: Colors.white,
+              onPressed: () => context.go('/home'),
             ),
-      body: Row(
-        children: [
-          if (isDesktop)
-            Container(
-              width: 260,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.background,
-                border: Border(
-                  right: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    width: 1,
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+        ),
+        drawer: isDesktop
+            ? null
+            : Drawer(
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                child: _buildSidebar(context),
+              ),
+        body: Row(
+          children: [
+            if (isDesktop)
+              Container(
+                width: 260,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border(
+                    right: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      width: 1,
+                    ),
                   ),
                 ),
+                child: _buildSidebar(context, isDark: false),
               ),
-              child: _buildSidebar(context, isDark: false),
-            ),
-          Expanded(
-            child: Container(
-              color: Colors.grey.shade100, // 背景色淡灰，突顯內容
-              padding: const EdgeInsets.all(24),
-              child: KeyedSubtree(
-                key: ValueKey(currentPath),
-                child: widget.child,
+            Expanded(
+              child: Container(
+                color: Colors.grey.shade100, // 背景色淡灰，突顯內容
+                padding: const EdgeInsets.all(24),
+                child: KeyedSubtree(
+                  key: ValueKey(currentPath),
+                  child: widget.child,
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -206,7 +207,10 @@ class _AdminMenuItem extends StatelessWidget {
     ).uri.toString().startsWith(route);
 
     return ListTile(
-      leading: Icon(icon, color: isSelected ? Theme.of(context).colorScheme.primary : iconColor),
+      leading: Icon(
+        icon,
+        color: isSelected ? Theme.of(context).colorScheme.primary : iconColor,
+      ),
       title: Text(
         title,
         style: TextStyle(

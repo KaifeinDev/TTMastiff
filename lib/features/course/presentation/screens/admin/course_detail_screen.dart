@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart';
@@ -103,11 +104,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
-      }
+      logError(e);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -179,11 +176,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
           ).showSnackBar(const SnackBar(content: Text('已刪除場次')));
         }
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('刪除失敗: $e')));
-        }
+        logError(e);
       }
     }
   }
@@ -575,7 +568,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: _getCategoryColor(50).withOpacity(0.3), // 淡淡的背景色區隔
+                color: _getCategoryColor(50).withValues(alpha: 0.3), // 淡淡的背景色區隔
                 border: Border(top: BorderSide(color: Colors.grey.shade100)),
               ),
               child: Column(

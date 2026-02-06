@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 /// 學員頭像 Widget（用於列表顯示）
 class StudentAvatar extends StatelessWidget {
@@ -20,15 +21,13 @@ class StudentAvatar extends StatelessWidget {
     final name = this.name.trim();
     final initials = name.isEmpty
         ? '?'
-        : (name.length >= 2
-            ? name.substring(name.length - 2)
-            : name);
+        : (name.length >= 2 ? name.substring(name.length - 2) : name);
 
     final avatar = CircleAvatar(
       radius: radius,
       backgroundColor: isPrimary
           ? Theme.of(context).colorScheme.primary
-          : Theme.of(context).colorScheme.primary.withOpacity(0.12),
+          : Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
       child: Text(
         initials,
         style: TextStyle(
@@ -42,10 +41,7 @@ class StudentAvatar extends StatelessWidget {
     );
 
     if (heroTag != null) {
-      return Hero(
-        tag: heroTag!,
-        child: avatar,
-      );
+      return Hero(tag: heroTag!, child: avatar);
     }
 
     return avatar;

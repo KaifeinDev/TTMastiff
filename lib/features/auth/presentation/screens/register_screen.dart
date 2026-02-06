@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:flutter/services.dart'; // 引入 services 以使用 input formatters
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -96,13 +97,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         context.go('/home');
       }
     } catch (e) {
-      if (mounted) {
-        // 簡單處理錯誤訊息，去掉 Exception 前綴
-        final msg = e.toString().replaceAll('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ 註冊失敗: $msg'), backgroundColor: Colors.red),
-        );
-      }
+  logError(e);
+
     } finally {
       if (mounted) {
         setState(() {
@@ -177,7 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // 3. 性別
                 DropdownButtonFormField<String>(
-                  value: _selectedGender,
+                  initialValue: _selectedGender,
                   decoration: const InputDecoration(
                     labelText: '性別',
                     prefixIcon: Icon(Icons.person_outline),

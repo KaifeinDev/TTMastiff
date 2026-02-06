@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/repositories/activity_repository.dart';
 import '../../../data/models/activity_model.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -47,7 +49,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Future<void> _loadActivityNotifications() async {
     try {
       final activities = await _activityRepository.getActivityNotifications();
-      
+
       // 由新到舊排序（依開始時間）
       activities.sort((a, b) => b.startTime.compareTo(a.startTime));
 
@@ -58,10 +60,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         });
       }
     } catch (e) {
-      debugPrint('載入活動通知失敗: $e');
-      if (mounted) {
-        setState(() => _isLoadingActivities = false);
-      }
+      logError(e);
     }
   }
 
@@ -75,10 +74,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '通知',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('通知', style: TextStyle(fontWeight: FontWeight.bold)),
         bottom: TabBar(
           controller: _tabController,
           labelColor: Theme.of(context).colorScheme.primary,
@@ -107,20 +103,15 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
     if (_activityNotifications.isEmpty) {
       return Center(
-        child: Text(
-          '暫無活動通知',
-          style: TextStyle(color: Colors.grey.shade600),
-        ),
+        child: Text('暫無活動通知', style: TextStyle(color: Colors.grey.shade600)),
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: _activityNotifications.length,
-      separatorBuilder: (context, index) => Divider(
-        color: Colors.grey.shade300,
-        height: 1,
-      ),
+      separatorBuilder: (context, index) =>
+          Divider(color: Colors.grey.shade300, height: 1),
       itemBuilder: (context, index) {
         final activity = _activityNotifications[index];
         return _buildActivityNotificationItem(activity);
@@ -131,7 +122,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Widget _buildActivityNotificationItem(ActivityModel activity) {
     final isUnread = activity.notificationStatus == 'unread';
     final dateFormat = DateFormat('yyyy/MM/dd HH:mm');
-    
+
     return InkWell(
       onTap: () async {
         // 標記為已讀
@@ -139,7 +130,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           await _activityRepository.markActivityAsRead(activity.id);
           // 更新本地狀態
           setState(() {
-            final index = _activityNotifications.indexWhere((a) => a.id == activity.id);
+            final index = _activityNotifications.indexWhere(
+              (a) => a.id == activity.id,
+            );
             if (index != -1) {
               _activityNotifications[index] = activity.copyWith(
                 notificationStatus: 'read',
@@ -166,7 +159,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       activity.title,
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+                        fontWeight: isUnread
+                            ? FontWeight.w700
+                            : FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -191,10 +186,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right,
-                color: Colors.grey.shade400,
-              ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400),
             ],
           ),
         ),
@@ -205,20 +197,15 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Widget _buildNotificationList(List<Map<String, dynamic>> notifications) {
     if (notifications.isEmpty) {
       return Center(
-        child: Text(
-          '暫無通知',
-          style: TextStyle(color: Colors.grey.shade600),
-        ),
+        child: Text('暫無通知', style: TextStyle(color: Colors.grey.shade600)),
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: notifications.length,
-      separatorBuilder: (context, index) => Divider(
-        color: Colors.grey.shade300,
-        height: 1,
-      ),
+      separatorBuilder: (context, index) =>
+          Divider(color: Colors.grey.shade300, height: 1),
       itemBuilder: (context, index) {
         final notification = notifications[index];
         return _buildNotificationItem(notification);
@@ -228,7 +215,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   Widget _buildNotificationItem(Map<String, dynamic> notification) {
     final dateFormat = DateFormat('yyyy/MM/dd HH:mm');
-    
+
     return InkWell(
       onTap: () {
         context.push('/notifications/${notification['id']}');
@@ -252,29 +239,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   const SizedBox(height: 4),
                   Text(
                     notification['description'] as String,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     dateFormat.format(notification['dateTime'] as DateTime),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.chevron_right, color: Colors.grey.shade400),
           ],
         ),
       ),

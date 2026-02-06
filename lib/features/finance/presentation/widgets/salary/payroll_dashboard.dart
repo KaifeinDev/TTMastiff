@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/payroll_model.dart'; // 請確認這個路徑是否正確
 
@@ -41,7 +42,7 @@ class PayrollDashboard extends StatelessWidget {
           border: Border.all(color: Colors.grey.shade300),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

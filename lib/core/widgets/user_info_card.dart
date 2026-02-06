@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'gender_icon.dart';
 import 'membership_utils.dart';
@@ -59,9 +60,7 @@ class UserInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = displayName.trim();
-    final initials = name.length >= 2
-        ? name.substring(name.length - 2)
-        : name;
+    final initials = name.length >= 2 ? name.substring(name.length - 2) : name;
     final isMobile = MediaQuery.of(context).size.width < 600;
     final shouldMoveAvatar = moveAvatarToTopRight && isMobile;
 
@@ -69,12 +68,14 @@ class UserInfoCard extends StatelessWidget {
       radius: 30,
       backgroundColor: isPrimary
           ? Theme.of(context).colorScheme.primary
-          : Theme.of(context).colorScheme.primary.withOpacity(0.12),
+          : Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
       child: Text(
         initials,
         style: TextStyle(
           fontSize: 20,
-          color: isPrimary ? Colors.white : Theme.of(context).colorScheme.primary,
+          color: isPrimary
+              ? Colors.white
+              : Theme.of(context).colorScheme.primary,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -99,9 +100,7 @@ class UserInfoCard extends StatelessWidget {
                         children: [
                           Text(
                             displayName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
+                            style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 20,
@@ -134,9 +133,7 @@ class UserInfoCard extends StatelessWidget {
                         children: [
                           Text(
                             displayName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
+                            style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 20,
@@ -157,10 +154,7 @@ class UserInfoCard extends StatelessWidget {
                 else if (showLockButton)
                   IconButton(
                     onPressed: onLockTap,
-                    icon: const Icon(
-                      Icons.lock_outline,
-                      color: Colors.grey,
-                    ),
+                    icon: const Icon(Icons.lock_outline, color: Colors.grey),
                     tooltip: '資料鎖定',
                   ),
               ],
@@ -178,11 +172,7 @@ class UserInfoCard extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Row(
               children: [
-                const Icon(
-                  Icons.email,
-                  size: 16,
-                  color: Colors.grey,
-                ),
+                const Icon(Icons.email, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
                 if (isAdmin)
                   Text(
@@ -212,11 +202,7 @@ class UserInfoCard extends StatelessWidget {
             padding: const EdgeInsets.only(top: 10),
             child: Row(
               children: [
-                const Icon(
-                  Icons.phone_iphone,
-                  size: 16,
-                  color: Colors.grey,
-                ),
+                const Icon(Icons.phone_iphone, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
                 if (isAdmin)
                   Text(
@@ -243,11 +229,7 @@ class UserInfoCard extends StatelessWidget {
             padding: const EdgeInsets.only(top: 10),
             child: Row(
               children: [
-                Icon(
-                  Icons.cake,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
+                Icon(Icons.cake, size: 16, color: Colors.grey.shade600),
                 const SizedBox(width: 8),
                 Text(
                   '生日: ',
@@ -313,11 +295,7 @@ class UserInfoCard extends StatelessWidget {
             padding: const EdgeInsets.only(top: 10),
             child: Row(
               children: [
-                const Icon(
-                  Icons.stars,
-                  size: 16,
-                  color: Colors.grey,
-                ),
+                const Icon(Icons.stars, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
                 Text(
                   '點數: ',

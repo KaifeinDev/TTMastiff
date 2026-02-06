@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/features/finance/data/models/payroll_model.dart';
 
 class PayrollEditDialog extends StatefulWidget {
@@ -139,7 +140,7 @@ class _PayrollEditDialogState extends State<PayrollEditDialog> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.background,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -236,7 +237,7 @@ class _PayrollEditDialogState extends State<PayrollEditDialog> {
             const SizedBox(height: 12),
             // 狀態選擇
             DropdownButtonFormField<String>(
-              value: _status,
+              initialValue: _status,
               dropdownColor: Colors.white,
               decoration: const InputDecoration(
                 labelText: '結算狀態',
@@ -334,14 +335,18 @@ class _PayrollEditDialogState extends State<PayrollEditDialog> {
         Text(
           label,
           style: TextStyle(
-            color: isHighlight ? Theme.of(context).colorScheme.primary : Colors.black87,
+            color: isHighlight
+                ? Theme.of(context).colorScheme.primary
+                : Colors.black87,
             fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal,
           ),
         ),
         Text(
           value,
           style: TextStyle(
-            color: isHighlight ? Theme.of(context).colorScheme.primary : Colors.black87,
+            color: isHighlight
+                ? Theme.of(context).colorScheme.primary
+                : Colors.black87,
             fontWeight: FontWeight.bold,
           ),
         ),

@@ -2,9 +2,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/session_model.dart';
 import '../../../finance/data/repositories/credit_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/booking/data/repositories/booking_repository.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 enum ConflictType {
   none, // 無衝突
@@ -99,7 +99,7 @@ class SessionRepository {
 
       return sessionsData.map((json) => SessionModel.fromJson(json)).toList();
     } catch (e) {
-      debugPrint('Error fetching sessions: $e');
+      logError(e);
       return [];
     }
   }
@@ -183,9 +183,6 @@ class SessionRepository {
       for (int i = 0; i < createdSessions.length; i++) {
         final originalData = sessionsData[i];
         final String sessionId = createdSessions[i]['id'];
-        print(
-          'student_id: ${originalData['renter_id']}\ntarget_user_id: ${originalData['target_user_id']}',
-        );
 
         // 如果是租桌 (有 renter_id)
         if (originalData['renter_id'] != null) {
@@ -209,7 +206,7 @@ class SessionRepository {
         );
       }
     } catch (e) {
-      print('建立預約失敗，回滾 Sessions...: $e');
+      logError('建立預約失敗，回滾 Sessions...: $e');
       // Rollback 機制保持不變
       if (createdSessionIds.isNotEmpty) {
         await _supabase
@@ -432,7 +429,7 @@ class SessionRepository {
           .eq('status', 'confirmed'); // 只退款有效訂單
 
       if (bookings.isNotEmpty) {
-        print('正在為 Session $sessionId 執行退款，共 ${bookings.length} 筆...');
+        logger.i('正在為 Session $sessionId 執行退款，共 ${bookings.length} 筆...');
 
         // 4. 逐筆退款
         // 雖然是迴圈，但 processRefund 是 RPC 交易，安全性足夠。
@@ -458,7 +455,7 @@ class SessionRepository {
                 reason: '課程取消',
               );
             } catch (e) {
-              print('退款失敗 (User: $userId): $e');
+              logError('退款失敗 (User: $userId): $e');
               // 這裡可以選擇是否中斷，或是繼續退別人的
               // 建議 log 下來，繼續執行，以免卡住刪除流程
             }

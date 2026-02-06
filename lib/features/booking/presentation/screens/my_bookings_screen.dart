@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 
 // 🔥 請確認您的路徑正確
@@ -124,8 +125,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         });
       }
     } catch (e) {
-      debugPrint('Error fetching bookings: $e');
-      if (mounted) setState(() => _isLoading = false);
+      logError(e);
     }
   }
 
@@ -194,11 +194,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         }
         _fetchBookings(); // 重整列表
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('操作失敗: $e')));
-        }
+        logError(e);
       }
     }
   }
@@ -371,7 +367,7 @@ class _GroupedBookingCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

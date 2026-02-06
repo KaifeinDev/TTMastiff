@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/course/data/repositories/session_repository.dart';
@@ -147,7 +148,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       final coaches = await coachRepository.getCoaches();
       if (mounted) setState(() => _allCoaches = coaches);
     } catch (e) {
-      if (mounted) showErrorDialog(context, e, title: '載入教練失敗');
+      logError(e);
     }
   }
 
@@ -162,10 +163,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        showErrorDialog(context, e, title: '載入桌次失敗');
-        setState(() => _isLoadingTables = false);
-      }
+      logError(e);
     }
   }
 
@@ -356,7 +354,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) showErrorDialog(context, e, title: '排程失敗');
+      logError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

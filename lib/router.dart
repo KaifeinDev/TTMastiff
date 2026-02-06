@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
-import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart'; // 注意: AuthManager 路徑通常在 data/services 或 data/repositories
+import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart';
 
 // --- 1. 一般頁面 (Client) ---
 import 'features/auth/presentation/screens/login_screen.dart';
@@ -9,7 +10,7 @@ import 'features/auth/presentation/screens/register_screen.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
 import 'features/auth/presentation/screens/profile_screen.dart';
 import 'features/home/presentation/screens/client_scaffold.dart';
-import 'features/home/presentation/screens/client_home_screen.dart'; // 類別名通常是 ClientHomeScreen
+import 'features/home/presentation/screens/client_home_screen.dart';
 
 // 使用 'as' 避免與 Admin 的 CourseDetailScreen 衝突
 import 'features/course/presentation/screens/client/courses_screen.dart';
@@ -77,7 +78,7 @@ final appRouter = GoRouter(
 
     // 規則 4: 一般用戶嘗試訪問 /admin 開頭的頁面 -> 踢回首頁
     if (isLoggedIn && location.startsWith('/admin') && !isAdmin && !isCoach) {
-      print('⛔ 權限不足：一般使用者嘗試進入後台');
+      logger.i('⛔ 權限不足：一般使用者嘗試進入後台');
       return '/homepage';
     }
 

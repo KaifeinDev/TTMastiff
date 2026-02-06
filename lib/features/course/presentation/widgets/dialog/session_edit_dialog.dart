@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart';
@@ -101,7 +102,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       // 保留「啟用中」的桌子 OR 「這堂課原本選中的」桌子
       // 這樣可以確保即使桌子被停用，編輯這堂課時依然能看到它顯示在選單上，而不是空白或報錯
       final displayTables = allTables.where((t) {
-        return t.isActive || t.id == currentTableId;
+        return t.isActive || currentTableId.contains(t.id);
       }).toList();
 
       if (mounted) {
@@ -113,8 +114,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         });
       }
     } catch (e) {
-      debugPrint('載入桌次失敗: $e');
-      if (mounted) setState(() => _isLoadingTables = false);
+      logError(e);
     }
   }
 
@@ -130,7 +130,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       );
       if (mounted) setState(() => _roster = bookings);
     } catch (e) {
-      debugPrint('Fetch roster error: $e');
+      logError(e);
     } finally {
       if (mounted) setState(() => _isLoadingRoster = false);
     }
@@ -156,7 +156,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         _fetchRoster();
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('更新失敗: $e')));
+      logError(e);
     }
   }
 
@@ -172,7 +172,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         _fetchRoster();
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('取消失敗: $e')));
+      logError(e);
     }
   }
 
@@ -221,22 +221,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         }
       }
     } catch (e) {
-      if (mounted) {
-        // 顯示錯誤 (例如：額滿、餘額不足)
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('無法加入'),
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('確定'),
-              ),
-            ],
-          ),
-        );
-      }
+      logError(e);
     } finally {
       if (mounted) {
         setState(() => _isLoadingRoster = false);
@@ -253,7 +238,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       final coaches = await coachRepository.getCoaches();
       if (mounted) setState(() => _allCoaches = coaches);
     } catch (e) {
-      debugPrint('Fetch coaches error: $e');
+      logError(e);
     }
   }
 
@@ -313,8 +298,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     setState(() {
       if (isStart) {
         _startDateTime = newDateTime;
-        if (_startDateTime.isAfter(_endDateTime))
+        if (_startDateTime.isAfter(_endDateTime)) {
           _endDateTime = _startDateTime.add(const Duration(hours: 1));
+        }
       } else {
         if (newDateTime.isBefore(_startDateTime)) {
           ScaffoldMessenger.of(
@@ -373,9 +359,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        showErrorDialog(context, e);
-      }
+      logError(e);
     } finally {
       if (mounted) setState(() => _isSavingSettings = false);
     }
@@ -388,7 +372,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
+      child: SizedBox(
         width: 500,
         height: 700,
         child: Column(
@@ -397,7 +381,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
             Container(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.5),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
                 ),
@@ -529,7 +515,6 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     );
   }
 
-
   void _showAddCoachDialog(BuildContext context) {
     // 1. 過濾出「尚未選擇」的教練
     final availableCoaches = _allCoaches.where((coach) {
@@ -568,7 +553,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   }
 
   Widget _buildSettingsView() {
-    void _adjustCapacity(int amount) {
+    void adjustCapacity(int amount) {
       // 1. 嘗試將目前文字轉為整數，若為空或格式錯誤則預設為 0
       int currentValue = int.tryParse(_capacityController.text) ?? 0;
 
@@ -688,7 +673,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           else if (_selectedCoachIds.isEmpty && _isExpired)
             const Text('未指定', style: TextStyle(color: Colors.grey))
           else
-            Container(
+            SizedBox(
               width: double.infinity,
               child: Wrap(
                 spacing: 8.0,
@@ -708,7 +693,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
 
                       avatar: CircleAvatar(
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
                         child: Text(
                           (coach['full_name'] as String).substring(0, 1),
                           style: TextStyle(
@@ -728,7 +715,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
 
                       // 🔥 2. 統一顏色設定
                       backgroundColor: Theme.of(context).colorScheme.surface,
-                      deleteIconColor: Theme.of(context).colorScheme.primaryContainer,
+                      deleteIconColor: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer,
 
                       // 🔥 3. 統一邊框形狀 (StadiumBorder)
                       shape: StadiumBorder(
@@ -800,14 +789,14 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                             Icons.remove_circle_outline,
                             color: Colors.grey,
                           ),
-                          onPressed: () => _adjustCapacity(-1),
+                          onPressed: () => adjustCapacity(-1),
                         ),
                         IconButton(
                           icon: Icon(
                             Icons.add_circle_outline,
                             color: Theme.of(context).colorScheme.primary,
                           ),
-                          onPressed: () => _adjustCapacity(1),
+                          onPressed: () => adjustCapacity(1),
                         ),
                       ],
                     ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/student_model.dart';
 
@@ -56,7 +57,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
         });
       }
     } catch (e) {
-      debugPrint('搜尋失敗: $e');
+      logError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

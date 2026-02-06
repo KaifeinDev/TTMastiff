@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/table/data/repositories/table_repository.dart';
 import '../../data/models/table_model.dart';
@@ -30,11 +31,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
         _tables = tables;
       });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('讀取失敗: $e')));
-      }
+      logError(e);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -86,12 +83,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
         await _updateStatus(table, false);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('狀態更新失敗: $e')));
-      }
+      logError(e);
     }
   }
 
@@ -116,11 +108,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
         ).showSnackBar(SnackBar(content: Text(isActive ? '已啟用桌次' : '已停用桌次')));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('更新失敗: $e')));
-      }
+      logError(e);
     }
   }
 
@@ -199,11 +187,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                   _loadTables();
                 }
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('儲存失敗: $e')));
-                }
+                logError(e);
               }
             },
             child: const Text('儲存'),
@@ -239,11 +223,8 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
         await tableRepository.deleteTable(id);
         _loadTables();
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('刪除失敗，請檢查是否已有關聯課程，或改用停用功能。')),
-          );
-        }
+  logError(e);
+
       }
     }
   }
@@ -368,7 +349,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                               children: [
                                 Switch(
                                   value: table.isActive,
-                                  activeColor: Colors.green,
+                                  activeThumbColor: Colors.green,
                                   onChanged: (val) =>
                                       _toggleTableStatus(table, val),
                                 ),

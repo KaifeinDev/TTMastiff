@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/course/data/repositories/course_repository.dart';
 import '../../../data/models/course_model.dart';
@@ -110,11 +111,7 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
       }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('錯誤: $e')));
-      }
+      logError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -122,7 +119,7 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    void _adjustPrice(int amount) {
+    void adjustPrice(int amount) {
       int currentValue = int.tryParse(_priceController.text) ?? 0;
       int newValue = currentValue + amount;
       if (newValue < 0) newValue = 0;
@@ -157,7 +154,7 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
 
                 // 2. 類別選擇
                 DropdownButtonFormField<String>(
-                  value: _category,
+                  initialValue: _category,
                   decoration: const InputDecoration(
                     labelText: '類別 (Category)',
                     border: OutlineInputBorder(),
@@ -198,14 +195,14 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
                             Icons.remove_circle_outline,
                             color: Colors.grey,
                           ),
-                          onPressed: () => _adjustPrice(-50),
+                          onPressed: () => adjustPrice(-50),
                         ),
                         IconButton(
                           icon: const Icon(
                             Icons.add_circle_outline,
                             color: Colors.blue,
                           ),
-                          onPressed: () => _adjustPrice(50),
+                          onPressed: () => adjustPrice(50),
                         ),
                       ],
                     ),

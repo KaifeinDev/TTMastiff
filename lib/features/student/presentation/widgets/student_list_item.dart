@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import '../../data/models/student_model.dart';
 import '../../../../../core/utils/util.dart';
 import 'student_avatar.dart';
@@ -37,15 +38,10 @@ class StudentListItem extends StatelessWidget {
     final heroTag = 'avatar_${student.id}';
 
     return Card(
-      margin: margin ?? const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ),
+      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.white,
       elevation: elevation ?? 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         contentPadding: padding,
         leading: StudentAvatar(
@@ -58,9 +54,7 @@ class StudentListItem extends StatelessWidget {
           children: [
             Text(
               student.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             if (student.gender != null) ...[
               const SizedBox(width: 4),
@@ -100,10 +94,7 @@ class StudentListItem extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     parentPhone!,
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                   ),
                 ],
               ),
@@ -112,18 +103,11 @@ class StudentListItem extends StatelessWidget {
               const SizedBox(height: 2),
               Row(
                 children: [
-                  const Icon(
-                    Icons.stars,
-                    size: 14,
-                    color: Colors.grey,
-                  ),
+                  const Icon(Icons.stars, size: 14, color: Colors.grey),
                   const SizedBox(width: 4),
                   Text(
                     '${student.points}',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                   ),
                 ],
               ),
@@ -143,10 +127,7 @@ class StudentListItem extends StatelessWidget {
                 ),
               ),
             const SizedBox(width: 8),
-            const Icon(
-              Icons.chevron_right,
-              color: Colors.grey,
-            ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
           ],
         ),
         onTap: onTap,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
@@ -10,6 +11,7 @@ import '../../../../../core/constants/activity_status.dart';
 
 import '../../widgets/activity_edit_dialog.dart';
 import '../../widgets/dashed_card.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 class ActivityManagementScreen extends StatefulWidget {
   const ActivityManagementScreen({super.key});
@@ -19,8 +21,7 @@ class ActivityManagementScreen extends StatefulWidget {
       _ActivityManagementScreenState();
 }
 
-class _ActivityManagementScreenState
-    extends State<ActivityManagementScreen>
+class _ActivityManagementScreenState extends State<ActivityManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _activityRepository = ActivityRepository(Supabase.instance.client);
@@ -48,26 +49,32 @@ class _ActivityManagementScreenState
   Future<void> _loadActivities() async {
     setState(() => _isLoading = true);
     try {
-      final carousel = await _activityRepository.getActivities(type: ActivityTypes.carousel);
-      final recent = await _activityRepository.getActivities(type: ActivityTypes.recent);
+      final carousel = await _activityRepository.getActivities(
+        type: ActivityTypes.carousel,
+      );
+      final recent = await _activityRepository.getActivities(
+        type: ActivityTypes.recent,
+      );
 
       if (mounted) {
         setState(() {
-          _carouselActive = carousel.where((a) => a.status == ActivityStatus.active).toList();
-          _carouselInactive =
-              carousel.where((a) => a.status == ActivityStatus.inactive).toList();
-          _recentActive = recent.where((a) => a.status == ActivityStatus.active).toList();
-          _recentInactive = recent.where((a) => a.status == ActivityStatus.inactive).toList();
+          _carouselActive = carousel
+              .where((a) => a.status == ActivityStatus.active)
+              .toList();
+          _carouselInactive = carousel
+              .where((a) => a.status == ActivityStatus.inactive)
+              .toList();
+          _recentActive = recent
+              .where((a) => a.status == ActivityStatus.active)
+              .toList();
+          _recentInactive = recent
+              .where((a) => a.status == ActivityStatus.inactive)
+              .toList();
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('載入失敗: $e')),
-        );
-      }
+      logError(e);
     }
   }
 
@@ -90,12 +97,9 @@ class _ActivityManagementScreenState
 
     try {
       final imageBytes = base64Decode(base64Image);
-      return Image.memory(
-        imageBytes,
-        height: height ?? 100,
-        fit: BoxFit.cover,
-      );
+      return Image.memory(imageBytes, height: height ?? 100, fit: BoxFit.cover);
     } catch (e) {
+      logError(e);
       return Container(
         height: height ?? 100,
         color: Colors.grey.shade200,
@@ -123,10 +127,7 @@ class _ActivityManagementScreenState
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
-              children: [
-                _buildActiveTab(),
-                _buildInactiveTab(),
-              ],
+              children: [_buildActiveTab(), _buildInactiveTab()],
             ),
     );
   }
@@ -197,9 +198,9 @@ class _ActivityManagementScreenState
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -234,8 +235,8 @@ class _ActivityManagementScreenState
                     Text(
                       '新增活動',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -260,8 +261,7 @@ class _ActivityManagementScreenState
     );
   }
 
-  Widget _buildReorderableList(
-      List<ActivityModel> activities, String type) {
+  Widget _buildReorderableList(List<ActivityModel> activities, String type) {
     return ReorderableListView.builder(
       buildDefaultDragHandles: false,
       shrinkWrap: true,
@@ -297,8 +297,11 @@ class _ActivityManagementScreenState
   }
 
   Widget _buildActivityItem(
-      ActivityModel activity, String type, bool isActive,
-      {int? index}) {
+    ActivityModel activity,
+    String type,
+    bool isActive, {
+    int? index,
+  }) {
     final dateFormat = DateFormat('yyyy/MM/dd HH:mm');
     final tile = Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -365,10 +368,7 @@ class _ActivityManagementScreenState
       );
     }
     // 非可排序項目也需要 key
-    return Container(
-      key: ValueKey(activity.id),
-      child: tile,
-    );
+    return Container(key: ValueKey(activity.id), child: tile);
   }
 
   Widget _buildTrailing({
@@ -415,7 +415,9 @@ class _ActivityManagementScreenState
                   const PopupMenuItem(value: 'deactivate', child: Text('下架')),
                   PopupMenuItem(
                     value: 'switch',
-                    child: Text(type == ActivityTypes.carousel ? '改到近期活動' : '改到輪播'),
+                    child: Text(
+                      type == ActivityTypes.carousel ? '改到近期活動' : '改到輪播',
+                    ),
                   ),
                 ]
               : const [
@@ -500,11 +502,7 @@ class _ActivityManagementScreenState
       await _activityRepository.updateActivitiesOrder(activities);
       await _loadActivities();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('更新順序失敗: $e')),
-        );
-      }
+      logError(e);
     }
   }
 
@@ -512,54 +510,50 @@ class _ActivityManagementScreenState
     try {
       await _activityRepository.updateActivityStatus(activity.id, 'inactive');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('活動已下架')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('活動已下架')));
         await _loadActivities();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('下架失敗: $e')),
-        );
-      }
+      logError(e);
     }
   }
 
   Future<void> _activateActivity(ActivityModel activity) async {
     try {
-      await _activityRepository.updateActivityStatus(activity.id, ActivityStatus.active);
+      await _activityRepository.updateActivityStatus(
+        activity.id,
+        ActivityStatus.active,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('活動已重新上架')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('活動已重新上架')));
         await _loadActivities();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('上架失敗: $e')),
-        );
-      }
+      logError(e);
     }
   }
 
-  Future<void> _switchActivityType(ActivityModel activity, String currentType) async {
+  Future<void> _switchActivityType(
+    ActivityModel activity,
+    String currentType,
+  ) async {
     try {
-      final newType = currentType == ActivityTypes.carousel ? ActivityTypes.recent : ActivityTypes.carousel;
+      final newType = currentType == ActivityTypes.carousel
+          ? ActivityTypes.recent
+          : ActivityTypes.carousel;
       await _activityRepository.updateActivityType(activity.id, newType);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('活動區域已變更')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('活動區域已變更')));
         await _loadActivities();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('變更失敗: $e')),
-        );
-      }
+      logError(e);
     }
   }
 
@@ -588,17 +582,13 @@ class _ActivityManagementScreenState
     try {
       await _activityRepository.deleteActivity(activity.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('活動已刪除')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('活動已刪除')));
         await _loadActivities();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('刪除失敗: $e')),
-        );
-      }
+      logError(e);
     }
   }
 
@@ -607,29 +597,30 @@ class _ActivityManagementScreenState
       context,
       titleText: '新增${type == ActivityTypes.carousel ? '輪播' : '近期活動'}',
       fixedType: type,
-      onSubmit: ({
-        required String title,
-        required String description,
-        required DateTime startTime,
-        required DateTime endTime,
-        required String? base64Image,
-        required String type,
-      }) async {
-        await _activityRepository.createActivity(
-          title: title,
-          description: description,
-          startTime: startTime,
-          endTime: endTime,
-          image: base64Image,
-          type: type,
-          status: ActivityStatus.active,
-        );
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('活動已新增')),
-        );
-        await _loadActivities();
-      },
+      onSubmit:
+          ({
+            required String title,
+            required String description,
+            required DateTime startTime,
+            required DateTime endTime,
+            required String? base64Image,
+            required String type,
+          }) async {
+            await _activityRepository.createActivity(
+              title: title,
+              description: description,
+              startTime: startTime,
+              endTime: endTime,
+              image: base64Image,
+              type: type,
+              status: ActivityStatus.active,
+            );
+            if (!mounted) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('活動已新增')));
+            await _loadActivities();
+          },
     );
   }
 
@@ -640,31 +631,32 @@ class _ActivityManagementScreenState
       fixedType: activity.type,
       initial: activity,
       allowTypeChange: true,
-      onSubmit: ({
-        required String title,
-        required String description,
-        required DateTime startTime,
-        required DateTime endTime,
-        required String? base64Image,
-        required String type,
-      }) async {
-        // 如果沒有上傳新圖片，保留原來的圖片
-        final imageToUse = base64Image ?? activity.image;
-        final updated = activity.copyWith(
-          title: title,
-          description: description,
-          startTime: startTime,
-          endTime: endTime,
-          image: imageToUse,
-          type: type,
-        );
-        await _activityRepository.updateActivity(updated);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('活動已更新')),
-        );
-        await _loadActivities();
-      },
+      onSubmit:
+          ({
+            required String title,
+            required String description,
+            required DateTime startTime,
+            required DateTime endTime,
+            required String? base64Image,
+            required String type,
+          }) async {
+            // 如果沒有上傳新圖片，保留原來的圖片
+            final imageToUse = base64Image ?? activity.image;
+            final updated = activity.copyWith(
+              title: title,
+              description: description,
+              startTime: startTime,
+              endTime: endTime,
+              image: imageToUse,
+              type: type,
+            );
+            await _activityRepository.updateActivity(updated);
+            if (!mounted) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('活動已更新')));
+            await _loadActivities();
+          },
     );
   }
 }

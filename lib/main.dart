@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/di/service_locator.dart';
 import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart';
 import 'router.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +22,7 @@ Future<void> main() async {
     getIt<AuthManager>().init();
     runApp(const MyApp());
   } catch (e) {
-    debugPrint('初始化失敗: $e');
+    logError(e);
   }
 }
 

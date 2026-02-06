@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart';
@@ -52,12 +53,7 @@ class _CourseListScreenState extends State<CourseListScreen>
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
-        setState(() => _isLoading = false);
-      }
+      logError(e);
     }
   }
 
@@ -109,12 +105,7 @@ class _CourseListScreenState extends State<CourseListScreen>
         await _fetchCourses(); // 刷新列表
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('操作失敗: $e')));
-        setState(() => _isLoading = false);
-      }
+      logError(e);
     }
   }
 
@@ -196,35 +187,7 @@ class _CourseListScreenState extends State<CourseListScreen>
         await _fetchCourses();
       }
     } catch (e) {
-      // 失敗 (使用 Dialog 顯示詳細錯誤)
-      if (mounted) {
-        // 處理錯誤訊息字串 (去掉 "Exception: " 字頭讓畫面好看點)
-        final String errorMessage = e.toString().replaceAll('Exception: ', '');
-
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.red.shade700),
-                const SizedBox(width: 8),
-                const Text('無法刪除'),
-              ],
-            ),
-            // 這裡顯示 Repository 拋出的詳細指導文字
-            content: Text(
-              errorMessage,
-              style: const TextStyle(fontSize: 15, height: 1.5),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('我了解了'), // 引導使用者去處理場次
-              ),
-            ],
-          ),
-        );
-      }
+      logError(e);
     } finally {
       // 不管成功或失敗，都要解除鎖定
       if (mounted) {
@@ -244,10 +207,8 @@ class _CourseListScreenState extends State<CourseListScreen>
         iconTheme: const IconThemeData(color: Colors.black87),
         title: const Text(
           '課程管理 (模板)',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          )),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Container(
@@ -317,8 +278,9 @@ class _CourseListScreenState extends State<CourseListScreen>
         // 為了讓 RefreshIndicator 在空內容時也能運作，建議把 itemCount 加 1 (padding) 或用 physics
         itemCount: courses.length + 1,
         itemBuilder: (context, index) {
-          if (index == courses.length)
+          if (index == courses.length) {
             return const SizedBox(height: 80); // 底部留白給 FAB
+          }
 
           final course = courses[index];
 
@@ -390,7 +352,7 @@ class _CourseListScreenState extends State<CourseListScreen>
                         children: [
                           // 1. 編輯按鈕
                           IconButton(
-                            icon:  Icon(
+                            icon: Icon(
                               Icons.edit_outlined,
                               color: Colors.grey.shade700,
                             ),

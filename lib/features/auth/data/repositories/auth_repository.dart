@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 class AuthRepository {
   final SupabaseClient _supabase;
@@ -78,7 +79,7 @@ class AuthRepository {
       });
     } catch (e) {
       // 這裡可以印出詳細錯誤，方便除錯
-      print('註冊流程詳細錯誤: $e');
+      logger.i('註冊流程詳細錯誤: $e');
       throw Exception('註冊流程失敗: $e');
     }
   }

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ttmastiff/features/finance/data/models/payroll_model.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
@@ -19,10 +20,10 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
 
   int _selectedYear = DateTime.now().year;
   String? _selectedStaffId; // null 代表 "全體"
-  
+
   // 員工選單
   List<Map<String, dynamic>> _staffList = [];
-  
+
   // 圖表數據 (Index 0=1月, 11=12月)
   List<double> _thisYearData = List.filled(12, 0);
   List<double> _lastYearData = List.filled(12, 0);
@@ -37,7 +38,7 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
     // 1. 抓員工名單供篩選
     final profiles = await Supabase.instance.client.from('profiles').select();
     _staffList = List<Map<String, dynamic>>.from(profiles);
-    
+
     // 2. 抓圖表數據
     await _loadChartData();
   }
@@ -46,14 +47,17 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
     setState(() => _isLoading = true);
     try {
       // 分別抓今年和去年整年的數據
-      final thisYearPayrolls = await salaryRepository.getYearlyPayrolls(_selectedYear);
-      final lastYearPayrolls = await salaryRepository.getYearlyPayrolls(_selectedYear - 1);
+      final thisYearPayrolls = await salaryRepository.getYearlyPayrolls(
+        _selectedYear,
+      );
+      final lastYearPayrolls = await salaryRepository.getYearlyPayrolls(
+        _selectedYear - 1,
+      );
 
       _thisYearData = _processData(thisYearPayrolls);
       _lastYearData = _processData(lastYearPayrolls);
-
     } catch (e) {
-      debugPrint('Error loading analytics: $e');
+      logError(e);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -68,7 +72,7 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
       if (_selectedStaffId != null && p.staffId != _selectedStaffId) {
         continue;
       }
-      
+
       // 注意：Payroll 的 month 可能是 1~12，Array Index 是 0~11
       if (p.month >= 1 && p.month <= 12) {
         monthlyTotals[p.month - 1] += p.totalAmount.toDouble();
@@ -93,10 +97,7 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
                   value: _selectedYear,
                   dropdownColor: Colors.white,
                   items: [2024, 2025, 2026, 2027].map((y) {
-                    return DropdownMenuItem<int>(
-                      value: y,
-                      child: Text('$y年'),
-                    );
+                    return DropdownMenuItem<int>(value: y, child: Text('$y年'));
                   }).toList(),
                   onChanged: (val) {
                     if (val != null) {
@@ -117,10 +118,12 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
                         value: null,
                         child: Text('全體員工'),
                       ),
-                      ..._staffList.map((s) => DropdownMenuItem<String?>(
-                        value: s['id'] as String,
-                        child: Text(s['full_name'] ?? '未命名'),
-                      )),
+                      ..._staffList.map(
+                        (s) => DropdownMenuItem<String?>(
+                          value: s['id'] as String,
+                          child: Text(s['full_name'] ?? '未命名'),
+                        ),
+                      ),
                     ],
                     onChanged: (val) {
                       setState(() => _selectedStaffId = val);
@@ -131,86 +134,125 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
               ],
             ),
           ),
-          
+
           const Divider(),
 
           // 圖表區域
           Expanded(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : Padding(
-                  padding: const EdgeInsets.only(right: 24, left: 12, top: 24, bottom: 12),
-                  child: LineChart(
-                    LineChartData(
-                      gridData: const FlGridData(show: true, drawVerticalLine: false),
-                      titlesData: FlTitlesData(
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (value, meta) {
-                              // X軸顯示 1月~12月
-                              int month = value.toInt() + 1;
-                              if (month % 2 != 0) return Text('$month月', style: const TextStyle(fontSize: 10)); // 只顯示單數月避免擁擠
-                              return const SizedBox();
-                            },
-                            interval: 1,
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Padding(
+                    padding: const EdgeInsets.only(
+                      right: 24,
+                      left: 12,
+                      top: 24,
+                      bottom: 12,
+                    ),
+                    child: LineChart(
+                      LineChartData(
+                        gridData: const FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                        ),
+                        titlesData: FlTitlesData(
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, meta) {
+                                // X軸顯示 1月~12月
+                                int month = value.toInt() + 1;
+                                if (month % 2 != 0) {
+                                  return Text(
+                                    '$month月',
+                                    style: const TextStyle(fontSize: 10),
+                                  ); // 只顯示單數月避免擁擠
+                                }
+                                return const SizedBox();
+                              },
+                              interval: 1,
+                            ),
+                          ),
+                          leftTitles: const AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 40,
+                            ),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
                           ),
                         ),
-                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      ),
-                      borderData: FlBorderData(show: true, border: Border.all(color: Colors.grey.shade300)),
-                      lineBarsData: [
-                        // 去年數據 (灰色虛線)
-                        LineChartBarData(
-                          spots: _generateSpots(_lastYearData),
-                          isCurved: true,
-                          color: Colors.grey.shade400,
-                          barWidth: 2,
-                          isStrokeCapRound: true,
-                          dotData: const FlDotData(show: false),
-                          dashArray: [5, 5], // 虛線效果
+                        borderData: FlBorderData(
+                          show: true,
+                          border: Border.all(color: Colors.grey.shade300),
                         ),
-                        // 今年數據 (藍色實線)
-                        LineChartBarData(
-                          spots: _generateSpots(_thisYearData),
-                          isCurved: true,
-                          color: Theme.of(context).colorScheme.primary,
-                          barWidth: 4,
-                          isStrokeCapRound: true,
-                          dotData: const FlDotData(show: true),
-                          belowBarData: BarAreaData(show: true, color: Theme.of(context).colorScheme.primary.withOpacity(0.1)),
-                        ),
-                      ],
-                      // 互動 Tooltip
-                      lineTouchData: LineTouchData(
-                        touchTooltipData: LineTouchTooltipData(
-                          getTooltipItems: (touchedSpots) {
-                            return touchedSpots.map((spot) {
-                              final yearLabel = spot.barIndex == 0 ? '去年' : '今年';
-                              return LineTooltipItem(
-                                '$yearLabel: \$${spot.y.toInt()}',
-                                const TextStyle(color: Colors.white),
-                              );
-                            }).toList();
-                          },
+                        lineBarsData: [
+                          // 去年數據 (灰色虛線)
+                          LineChartBarData(
+                            spots: _generateSpots(_lastYearData),
+                            isCurved: true,
+                            color: Colors.grey.shade400,
+                            barWidth: 2,
+                            isStrokeCapRound: true,
+                            dotData: const FlDotData(show: false),
+                            dashArray: [5, 5], // 虛線效果
+                          ),
+                          // 今年數據 (藍色實線)
+                          LineChartBarData(
+                            spots: _generateSpots(_thisYearData),
+                            isCurved: true,
+                            color: Theme.of(context).colorScheme.primary,
+                            barWidth: 4,
+                            isStrokeCapRound: true,
+                            dotData: const FlDotData(show: true),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.1),
+                            ),
+                          ),
+                        ],
+                        // 互動 Tooltip
+                        lineTouchData: LineTouchData(
+                          touchTooltipData: LineTouchTooltipData(
+                            getTooltipItems: (touchedSpots) {
+                              return touchedSpots.map((spot) {
+                                final yearLabel = spot.barIndex == 0
+                                    ? '去年'
+                                    : '今年';
+                                return LineTooltipItem(
+                                  '$yearLabel: \$${spot.y.toInt()}',
+                                  const TextStyle(color: Colors.white),
+                                );
+                              }).toList();
+                            },
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
           ),
-          
+
           // 圖例
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildLegend(Theme.of(context).colorScheme.primary, '今年 ($_selectedYear)'),
+                _buildLegend(
+                  Theme.of(context).colorScheme.primary,
+                  '今年 ($_selectedYear)',
+                ),
                 const SizedBox(width: 24),
-                _buildLegend(Colors.grey.shade400, '去年 (${_selectedYear - 1})', isDashed: true),
+                _buildLegend(
+                  Colors.grey.shade400,
+                  '去年 (${_selectedYear - 1})',
+                  isDashed: true,
+                ),
               ],
             ),
           ),
@@ -220,14 +262,18 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
   }
 
   List<FlSpot> _generateSpots(List<double> data) {
-    return List.generate(data.length, (index) => FlSpot(index.toDouble(), data[index]));
+    return List.generate(
+      data.length,
+      (index) => FlSpot(index.toDouble(), data[index]),
+    );
   }
 
   Widget _buildLegend(Color color, String text, {bool isDashed = false}) {
     return Row(
       children: [
         Container(
-          width: 16, height: 4,
+          width: 16,
+          height: 4,
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(2),

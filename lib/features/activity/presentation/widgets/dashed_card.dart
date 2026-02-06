@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 class DashedCard extends StatelessWidget {
   final Widget child;
@@ -41,10 +42,7 @@ class DashedCard extends StatelessWidget {
             dashGap: dashGap,
             strokeWidth: strokeWidth,
           ),
-          child: Padding(
-            padding: padding,
-            child: child,
-          ),
+          child: Padding(padding: padding, child: child),
         ),
       ),
     );
@@ -100,4 +98,3 @@ class _DashedRRectPainter extends CustomPainter {
         oldDelegate.strokeWidth != strokeWidth;
   }
 }
-

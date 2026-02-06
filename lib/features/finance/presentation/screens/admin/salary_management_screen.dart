@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/finance/data/repositories/salary_repository.dart';
 import '../../../data/models/payroll_model.dart';
@@ -68,7 +69,7 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
         _staffList = report;
       });
     } catch (e) {
-      debugPrint('Error: $e');
+      logError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -292,7 +293,7 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
           });
         }
       },
-      selectedColor: themeColor.withOpacity(0.15),
+      selectedColor: themeColor.withValues(alpha: 0.15),
       backgroundColor: Colors.grey.shade50,
       side: BorderSide(color: isSelected ? themeColor : Colors.grey.shade300),
       labelStyle: TextStyle(

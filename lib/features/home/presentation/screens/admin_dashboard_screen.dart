@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import '../widgets/daily_schedule_view.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -56,7 +57,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -146,9 +147,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: scheduleSection),
-                  ],
+                  children: [Expanded(child: scheduleSection)],
                 ),
               ),
             ),
@@ -186,7 +185,7 @@ class _InfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -217,7 +216,7 @@ class _InfoCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: color, size: 28),

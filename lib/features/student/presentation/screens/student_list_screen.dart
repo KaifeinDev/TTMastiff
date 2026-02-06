@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
@@ -59,11 +60,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('載入課程失敗: $e'), backgroundColor: Colors.red),
-        );
-      }
+      logError(e);
     }
   }
 
@@ -84,12 +81,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingFilter = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('載入場次失敗: $e'), backgroundColor: Colors.red),
-        );
-      }
+      logError(e);
     }
   }
 
@@ -132,12 +124,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('查詢失敗: $e'), backgroundColor: Colors.red),
-        );
-      }
+      logError(e);
     }
   }
 
@@ -155,9 +142,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
             '篩選條件',
             style: Theme.of(
               context,
-            ).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           if (isDesktop)
@@ -176,13 +161,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   ),
                   const SizedBox(width: 16),
                 ],
-                Flexible(
-                  child: _buildNameField(),
-                ),
+                Flexible(child: _buildNameField()),
                 const SizedBox(width: 16),
-                Flexible(
-                  child: _buildPhoneField(),
-                ),
+                Flexible(child: _buildPhoneField()),
                 const SizedBox(width: 16),
                 _buildSearchButton(),
               ],
@@ -211,7 +192,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
   Widget _buildCourseSelector({bool isMobile = false}) {
     return DropdownButtonFormField<CourseModel?>(
-      value: _selectedCourse,
+      initialValue: _selectedCourse,
       isExpanded: true, // 桌面版也需要 isExpanded 來正確截斷文字
       dropdownColor: Colors.white,
       decoration: InputDecoration(
@@ -220,18 +201,17 @@ class _StudentListScreenState extends State<StudentListScreen> {
         prefixIcon: const Icon(Icons.book),
       ),
       items: [
-        const DropdownMenuItem<CourseModel?>(
-          value: null,
-          child: Text('全部課程'),
+        const DropdownMenuItem<CourseModel?>(value: null, child: Text('全部課程')),
+        ..._courses.map(
+          (course) => DropdownMenuItem<CourseModel?>(
+            value: course,
+            child: Text(
+              course.title,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
         ),
-        ..._courses.map((course) => DropdownMenuItem<CourseModel?>(
-              value: course,
-              child: Text(
-                course.title,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            )),
       ],
       onChanged: _onCourseChanged,
     );
@@ -239,7 +219,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
   Widget _buildSessionSelector({bool isMobile = false}) {
     return DropdownButtonFormField<SessionModel?>(
-      value: _selectedSession,
+      initialValue: _selectedSession,
       isExpanded: true, // 桌面版也需要 isExpanded 來正確截斷文字
       dropdownColor: Colors.white,
       decoration: InputDecoration(
@@ -268,10 +248,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         ];
       },
       items: [
-        const DropdownMenuItem<SessionModel?>(
-          value: null,
-          child: Text('全部場次'),
-        ),
+        const DropdownMenuItem<SessionModel?>(value: null, child: Text('全部場次')),
         ..._sessions.map((session) {
           final dateFormat = DateFormat('MM/dd (E) HH:mm', 'zh_TW');
           return DropdownMenuItem<SessionModel?>(
@@ -345,7 +322,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
   Widget _buildSearchButton() {
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isDesktop = screenWidth > 900;
-    
+
     return isDesktop
         ? IconButton(
             onPressed: _isLoading ? null : _searchStudents,
@@ -381,10 +358,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   : const Icon(Icons.search),
               label: _isLoading
                   ? const SizedBox.shrink()
-                  : const Text(
-                      '查詢',
-                      style: TextStyle(fontSize: 16),
-                    ),
+                  : const Text('查詢', style: TextStyle(fontSize: 16)),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 32,
@@ -408,70 +382,71 @@ class _StudentListScreenState extends State<StudentListScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _studentDataList.isEmpty && !_isLoading
-              ? SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      // 篩選區域（可滾動）
-                      _buildFilterSection(),
-                      // 空狀態
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.4,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.people_outline,
-                                size: 64,
-                                color: Colors.grey.shade300,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                '目前還沒有學員報名這堂課！',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView(
-                  children: [
-                    // 篩選區域（可滾動）
-                    _buildFilterSection(),
-                    // 學員列表區域（淺灰背景）
-                    Container(
-                      color: Colors.grey.shade50,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+          ? SingleChildScrollView(
+              child: Column(
+                children: [
+                  // 篩選區域（可滾動）
+                  _buildFilterSection(),
+                  // 空狀態
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.4,
+                    child: Center(
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          ..._studentDataList.map((studentData) {
-                            final student = studentData['student'] as StudentModel;
-                            final parentPhone = studentData['parentPhone'] as String?;
-                            final isPrimary = student.isPrimary;
-
-                            return StudentListItem(
-                              student: student,
-                              isPrimary: isPrimary,
-                              parentPhone: parentPhone,
-                              showPoints: false,
-                              margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              elevation: 2,
-                              onTap: () {
-                                _showStudentDetail(studentData);
-                              },
-                            );
-                          }),
+                          Icon(
+                            Icons.people_outline,
+                            size: 64,
+                            color: Colors.grey.shade300,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            '目前還沒有學員報名這堂課！',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 16,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            )
+          : ListView(
+              children: [
+                // 篩選區域（可滾動）
+                _buildFilterSection(),
+                // 學員列表區域（淺灰背景）
+                Container(
+                  color: Colors.grey.shade50,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Column(
+                    children: [
+                      ..._studentDataList.map((studentData) {
+                        final student = studentData['student'] as StudentModel;
+                        final parentPhone =
+                            studentData['parentPhone'] as String?;
+                        final isPrimary = student.isPrimary;
+
+                        return StudentListItem(
+                          student: student,
+                          isPrimary: isPrimary,
+                          parentPhone: parentPhone,
+                          showPoints: false,
+                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          elevation: 2,
+                          onTap: () {
+                            _showStudentDetail(studentData);
+                          },
+                        );
+                      }),
+                    ],
+                  ),
                 ),
+              ],
+            ),
     );
   }
 
@@ -489,16 +464,14 @@ class _StudentListScreenState extends State<StudentListScreen> {
         try {
           // 檢查必要的數據是否存在
           if (bookingData['sessions'] == null) {
-            print('⚠️ 警告：booking ${bookingData['id']} 缺少 sessions 數據');
+            logger.i('⚠️ 警告：booking ${bookingData['id']} 缺少 sessions 數據');
             continue;
           }
 
           final booking = BookingModel.fromJson(bookingData);
           bookings.add(booking);
         } catch (e) {
-          print('❌ 解析 booking 失敗: $e');
-          print('📦 數據內容: $bookingData');
-          // 繼續處理其他 booking，不中斷整個流程
+          logError(e);
         }
       }
 

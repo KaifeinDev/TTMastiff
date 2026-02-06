@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/student/data/repositories/student_repository.dart';
 import 'package:ttmastiff/features/course/data/repositories/course_repository.dart';
@@ -51,15 +52,16 @@ class _CoursesScreenState extends State<CoursesScreen> {
     if (user == null) return;
 
     try {
-      final membership = await getIt<StudentRepository>().getMemberLevel(user.id);
+      final membership = await getIt<StudentRepository>().getMemberLevel(
+        user.id,
+      );
 
       if (!mounted) return;
       setState(() {
         _memberLevel = membership;
       });
     } catch (e) {
-      // 會員等級載入失敗時，不影響課程顯示，只是不套用折扣
-      debugPrint('載入會員等級失敗: $e');
+      logError(e);
     }
   }
 
@@ -84,12 +86,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMsg = e.toString();
-          _isLoading = false;
-        });
-      }
+      logError(e);
     }
   }
 
@@ -112,12 +109,12 @@ class _CoursesScreenState extends State<CoursesScreen> {
         ),
         elevation: 0,
         bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Divider(
-          height: 1,
-          thickness: 1,
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(
+            height: 1,
+            thickness: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
       ),
       body: Column(
@@ -280,10 +277,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
         separatorBuilder: (ctx, index) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
           final course = _courses[index];
-          return _CourseCard(
-            course: course,
-            memberLevel: _memberLevel,
-          );
+          return _CourseCard(course: course, memberLevel: _memberLevel);
         },
       ),
     );
@@ -297,10 +291,7 @@ class _CourseCard extends StatelessWidget {
   final CourseModel course;
   final String? memberLevel;
 
-  const _CourseCard({
-    required this.course,
-    required this.memberLevel,
-  });
+  const _CourseCard({required this.course, required this.memberLevel});
 
   @override
   Widget build(BuildContext context) {
@@ -448,7 +439,7 @@ class _CourseCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
-          '\$${finalPrice}',
+          '\$$finalPrice',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -458,10 +449,7 @@ class _CourseCard extends StatelessWidget {
         if (discountLabel != null)
           Text(
             discountLabel,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
       ],
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:ttmastiff/core/utils/util.dart';
+import 'package:intl/intl.dart';
 import 'package:ttmastiff/features/course/presentation/widgets/dialog/session_edit_dialog.dart';
 import 'package:ttmastiff/features/course/presentation/widgets/dialog/batch_session_dialog.dart';
 import 'package:ttmastiff/features/course/data/models/course_model.dart';
@@ -135,10 +135,8 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        showErrorDialog(context, e, title: '載入資料失敗');
-      }
+  logError(e);
+
     }
   }
 
@@ -252,7 +250,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
                   onPressed: () {
                     // 關閉 Dialog，並觸發主畫面 setState 更新
                     Navigator.of(context).pop();
-                    this.setState(() {});
+                    setState(() {});
                   },
                   child: const Text('確定'),
                 ),
@@ -398,9 +396,9 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
         },
       );
     } catch (e) {
-      showErrorDialog(context, e, title: '讀取課程失敗');
-      return null;
-    }
+  logError(e);
+}
+    return null;
   }
 
   Widget _buildDateControlBar() {
@@ -642,7 +640,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
       height: _rowHeight,
       width: _dateColWidth,
       decoration: BoxDecoration(
-        color: isToday ? Theme.of(context).colorScheme.background : Colors.white,
+        color: isToday ? Theme.of(context).colorScheme.surface : Colors.white,
         border: Border(bottom: border, right: border),
       ),
       child: Stack(
@@ -662,7 +660,9 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
                     DateFormat('dd').format(date),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isToday ? Theme.of(context).colorScheme.primary : Colors.black87,
+                      color: isToday
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.black87,
                       fontSize: 18,
                     ),
                   ),
@@ -747,7 +747,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
       width: width,
       height: _rowHeight,
       decoration: BoxDecoration(
-        color: isToday ? Theme.of(context).colorScheme.background : Colors.white,
+        color: isToday ? Theme.of(context).colorScheme.surface : Colors.white,
         border: Border(bottom: border, right: border),
       ),
       child: LayoutBuilder(
@@ -818,8 +818,8 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
     final double blockHeight = durationPercent * totalHeight;
 
     final themeColor = CourseCategoryUtils.getCategoryColor(session.category);
-    final bgColor = themeColor.withOpacity(0.15);
-    final borderColor = themeColor.withOpacity(0.4);
+    final bgColor = themeColor.withValues(alpha: 0.15);
+    final borderColor = themeColor.withValues(alpha: 0.4);
 
     final String courseTimeStr =
         "${DateFormat('HH:mm').format(session.startTime)} - ${DateFormat('HH:mm').format(session.endTime)}";

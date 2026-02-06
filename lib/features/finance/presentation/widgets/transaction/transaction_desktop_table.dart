@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/features/finance/data/models/transaction_model.dart';
 import 'transaction_status_badge.dart';
@@ -32,7 +33,7 @@ class TransactionDesktopTable extends StatelessWidget {
         width: double.infinity,
         child: DataTable(
           showCheckboxColumn: true,
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
           dataRowMinHeight: 60,
           dataRowMaxHeight: 84, // 🔥 加高行高，以容納退款時間與理由
           columnSpacing: 24,
@@ -124,7 +125,9 @@ class TransactionDesktopTable extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 12,
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
                         child: Text(
                           (tx.userFullName ?? 'U').substring(0, 1),
                           style: TextStyle(
@@ -200,10 +203,12 @@ class TransactionDesktopTable extends StatelessWidget {
                 ),
 
                 // 6. 狀態
-                DataCell(TransactionStatusBadge(
-                  isReconciled: tx.isReconciled,
-                  status: tx.status,
-                )),
+                DataCell(
+                  TransactionStatusBadge(
+                    isReconciled: tx.isReconciled,
+                    status: tx.status,
+                  ),
+                ),
 
                 // 7. 操作
                 DataCell(
@@ -224,5 +229,4 @@ class TransactionDesktopTable extends StatelessWidget {
       ),
     );
   }
-
 }

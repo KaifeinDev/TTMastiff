@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -21,12 +22,12 @@ class ClientHomeScreen extends StatefulWidget {
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
   late final PageController _pageController;
   int _currentPage = 0;
-  
+
   final _studentRepository = StudentRepository(Supabase.instance.client);
   final _activityRepository = ActivityRepository(Supabase.instance.client);
 
   final Map<String, Uint8List> _activityImageCache = {};
-  
+
   // 個人資訊狀態
   List<StudentModel> _students = [];
   StudentModel? _primaryStudent;
@@ -67,10 +68,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         });
       }
     } catch (e) {
-      debugPrint('更新未讀數量失敗: $e');
+      logError(e);
     }
   }
-  
+
   Future<void> _loadUserInfo() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
@@ -102,9 +103,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       StudentModel? primary;
       try {
         primary = studentsList.firstWhere((s) => s.isPrimary);
-      } catch (_) {
-        // 極端情況：如果沒有 primary student，暫時用第一筆或 null
-        primary = studentsList.isNotEmpty ? studentsList.first : null;
+      } catch (e) {
+        logError(e);
       }
 
       if (mounted) {
@@ -118,8 +118,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         });
       }
     } catch (e) {
-      debugPrint('載入使用者資料失敗: $e');
-      if (mounted) setState(() => _isLoadingUserInfo = false);
+      logError(e);
     }
   }
 
@@ -150,10 +149,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         });
       }
     } catch (e) {
-      debugPrint('載入活動失敗: $e');
-      if (mounted) {
-        setState(() => _isLoadingActivities = false);
-      }
+      logError(e);
     }
   }
 
@@ -166,9 +162,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       final bytes = base64Decode(base64Image);
       _activityImageCache[cacheKey] = bytes;
       return bytes;
-    } catch (_) {
-      return null;
+    } catch (e) {
+      logError(e);
     }
+    return null;
   }
 
   Widget _buildImageFromBase64(String? base64Image, {Uint8List? bytes}) {
@@ -190,6 +187,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         gaplessPlayback: true,
       );
     } catch (e) {
+      logError(e);
       return Container(
         color: Colors.grey.shade200,
         child: const Center(
@@ -203,10 +201,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '首頁',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('首頁', style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         actions: [
           Stack(
@@ -259,13 +254,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 '精彩一瞬間',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // 橫式圖片輪播器（左右 padding 與下方對齊）
             if (_isLoadingActivities)
               const Padding(
@@ -281,19 +276,19 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 child: _buildImageCarousel(),
               ),
             const SizedBox(height: 24),
-            
+
             // 近期活動標題
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 '近期活動',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // 直式圖片展示
             if (_isLoadingActivities)
               const Center(child: CircularProgressIndicator())
@@ -308,7 +303,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 ),
               )
             else
-              ..._recentActivities.map((activity) => _buildActivityCard(activity)),
+              ..._recentActivities.map(
+                (activity) => _buildActivityCard(activity),
+              ),
             const SizedBox(height: 16),
           ],
         ),
@@ -343,7 +340,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           membership: _membership,
           isPrimary: true, // 主帳號是本人
         ),
-        
+
         // 家庭成員列表
         if (_students.isNotEmpty && _students.length > 1) ...[
           const SizedBox(height: 16),
@@ -352,11 +349,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.people_outline,
-                size: 20,
-                color: Colors.grey,
-              ),
+              const Icon(Icons.people_outline, size: 20, color: Colors.grey),
               const SizedBox(width: 6),
               Text(
                 '家庭成員',
@@ -374,42 +367,42 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             children: _students
                 .where((s) => !s.isPrimary) // 排除主帳號
                 .map((student) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (student.gender != null) ...[
-                      SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: GenderIcon(gender: student.gender),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
-                    Text(
-                      student.name,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
-                  ],
-                ),
-              );
-            }).toList(),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (student.gender != null) ...[
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: GenderIcon(gender: student.gender),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          student.name,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                })
+                .toList(),
           ),
         ],
       ],
@@ -469,7 +462,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                           shape: BoxShape.circle,
                           color: _currentPage == index
                               ? Colors.white
-                              : Colors.white.withOpacity(0.5),
+                              : Colors.white.withValues(alpha: 0.5),
                         ),
                       ),
                     ),
@@ -501,7 +494,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 child: RepaintBoundary(
                   child: _buildImageFromBase64(
                     activity.image,
-                    bytes: _getCachedBytes('recent:${activity.id}', activity.image),
+                    bytes: _getCachedBytes(
+                      'recent:${activity.id}',
+                      activity.image,
+                    ),
                   ),
                 ),
               ),
@@ -509,17 +505,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             const SizedBox(height: 8),
             Text(
               activity.title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
               '${dateFormat.format(activity.startTime)} ~ ${dateFormat.format(activity.endTime)}',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
           ],
         ),

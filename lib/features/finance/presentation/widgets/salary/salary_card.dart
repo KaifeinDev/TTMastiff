@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'payroll_status_badge.dart';
@@ -313,7 +314,7 @@ class SalaryCard extends StatelessWidget {
                           nextGoalText,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Theme.of(context).colorScheme.primary ,
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -374,11 +375,18 @@ class SalaryCard extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: onAction,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isUnsettled ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.primaryContainer,
+                    backgroundColor: isUnsettled
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.primaryContainer,
                     foregroundColor: Colors.white,
                     elevation: 2, // 增加陰影，讓它看起來是浮起來的按鈕
-                    shadowColor: (isUnsettled ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.primaryContainer)
-                        .withOpacity(0.4),
+                    shadowColor:
+                        (isUnsettled
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer)
+                            .withValues(alpha: 0.4),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 10,
@@ -439,8 +447,14 @@ class SalaryCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: thresholdHours >= 135
-                        ? [Colors.red.shade200, Theme.of(context).colorScheme.primary]
-                        : [Colors.red.shade200, Theme.of(context).colorScheme.primary],
+                        ? [
+                            Colors.red.shade200,
+                            Theme.of(context).colorScheme.primary,
+                          ]
+                        : [
+                            Colors.red.shade200,
+                            Theme.of(context).colorScheme.primary,
+                          ],
                   ),
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -547,7 +561,7 @@ Widget _buildMoneyStat(
         label,
         style: TextStyle(
           fontSize: 10,
-          color: color.withOpacity(0.8),
+          color: color.withValues(alpha: 0.8),
           fontWeight: FontWeight.bold,
         ),
       ),

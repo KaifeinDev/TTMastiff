@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/features/finance/data/models/transaction_model.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
@@ -45,7 +46,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
   bool? _filterIsReconciled; // null=全部, false=未對帳, true=已對帳
 
   // --- State: 勾選 (批量操作) ---
-  final Set<String> _selectedIds = {};
+  Set<String> _selectedIds = {};
 
   // --- State: 儀表板統計 ---
   int _totalPendingCash = 0;
@@ -77,12 +78,8 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
-        setState(() => _isLoading = false);
-      }
+  logError(e);
+
     }
   }
 
@@ -130,12 +127,8 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
         await _loadData(); // 重整
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('對帳失敗: $e')));
-        setState(() => _isLoading = false);
-      }
+  logError(e);
+
     }
   }
 
@@ -194,11 +187,8 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                   await _loadData(); // 重整
                 }
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('退款失敗: $e')));
-                }
+  logError(e);
+
               } finally {
                 // 無論成功失敗，確保停止轉圈
                 if (mounted) {

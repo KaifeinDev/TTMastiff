@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/table/data/repositories/table_repository.dart';
@@ -166,12 +167,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading schedule: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
-      }
+      logError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -231,7 +227,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_tables.isEmpty) return const Center(child: Text('無桌次資料'));
 
-    String _weekdayName(int day) {
+    String weekdayName(int day) {
       const names = ['一', '二', '三', '四', '五', '六', '日'];
       return names[day - 1];
     }
@@ -252,7 +248,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 2,
                 offset: const Offset(0, 2),
               ),
@@ -306,7 +302,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                 // const Icon(Icons.calendar_month, size: 16, color: Colors.grey),
                                 // const SizedBox(width: 4),
                                 Text(
-                                  '${_selectedDate.year}/${_selectedDate.month}/${_selectedDate.day} (${_weekdayName(_selectedDate.weekday)})',
+                                  '${_selectedDate.year}/${_selectedDate.month}/${_selectedDate.day} (${weekdayName(_selectedDate.weekday)})',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18, // 主標題字體
@@ -665,8 +661,8 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
         final themeColor = CourseCategoryUtils.getCategoryColor(
           session.category,
         );
-        final bgColor = themeColor.withOpacity(0.12);
-        final borderColor = themeColor.withOpacity(0.3); // 統一邊框色
+        final bgColor = themeColor.withValues(alpha: 0.12);
+        final borderColor = themeColor.withValues(alpha: 0.3); // 統一邊框色
 
         cards.add(
           Positioned(
@@ -690,7 +686,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                 margin: const EdgeInsets.symmetric(horizontal: 10),
                 showDuration: const Duration(seconds: 3), // 手機上顯示久一點
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.8),
+                  color: Colors.black.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 textStyle: const TextStyle(color: Colors.white, fontSize: 12),
@@ -827,7 +823,9 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                             ),
                                             decoration: BoxDecoration(
                                               color: session.isFull
-                                                  ? Colors.red.withOpacity(0.9)
+                                                  ? Colors.red.withValues(
+                                                      alpha: 0.9,
+                                                    )
                                                   : Colors.white.withOpacity(
                                                       0.6,
                                                     ),

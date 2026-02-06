@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/transaction_model.dart';
@@ -99,12 +100,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
-        setState(() => _isLoading = false);
-      }
+  logError(e);
+
     }
   }
 
@@ -204,10 +201,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
-      selectedColor: Theme.of(context).primaryColor.withOpacity(0.2) ,
+      selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
       backgroundColor: Colors.grey.shade100,
       labelStyle: TextStyle(
-        color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade700,
+        color: isSelected
+            ? Theme.of(context).primaryColor
+            : Colors.grey.shade700,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         fontSize: 13,
       ),

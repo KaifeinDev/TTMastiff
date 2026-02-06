@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'auth_repository.dart'; // 引入你的 Repo
+import 'auth_repository.dart'; 
+import 'package:ttmastiff/core/utils/util.dart';
 
 class AuthManager extends ChangeNotifier {
   final AuthRepository _authRepository;
@@ -50,7 +51,7 @@ class AuthManager extends ChangeNotifier {
         // ⚠️ 關鍵：Token 過期了！
         // 我們 "不要" 在這裡設 isLoading = false。
         // 保持 isLoading = true，讓上面的 listen 去等待 'tokenRefreshed' 或 'signedOut' 事件。
-        print("⏳ Token 已過期，正在等待背景刷新...");
+        logger.i("⏳ Token 已過期，正在等待背景刷新...");
         return;
       }
 
@@ -73,9 +74,9 @@ class AuthManager extends ChangeNotifier {
       await _authRepository.signIn(email: email, password: password);
       final user = _authRepository.currentUser;
       if (user != null) {
-        print("✅ 登入成功，正在抓取身分資料 ID: ${user.id}...");
+        logger.i("✅ 登入成功，正在抓取身分資料 ID: ${user.id}...");
         await _updateUserRole(user.id);
-        print("✅ 身分資料抓取完畢，角色為: $_userRole");
+        logger.i("✅ 身分資料抓取完畢，角色為: $_userRole");
       }
     } catch (e) {
       throw Exception('登入失敗: $e');

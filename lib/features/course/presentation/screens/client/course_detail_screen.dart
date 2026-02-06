@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/course/data/repositories/course_repository.dart';
@@ -70,8 +71,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               .single();
           membership = profile['membership'] as String?;
         } catch (e) {
-          debugPrint('載入會員資格失敗: $e');
-        }
+  logError(e);
+}
       }
 
       if (mounted) {
@@ -101,12 +102,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
-      }
+  logError(e);
+
     }
   }
 
@@ -171,12 +168,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         // Navigator.pop(context); // 回到上一頁
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isBooking = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('報名失敗: $e'), backgroundColor: Colors.red),
-        );
-      }
+  logError(e);
+
     } finally {
       if (mounted) {
         setState(() {
@@ -473,7 +466,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
-          "\$${finalPrice}",
+          "\$$finalPrice",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: isFull ? Colors.grey : Colors.black87,
@@ -507,7 +500,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -4),
             ),

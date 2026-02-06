@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart';
@@ -54,21 +55,15 @@ class _LoginScreenState extends State<LoginScreen> {
         // 登入成功，跳轉到首頁
         // context.go 會直接替換堆疊，使用者按上一頁不會回到登入頁
         if (authManager.isAdmin) {
-          print("🚀 跳轉到後台");
+          logger.i("🚀 跳轉到後台");
           context.go('/admin/dashboard');
         } else {
-          print("🏠 跳轉到前台");
+          logger.i("🏠 跳轉到前台");
           context.go('/home');
         }
       }
     } catch (e) {
-      if (mounted) {
-        // 顯示簡化後的錯誤訊息
-        final msg = e.toString().replaceAll('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.red),
-        );
-      }
+      logError(e);
     } finally {
       if (mounted) {
         setState(() {

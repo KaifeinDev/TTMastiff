@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart'; // 需要這個來處理千分位逗號
 
 class TransactionDashboard extends StatelessWidget {
@@ -61,12 +62,12 @@ class TransactionDashboard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 18, color: textColor.withOpacity(0.8)),
+                Icon(icon, size: 18, color: textColor.withValues(alpha: 0.8)),
                 const SizedBox(width: 6),
                 Text(
                   title,
                   style: TextStyle(
-                    color: textColor.withOpacity(0.9),
+                    color: textColor.withValues(alpha: 0.9),
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),

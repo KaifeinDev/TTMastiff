@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -35,8 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _credits = 0;
   String? _membership; // profiles.membership
 
-  final authManager = getIt<AuthManager>(); 
-  
+  final authManager = getIt<AuthManager>();
 
   @override
   void initState() {
@@ -80,9 +80,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       StudentModel? primary;
       try {
         primary = studentsList.firstWhere((s) => s.isPrimary);
-      } catch (_) {
-        // 極端情況：如果沒有 primary student，暫時用第一筆或 null
-        primary = studentsList.isNotEmpty ? studentsList.first : null;
+      } catch (e) {
+        logError(e);
       }
 
       if (mounted) {
@@ -100,8 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('載入使用者資料失敗: $e');
-      if (mounted) setState(() => _isLoading = false);
+      logError(e);
     }
   }
 
@@ -308,11 +306,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ).showSnackBar(const SnackBar(content: Text('🎉 新增成功！')));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ 新增失敗: $e'), backgroundColor: Colors.red),
-        );
-      }
+      logError(e);
     }
   }
 
@@ -421,11 +415,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ).showSnackBar(const SnackBar(content: Text('✅ 更新成功！')));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ 更新失敗: $e'), backgroundColor: Colors.red),
-        );
-      }
+      logError(e);
     }
   }
 
@@ -444,15 +434,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: const Text(
               '我的檔案',
               style: TextStyle(fontWeight: FontWeight.bold),
-              
             ),
             bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Divider(
-              height: 1,
-              thickness: 1,
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
+              preferredSize: const Size.fromHeight(1),
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
             ),
             actions: [
               IconButton(
@@ -494,9 +483,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             shadowColor: Colors.blueGrey.shade50,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(
-                                color: Colors.blueGrey.shade200,
-                              ),
+                              side: BorderSide(color: Colors.blueGrey.shade200),
                             ),
                             color: Colors.blueGrey.shade50, // 用淺紅色背景區分
                             child: InkWell(
@@ -522,7 +509,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                       child: Icon(
                                         Icons.admin_panel_settings,
-                                        color: Colors.blueGrey.shade900  
+                                        color: Colors.blueGrey.shade900,
                                       ),
                                     ),
                                     const SizedBox(width: 16),
@@ -603,9 +590,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         ),
                                         const SizedBox(width: 12),
                                         Text(
-                                          '${NumberFormat('#,###').format(_credits)}',
+                                          NumberFormat(
+                                            '#,###',
+                                          ).format(_credits),
                                           style: TextStyle(
-                                            color: Theme.of(context).primaryColor,
+                                            color: Theme.of(
+                                              context,
+                                            ).primaryColor,
                                             fontSize: 28,
                                             fontWeight: FontWeight.w800,
                                           ),
@@ -625,10 +616,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                       child: Row(
                                         children: [
-                                          Icon(
-                                            Icons.history,
-                                            size: 18,
-                                          ),
+                                          Icon(Icons.history, size: 18),
                                           const SizedBox(width: 6),
                                           Text(
                                             '查看紀錄',
@@ -703,7 +691,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   student: student,
                                   isPrimary: isSelf,
                                   medicalNote: student.medicalNote,
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
                                   onTap: () => _showEditDialog(student),
                                 );
                               },

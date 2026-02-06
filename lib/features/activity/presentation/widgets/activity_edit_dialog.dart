@@ -4,11 +4,13 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/models/activity_model.dart';
 import 'dashed_card.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 
 class ActivityEditDialog extends StatefulWidget {
   final String titleText;
@@ -23,7 +25,8 @@ class ActivityEditDialog extends StatefulWidget {
     required DateTime endTime,
     required String? base64Image,
     required String type,
-  }) onSubmit;
+  })
+  onSubmit;
 
   const ActivityEditDialog({
     super.key,
@@ -45,7 +48,8 @@ class ActivityEditDialog extends StatefulWidget {
       required DateTime endTime,
       required String? base64Image,
       required String type,
-    }) onSubmit,
+    })
+    onSubmit,
     ActivityModel? initial,
     bool allowTypeChange = false,
   }) {
@@ -92,7 +96,9 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
       if (_base64Image != null && _base64Image!.isNotEmpty) {
         try {
           _imageBytes = base64Decode(_base64Image!);
-        } catch (_) {}
+        } catch (e) {
+          logError(e);
+        }
       }
     } else {
       _startTime = null;
@@ -188,9 +194,7 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
                       Expanded(
                         child: Text(
                           widget.titleText,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -219,8 +223,9 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
                               labelText: '標題',
                               border: OutlineInputBorder(),
                             ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? '請輸入標題' : null,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? '請輸入標題'
+                                : null,
                           ),
                           const SizedBox(height: 16),
 
@@ -279,7 +284,7 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
                           if (widget.allowTypeChange) ...[
                             const SizedBox(height: 16),
                             DropdownButtonFormField<String>(
-                              value: _type,
+                              initialValue: _type,
                               decoration: const InputDecoration(
                                 labelText: '區塊',
                                 border: OutlineInputBorder(),
@@ -323,7 +328,9 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
                           onPressed: _submitting
                               ? null
                               : () async {
-                                  if (!_formKey.currentState!.validate()) return;
+                                  if (!_formKey.currentState!.validate()) {
+                                    return;
+                                  }
                                   if (_startTime == null || _endTime == null) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
@@ -345,8 +352,8 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
                                   try {
                                     await widget.onSubmit(
                                       title: _titleController.text.trim(),
-                                      description:
-                                          _descriptionController.text.trim(),
+                                      description: _descriptionController.text
+                                          .trim(),
                                       startTime: _startTime!,
                                       endTime: _endTime!,
                                       base64Image: _base64Image?.isEmpty == true
@@ -357,8 +364,10 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
                                     if (mounted) Navigator.of(context).pop();
                                   } catch (e, stackTrace) {
                                     if (!mounted) return;
-                                    debugPrint('ActivityEditDialog submit error: $e');
-                                    debugPrint('Stack trace: $stackTrace');
+                                    logger.i(
+                                      'ActivityEditDialog submit error: $e',
+                                    );
+                                    logger.i('Stack trace: $stackTrace');
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text('儲存失敗: ${e.toString()}'),
@@ -388,11 +397,7 @@ class _TimeField extends StatelessWidget {
   final String valueText;
   final VoidCallback? onTap;
 
-  const _TimeField({
-    required this.label,
-    required this.valueText,
-    this.onTap,
-  });
+  const _TimeField({required this.label, required this.valueText, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -437,10 +442,9 @@ class _AttachmentBox extends StatelessWidget {
               children: [
                 Text(
                   '附件（可上傳 .jpg/.png）',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 10),
                 if (bytes != null)
@@ -473,4 +477,3 @@ class _AttachmentBox extends StatelessWidget {
     );
   }
 }
-
