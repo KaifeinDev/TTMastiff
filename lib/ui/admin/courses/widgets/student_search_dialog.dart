@@ -3,8 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/student_model.dart';
 
 class StudentSearchDialog extends StatefulWidget {
-  // 傳入已經選過的 ID，避免重複選取
   final Set<String> existingStudentIds;
+  // 移除 allowGuest 參數，不需要了
 
   const StudentSearchDialog({super.key, required this.existingStudentIds});
 
@@ -15,7 +15,14 @@ class StudentSearchDialog extends StatefulWidget {
 class _StudentSearchDialogState extends State<StudentSearchDialog> {
   final TextEditingController _searchController = TextEditingController();
   List<StudentModel> _searchResults = [];
-  bool _isSearching = false;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 可以選擇一進來是否要列出所有 User，或者等使用者輸入
+    _search();
+  }
 
   @override
   void dispose() {
@@ -23,111 +30,115 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
     super.dispose();
   }
 
-  // 搜尋邏輯 (參考 session_edit_dialog)
   Future<void> _search() async {
     final query = _searchController.text.trim();
-    // if (query.isEmpty) return;
-
-    setState(() => _isSearching = true);
+    setState(() => _isLoading = true);
 
     try {
-      final response = await Supabase.instance.client
-          .from('students')
+      final supabase = Supabase.instance.client;
+
+      // 單純的搜尋邏輯
+      var builder = supabase
+          .from('students') // 或是 'users' view
           .select()
           .ilike('name', '%$query%') // 模糊搜尋
-          .limit(20); // 限制筆數避免太多
+          .limit(20);
 
-      final data = response as List<dynamic>;
+      final response = await builder;
+
+      final results = (response as List<dynamic>)
+          .map((e) => StudentModel.fromJson(e))
+          .toList();
+
       if (mounted) {
         setState(() {
-          _searchResults = data.map((e) => StudentModel.fromJson(e)).toList();
+          _searchResults = results;
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('搜尋失敗: $e')));
-      }
+      debugPrint('搜尋失敗: $e');
     } finally {
-      if (mounted) setState(() => _isSearching = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('搜尋並加入學員'),
+      title: const Text('搜尋學員 / 散客'),
       content: SizedBox(
         width: 400,
         height: 500,
         child: Column(
           children: [
-            // 搜尋框
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: '輸入姓名...',
+                hintText: '輸入姓名 (如: 散客)...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.arrow_forward),
-                  onPressed: _search,
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _search();
+                  },
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
+                border: const OutlineInputBorder(),
               ),
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _search(),
+              onChanged: (val) => _search(),
             ),
-            const SizedBox(height: 10),
-
-            // 搜尋結果列表
+            const SizedBox(height: 16),
             Expanded(
-              child: _isSearching
+              child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _searchResults.isEmpty
-                  ? Center(
-                      child: Text(
-                        '請輸入關鍵字搜尋',
-                        style: TextStyle(color: Colors.grey.shade400),
-                      ),
-                    )
+                  ? const Center(child: Text('無搜尋結果'))
                   : ListView.separated(
                       itemCount: _searchResults.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
+                      separatorBuilder: (ctx, index) => const Divider(),
+                      itemBuilder: (ctx, index) {
                         final student = _searchResults[index];
-                        // 檢查是否已經在「已選清單」中
                         final isAdded = widget.existingStudentIds.contains(
                           student.id,
                         );
 
+                        // 判斷是否為散客 (改為用名字或角色判斷，不依賴 ID)
+                        // 這裡只做純顯示的 UI 區分，不做硬性邏輯
+                        final isGuestName =
+                            student.name.contains('散客') ||
+                            student.name.contains('Guest');
+
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: isAdded
-                                ? Colors.grey
-                                : Colors.grey.shade200,
-                            child: Text(student.name.substring(0, 1)),
+                            backgroundColor: isGuestName
+                                ? Colors.green.shade100
+                                : Colors.blue.shade100,
+                            child: Icon(
+                              isGuestName ? Icons.storefront : Icons.person,
+                              color: isGuestName
+                                  ? Colors.green.shade800
+                                  : Colors.blue.shade800,
+                            ),
                           ),
-                          title: Text(student.name),
-                          subtitle: isAdded
-                              ? const Text(
-                                  '已加入列表',
-                                  style: TextStyle(fontSize: 12),
-                                )
-                              : null,
+                          title: Text(
+                            student.name,
+                            style: isGuestName
+                                ? const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  )
+                                : null,
+                          ),
+                          subtitle: isGuestName
+                              ? const Text('現場收費帳號')
+                              : null, // 或顯示餘額
                           trailing: isAdded
                               ? const Icon(Icons.check, color: Colors.green)
-                              : const Icon(Icons.add_circle_outline),
+                              : null,
                           onTap: isAdded
-                              ? null // 已加入就不能點
+                              ? null
                               : () {
-                                  // 點擊後直接回傳該學生
+                                  // 回傳真實的資料庫物件
                                   Navigator.pop(context, student);
                                 },
                         );

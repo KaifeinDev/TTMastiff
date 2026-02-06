@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ttmastiff/main.dart'; // 確保能存取 adminRepository
-
-// 🔥 引入 Model
 import '../../../../data/models/course_model.dart';
 
 class CourseEditDialog extends StatefulWidget {
-  // 🔥 改動 1: 這裡接收 Model，如果是 null 代表新增
   final CourseModel? course;
 
   const CourseEditDialog({super.key, this.course});
@@ -30,14 +27,10 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
     super.initState();
     if (widget.course != null) {
       final c = widget.course!;
-      // 🔥 改動 2: 使用點語法存取屬性，有型別提示
       _titleController.text = c.title;
       _descController.text = c.description ?? '';
       _priceController.text = c.price.toString();
       _category = c.category;
-
-      // 🔥 改動 3: Model 內的 startTime 已經是 DateTime，直接轉 TimeOfDay
-      // 不需要 DateTime.parse()
       _startTime = TimeOfDay.fromDateTime(c.defaultStartTime);
       _endTime = TimeOfDay.fromDateTime(c.defaultEndTime);
     }
@@ -72,9 +65,10 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
     setState(() => _isLoading = true);
 
     try {
-      // 為了存入 DB，我們需要一個基準日期 (Date) 加上 時間 (Time)
-      // 這裡統一使用今天的日期，因為 Course 的 start_time 主要是看它的 "TimeOfDay"
       final now = DateTime.now();
+
+      // 如果是 rental，時間不重要，給預設值以符合 DB schema
+      // 如果是課程，使用選定的時間
       final dtStart = DateTime(
         now.year,
         now.month,
@@ -90,11 +84,9 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
         _endTime.minute,
       );
 
-      // 防呆轉型
       final int price = int.tryParse(_priceController.text) ?? 0;
 
       if (widget.course == null) {
-        // Create
         await courseRepository.createCourse(
           title: _titleController.text,
           category: _category,
@@ -104,8 +96,6 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
           defaultEndTime: dtEnd,
         );
       } else {
-        // Update
-        // 🔥 改動 4: 使用 widget.course!.id 取得 ID
         await courseRepository.updateCourse(
           courseId: widget.course!.id,
           title: _titleController.text,
@@ -128,175 +118,154 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
     }
   }
 
-  void _adjustPrice(int amount) {
-    // 1. 嘗試將目前文字轉為整數，若為空或格式錯誤則預設為 0
-    int currentValue = int.tryParse(_priceController.text) ?? 0;
-
-    // 2. 計算新數值
-    int newValue = currentValue + amount;
-
-    // 3. 避免價格變成負數
-    if (newValue < 0) newValue = 0;
-
-    // 4. 更新 Controller 顯示
-    _priceController.text = newValue.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: LayoutBuilder(
-        builder: (context, c) {
-          final maxW = c.maxWidth.clamp(320, 560).toDouble();
-          final maxH = c.maxHeight.clamp(520, 720).toDouble();
-          return SizedBox(
-            width: maxW,
-            height: maxH,
+    void _adjustPrice(int amount) {
+      int currentValue = int.tryParse(_priceController.text) ?? 0;
+      int newValue = currentValue + amount;
+      if (newValue < 0) newValue = 0;
+      _priceController.text = newValue.toString();
+    }
+
+    // 判斷是否為租桌
+    final bool isRental = _category == 'rental';
+
+    return AlertDialog(
+      title: Text(widget.course == null ? '新增項目模板' : '編輯項目模板'),
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: 400,
+          child: Form(
+            key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
-                  child: Row(
+                // 1. 名稱
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: '名稱 (Title)',
+                    hintText: '例如：基礎桌球課 / 一般租桌',
+                    border: OutlineInputBorder(),
+                    filled: true,
+                  ),
+                  validator: (v) => v!.isEmpty ? '請輸入名稱' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // 2. 類別選擇
+                DropdownButtonFormField<String>(
+                  value: _category,
+                  decoration: const InputDecoration(
+                    labelText: '類別 (Category)',
+                    border: OutlineInputBorder(),
+                    filled: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'group',
+                      child: Text('團體課 (Group)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'personal',
+                      child: Text('個人課 (Personal)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rental',
+                      child: Text('租桌 (Rental)'),
+                    ),
+                  ],
+                  onChanged: (val) => setState(() => _category = val!),
+                ),
+                const SizedBox(height: 16),
+
+                // 3. 價格 (標籤動態變化)
+                TextFormField(
+                  controller: _priceController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: isRental ? '每小時費率 (Hourly Rate)' : '課程單堂價格',
+                    border: const OutlineInputBorder(),
+                    prefixText: '\$ ',
+                    filled: true,
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.remove_circle_outline,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () => _adjustPrice(-50),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.add_circle_outline,
+                            color: Colors.blue,
+                          ),
+                          onPressed: () => _adjustPrice(50),
+                        ),
+                      ],
+                    ),
+                  ),
+                  validator: (v) => v!.isEmpty ? '請輸入價格' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // 4. 時間選擇 (僅在非租桌時顯示)
+                // 租桌的時間是隨機的，因此不需要設定「預設時間」
+                if (!isRental) ...[
+                  Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          widget.course == null ? '新增課程模板' : '編輯課程模板',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.access_time),
+                          onPressed: () => _pickTime(true),
+                          label: Text('預設開始: ${_startTime.format(context)}'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close),
-                        tooltip: '關閉',
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.access_time_filled),
+                          onPressed: () => _pickTime(false),
+                          label: Text('預設結束: ${_endTime.format(context)}'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: Form(
-                    key: _formKey,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextFormField(
-                            controller: _titleController,
-                            decoration: const InputDecoration(
-                              labelText: '課程名稱',
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? '請輸入名稱' : null,
-                          ),
-                          const SizedBox(height: 16),
-
-                          DropdownButtonFormField<String>(
-                            value: _category,
-                            dropdownColor: Colors.white,
-                            decoration: const InputDecoration(
-                              labelText: '課程類別',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'group',
-                                child: Text('團體課 (Group)'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'personal',
-                                child: Text('個人課 (Personal)'),
-                              ),
-                            ],
-                            onChanged: _isLoading
-                                ? null
-                                : (val) => setState(() => _category = val!),
-                          ),
-                          const SizedBox(height: 16),
-
-                          TextFormField(
-                            controller: _priceController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: '預設價格',
-                              border: const OutlineInputBorder(),
-                              prefixText: '\$ ',
-                              suffixIcon: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.remove_circle_outline,
-                                      color: Colors.grey,
-                                    ),
-                                    onPressed: _isLoading
-                                        ? null
-                                        : () => _adjustPrice(-50),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.add_circle_outline,
-                                      color: Colors.redAccent,
-                                    ),
-                                    onPressed: _isLoading
-                                        ? null
-                                        : () => _adjustPrice(50),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? '請輸入價格' : null,
-                          ),
-                          const SizedBox(height: 16),
-
-                          // 時間欄位：做成跟 TextField 一樣的外觀
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _TimeField(
-                                  label: '開始時間',
-                                  valueText: _startTime.format(context),
-                                  onTap: _isLoading
-                                      ? null
-                                      : () => _pickTime(true),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _TimeField(
-                                  label: '結束時間',
-                                  valueText: _endTime.format(context),
-                                  onTap: _isLoading
-                                      ? null
-                                      : () => _pickTime(false),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          TextFormField(
-                            controller: _descController,
-                            decoration: const InputDecoration(
-                              labelText: '描述 (選填)',
-                              border: OutlineInputBorder(),
-                              alignLabelWithHint: true,
-                            ),
-                            minLines: 2,
-                            maxLines: 4,
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 16),
+                ] else ...[
+                  // 顯示提示訊息代替時間選擇器
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
+                    child: const Text(
+                      '💡 租桌類型的時間長度將於建立預約時動態決定，無需設定預設時間。',
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // 5. 描述
+                TextFormField(
+                  controller: _descController,
+                  decoration: const InputDecoration(
+                    labelText: '描述 (選填)',
+                    border: OutlineInputBorder(),
+                    filled: true,
                   ),
                 ),
                 const Divider(height: 1),
@@ -320,7 +289,9 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : Text(widget.course == null ? '新增' : '更新'),
                         ),
@@ -330,38 +301,6 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
                 ),
               ],
             ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _TimeField extends StatelessWidget {
-  final String label;
-  final String valueText;
-  final VoidCallback? onTap;
-
-  const _TimeField({
-    required this.label,
-    required this.valueText,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          suffixIcon: const Icon(Icons.access_time),
-        ),
-        child: Text(
-          valueText.isEmpty ? '請選擇' : valueText,
-          style: TextStyle(
-            color: valueText.isEmpty ? Colors.grey.shade600 : null,
           ),
         ),
       ),
