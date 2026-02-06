@@ -73,10 +73,7 @@ class StudentRepository {
 
   // 更新學員點數
   Future<void> updateStudentPoints(String id, int points) async {
-    await _supabase
-        .from('students')
-        .update({'points': points})
-        .eq('id', id);
+    await _supabase.from('students').update({'points': points}).eq('id', id);
   }
 
   /// 根據課程和場次篩選學員（管理員用）
@@ -295,5 +292,23 @@ class StudentRepository {
       'parentName': response['profiles']?['full_name'] ?? '無資料',
       'parentPhone': response['profiles']?['phone'] ?? '無資料',
     };
+  }
+
+  // 在 StudentRepository 類別裡新增這個方法
+  Future<String?> getMemberLevel(String userId) async {
+    try {
+      final client = Supabase.instance.client; 
+      final data =
+          await client 
+              .from('profiles')
+              .select('membership')
+              .eq('id', userId)
+              .single();
+
+      return data['membership'] as String?;
+    } catch (e) {
+      print('查詢會員等級失敗: $e');
+      return null;
+    }
   }
 }

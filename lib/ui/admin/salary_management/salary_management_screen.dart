@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/main.dart'; // 記得確認你的 main.dart 路徑
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/salary_repository.dart';
 import '../../../../data/models/payroll_model.dart';
 import 'widgets/payroll_edit_dialog.dart';
 import 'widgets/salary_card.dart';
@@ -13,6 +14,7 @@ class SalaryManagementScreen extends StatefulWidget {
 }
 
 class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
+  final salaryRepository = getIt<SalaryRepository>();
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
   List<Map<String, dynamic>> _staffList = [];

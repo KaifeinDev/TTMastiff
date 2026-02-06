@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
+import 'package:ttmastiff/data/services/student_repository.dart';
+import 'package:ttmastiff/data/services/session_repository.dart';
 
 import '../../../data/models/student_model.dart';
 import '../../../data/models/course_model.dart';
@@ -17,6 +20,10 @@ class UserListScreen extends StatefulWidget {
 }
 
 class _UserListScreenState extends State<UserListScreen> {
+  final courseRepository = getIt<CourseRepository>();
+  final sessionRepository = getIt<SessionRepository>();
+  final studentRepository = getIt<StudentRepository>();
+  
   // 篩選狀態
   List<CourseModel> _courses = [];
   CourseModel? _selectedCourse;

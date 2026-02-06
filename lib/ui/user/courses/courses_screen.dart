@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/student_repository.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart'; // 記得引入 intl 用於時間格式化
 import 'package:go_router/go_router.dart';
 
 // Repositories & Models
-import '../../../data/services/course_repository.dart';
 import '../../../data/models/course_model.dart';
 import '../../component/widget/membership_utils.dart';
-import '../../../core/constants/course_types.dart';
 import '../../component/widget/course_category_badge.dart';
 
 class CoursesScreen extends StatefulWidget {
@@ -18,7 +19,8 @@ class CoursesScreen extends StatefulWidget {
 }
 
 class _CoursesScreenState extends State<CoursesScreen> {
-  late final CourseRepository _courseRepo;
+  final courseRepository = getIt<CourseRepository>();
+  final studentRepository = getIt<StudentRepository>();
 
   // 狀態變數
   int _selectedDayIndex = 0; // 0=週一, 1=週二 ... 6=週日
@@ -35,8 +37,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
   @override
   void initState() {
     super.initState();
-    _courseRepo = CourseRepository(Supabase.instance.client);
-    CourseRepository.courseRefreshSignal.addListener(_fetchCourses);
+    courseRepository.courseRefreshSignal.addListener(_fetchCourses);
     // 初始化時，自動選擇「今天」是星期幾
     // DateTime.weekday 回傳 1(Mon)~7(Sun)，我們轉成 0~6 的 index
     _selectedDayIndex = DateTime.now().weekday - 1;
@@ -46,19 +47,15 @@ class _CoursesScreenState extends State<CoursesScreen> {
   }
 
   Future<void> _loadMemberLevel() async {
-    final user = Supabase.instance.client.auth.currentUser;
+    final user = getIt<SupabaseClient>().auth.currentUser;
     if (user == null) return;
 
     try {
-      final data = await Supabase.instance.client
-          .from('profiles')
-          .select('membership')
-          .eq('id', user.id)
-          .single();
+      final membership = await getIt<StudentRepository>().getMemberLevel(user.id);
 
       if (!mounted) return;
       setState(() {
-        _memberLevel = (data['membership'] as String?) ?? 'beginner';
+        _memberLevel = membership;
       });
     } catch (e) {
       // 會員等級載入失敗時，不影響課程顯示，只是不套用折扣
@@ -76,7 +73,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
     try {
       // API 需要 1~7，但 index 是 0~6，所以 +1
-      final courses = await _courseRepo.fetchCoursesByWeekday(
+      final courses = await courseRepository.fetchCoursesByWeekday(
         _selectedDayIndex + 1,
       );
 

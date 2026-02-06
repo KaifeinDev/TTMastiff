@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/data/services/course_repository.dart';
 
 /// 這是共用的殼，包含底部的 NavigationBar
@@ -11,6 +12,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final courseRepository = getIt<CourseRepository>();
     return Scaffold(
       // 這裡顯示當前路由的子頁面
       body: navigationShell,
@@ -23,7 +25,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
             // 切換分頁
             // 點擊可重載
             if (index == 1) {
-              CourseRepository.courseRefreshSignal.notify();
+              courseRepository.courseRefreshSignal.notify();
             }
             // if (index == 2) {
             //   BookingRepository.bookingRefreshSignal.notify();

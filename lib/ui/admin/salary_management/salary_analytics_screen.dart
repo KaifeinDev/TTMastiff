@@ -1,8 +1,8 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:ttmastiff/main.dart';
 import 'package:ttmastiff/data/models/payroll_model.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
 import 'package:ttmastiff/data/services/salary_repository.dart';
 
 class SalaryAnalyticsScreen extends StatefulWidget {
@@ -13,6 +13,8 @@ class SalaryAnalyticsScreen extends StatefulWidget {
 }
 
 class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
+  final salaryRepository = getIt<SalaryRepository>();
+  
   bool _isLoading = true;
 
   int _selectedYear = DateTime.now().year;

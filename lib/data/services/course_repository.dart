@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/utils/time_extensions.dart';
 
 class CourseRepository {
-  static final RefreshSignal courseRefreshSignal = RefreshSignal();
+  final RefreshSignal courseRefreshSignal = RefreshSignal();
   final SupabaseClient _supabase;
 
   CourseRepository(this._supabase);

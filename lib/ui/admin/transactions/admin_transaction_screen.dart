@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ttmastiff/data/models/transaction_model.dart';
-import 'package:ttmastiff/main.dart'; // 取得全域 creditRepository & authManager
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
+import 'package:ttmastiff/data/services/transaction_repository.dart';
 
 // 引入拆分後的 Widgets
 import 'widgets/transaction_dashboard.dart';
@@ -16,6 +18,8 @@ class AdminTransactionScreen extends StatefulWidget {
 }
 
 class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
+  final transactionRepository = getIt<TransactionRepository>();
+  final authManager = getIt<AuthManager>();
   // --- State: 資料 ---
   List<TransactionModel> _transactions = [];
   bool _isLoading = false;

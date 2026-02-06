@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ttmastiff/main.dart'; // 取得 adminRepository
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
 import 'widgets/course_edit_dialog.dart';
 
 // 🔥 引入 CourseModel
@@ -16,12 +18,13 @@ class CourseListScreen extends StatefulWidget {
 
 class _CourseListScreenState extends State<CourseListScreen>
     with SingleTickerProviderStateMixin {
+  final courseRepository = getIt<CourseRepository>();
   // 🔥 改動 1: 使用 List<CourseModel>
   List<CourseModel> _publishedCourses = []; // 上架中
   List<CourseModel> _archivedCourses = []; // 已封存
 
   bool _isLoading = true;
-  bool get _isAdmin => authManager.isAdmin;
+  bool get _isAdmin => getIt<AuthManager>().isAdmin;
   late TabController _tabController;
 
   @override

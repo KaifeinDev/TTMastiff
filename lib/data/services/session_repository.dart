@@ -3,7 +3,8 @@ import 'package:intl/intl.dart';
 import '../models/session_model.dart';
 import 'credit_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/booking_repository.dart';
 
 enum ConflictType {
   none, // 無衝突
@@ -203,7 +204,7 @@ class SessionRepository {
       if (rentalRequests.isNotEmpty) {
         // 假設您可以存取 bookingRepository (視您的 Dependency Injection 方式而定)
         // 可能是 global 的 bookingRepository，或是透過建構子注入的
-        await bookingRepository.createRentalBookings(
+        await getIt<BookingRepository>().createRentalBookings(
           rentalDataList: rentalRequests,
         );
       }

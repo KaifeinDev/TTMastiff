@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/session_repository.dart';
+import 'package:ttmastiff/data/services/coach_repository.dart';
+import 'package:ttmastiff/data/services/table_repository.dart';
 import 'package:ttmastiff/data/models/table_model.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/utils/util.dart';
@@ -30,6 +33,9 @@ class BatchSessionDialog extends StatefulWidget {
 class _BatchSessionDialogState extends State<BatchSessionDialog> {
   DateTimeRange? _dateRange;
   final Set<int> _selectedWeekdays = {};
+  final sessionRepository = getIt<SessionRepository>();
+  final coachRepository = getIt<CoachRepository>();
+  final tableRepository = getIt<TableRepository>();
 
   // 本地維護的起訖時間
   late TimeOfDay _startTime;

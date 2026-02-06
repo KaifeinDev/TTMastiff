@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/table_repository.dart';
 import '../../../data/models/table_model.dart';
-import '../../../data/services/table_repository.dart';
 
 class TableManagementScreen extends StatefulWidget {
   const TableManagementScreen({super.key});
@@ -12,6 +11,7 @@ class TableManagementScreen extends StatefulWidget {
 }
 
 class _TableManagementScreenState extends State<TableManagementScreen> {
+  final tableRepository = getIt<TableRepository>();
   List<TableModel> _tables = [];
   bool _isLoading = true;
 

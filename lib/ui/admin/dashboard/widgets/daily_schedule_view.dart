@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart'; // 取得全域 supabase/sessionRepository
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/table_repository.dart';
+import 'package:ttmastiff/data/services/session_repository.dart';
+import 'package:ttmastiff/data/services/coach_repository.dart';
 import '../../../../data/models/session_model.dart';
 import '../../../../data/models/table_model.dart';
 import '../../courses/widgets/session_edit_dialog.dart';
@@ -15,6 +18,9 @@ class DailyScheduleView extends StatefulWidget {
 }
 
 class _DailyScheduleViewState extends State<DailyScheduleView> {
+  final tableRepository = getIt<TableRepository>();
+  final sessionRepository = getIt<SessionRepository>();
+  final coachRepository = getIt<CoachRepository>();
   // 狀態變數
   Map<String, String> _coachMap = {}; // ID -> Name
   DateTime _selectedDate = DateTime.now();
@@ -343,12 +349,13 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               // 1. 計算可用寬度（扣除時間欄）
-              final double availableWidth = constraints.maxWidth - _timeColumnWidth;
-              
+              final double availableWidth =
+                  constraints.maxWidth - _timeColumnWidth;
+
               // 2. 計算單桌寬度邏輯（類似 coach_weekly_matrix_screen）
               final double minTableWidth = _minTableColumnWidth;
               final double totalTablesMinWidth = _tables.length * minTableWidth;
-              
+
               double tableColumnWidth;
               if (_tables.isEmpty) {
                 // 如果沒有桌子，使用最小寬度
@@ -363,13 +370,14 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                 if (visibleCount < 2) visibleCount = 2;
                 tableColumnWidth = availableWidth / visibleCount;
               }
-              
+
               // 3. 計算表格實際需要的總寬度
               // 當所有桌子都能放得下時，確保內容寬度完全填滿可用空間
-              final double contentWidth = _timeColumnWidth + (_tables.length * tableColumnWidth);
+              final double contentWidth =
+                  _timeColumnWidth + (_tables.length * tableColumnWidth);
               // 當所有桌子都能放得下時，理論上 contentWidth 應該等於 constraints.maxWidth
               // 但我們使用實際計算值確保精確，避免浮點數誤差導致的小空間
-              
+
               // 4. 計算總高度（在 LayoutBuilder 內部計算，確保一致性）
               final int totalHours = _endHour - _startHour;
               final double totalHeight = totalHours * _hourHeight;
@@ -502,13 +510,16 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                     scrollDirection: Axis.horizontal,
                                     physics: const ClampingScrollPhysics(),
                                     child: SizedBox(
-                                      width: contentWidth, // 當所有桌子都能放得下時，等於 constraints.maxWidth，完全填滿
+                                      width:
+                                          contentWidth, // 當所有桌子都能放得下時，等於 constraints.maxWidth，完全填滿
                                       height: totalHeight,
                                       child: Stack(
                                         children: [
                                           // 背景格線
                                           Column(
-                                            key: const ValueKey('background_grid'),
+                                            key: const ValueKey(
+                                              'background_grid',
+                                            ),
                                             children: List.generate(
                                               totalHours,
                                               (i) => Container(
@@ -532,7 +543,9 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                                 .entries
                                                 .map(
                                                   (entry) => Container(
-                                                    key: ValueKey('table_line_${entry.key}'),
+                                                    key: ValueKey(
+                                                      'table_line_${entry.key}',
+                                                    ),
                                                     width: tableColumnWidth,
                                                     decoration: BoxDecoration(
                                                       border: Border(
@@ -548,12 +561,16 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                                 .toList(),
                                           ),
                                           // 課程卡片
-                                          ..._buildSessionCards(tableColumnWidth),
+                                          ..._buildSessionCards(
+                                            tableColumnWidth,
+                                          ),
 
                                           // 🔥 [現在時間紅線]
                                           if (_shouldShowCurrentTimeLine())
                                             Positioned(
-                                              key: const ValueKey('current_time_line'),
+                                              key: const ValueKey(
+                                                'current_time_line',
+                                              ),
                                               top:
                                                   _calculateCurrentTimeTop() -
                                                   5, // 往上提一點，讓線置中於時間點
@@ -638,216 +655,219 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
         // 計算尺寸 (防呆 clamp)
         final double left = tableIdx * tableColumnWidth;
         final double top = (startMin / 60) * _hourHeight;
-        final double width = (tableColumnWidth - 4).clamp(
-          0.0,
-          double.infinity,
-        );
+        final double width = (tableColumnWidth - 4).clamp(0.0, double.infinity);
         final double height = ((durationMin / 60) * _hourHeight - 4).clamp(
           0.0,
           double.infinity,
         );
 
         // 顏色邏輯
-        final themeColor = CourseCategoryUtils.getCategoryColor(session.category);
+        final themeColor = CourseCategoryUtils.getCategoryColor(
+          session.category,
+        );
         final bgColor = themeColor.withOpacity(0.12);
         final borderColor = themeColor.withOpacity(0.3); // 統一邊框色
 
-        cards.add(Positioned(
-          key: ValueKey('session_${session.id}_table_${table.id}'),
-          left: left,
-          top: top,
-          width: width,
-          height: height,
-          child: GestureDetector(
-            onTap: () => _openSessionEdit(session),
-            child: Tooltip(
-              // 設定提示文字：包含標題、教練、完整時間、人數
-              message:
-                  "${session.courseTitle}\n"
-                  "教練: ${_getCoachNames(session)}\n"
-                  "時間: ${DateFormat('HH:mm').format(localStart)} - ${DateFormat('HH:mm').format(localEnd)}\n"
-                  "人數: ${session.bookingsCount}/${session.maxCapacity}",
+        cards.add(
+          Positioned(
+            key: ValueKey('session_${session.id}_table_${table.id}'),
+            left: left,
+            top: top,
+            width: width,
+            height: height,
+            child: GestureDetector(
+              onTap: () => _openSessionEdit(session),
+              child: Tooltip(
+                // 設定提示文字：包含標題、教練、完整時間、人數
+                message:
+                    "${session.courseTitle}\n"
+                    "教練: ${_getCoachNames(session)}\n"
+                    "時間: ${DateFormat('HH:mm').format(localStart)} - ${DateFormat('HH:mm').format(localEnd)}\n"
+                    "人數: ${session.bookingsCount}/${session.maxCapacity}",
 
-              // (選填) 自訂 Tooltip 樣式，讓它好看一點
-              padding: const EdgeInsets.all(8),
-              margin: const EdgeInsets.symmetric(horizontal: 10),
-              showDuration: const Duration(seconds: 3), // 手機上顯示久一點
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              textStyle: const TextStyle(color: Colors.white, fontSize: 12),
-              child: Container(
-                margin: const EdgeInsets.only(left: 2, top: 2),
-                // 1. 外觀設定：統一邊框 + 圓角 (解決報錯關鍵)
+                // (選填) 自訂 Tooltip 樣式，讓它好看一點
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                showDuration: const Duration(seconds: 3), // 手機上顯示久一點
                 decoration: BoxDecoration(
-                  color: bgColor,
+                  color: Colors.black.withOpacity(0.8),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: borderColor, width: 1), // 統一寬度與顏色
                 ),
-                // 2. 內容裁切：確保左側色條不會超出圓角
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Row(
-                    children: [
-                      // A. 左側粗色條 (取代原本的 BorderLeft)
-                      Container(
-                        width: 4,
-                        color: themeColor,
-                        height: double.infinity,
-                      ),
+                textStyle: const TextStyle(color: Colors.white, fontSize: 12),
+                child: Container(
+                  margin: const EdgeInsets.only(left: 2, top: 2),
+                  // 1. 外觀設定：統一邊框 + 圓角 (解決報錯關鍵)
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: borderColor, width: 1), // 統一寬度與顏色
+                  ),
+                  // 2. 內容裁切：確保左側色條不會超出圓角
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Row(
+                      children: [
+                        // A. 左側粗色條 (取代原本的 BorderLeft)
+                        Container(
+                          width: 4,
+                          color: themeColor,
+                          height: double.infinity,
+                        ),
 
-                      // B. 右側主要內容 (LayoutBuilder)
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final h = constraints.maxHeight;
+                        // B. 右側主要內容 (LayoutBuilder)
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final h = constraints.maxHeight;
 
-                            // [極小模式] 高度太小，只顯示色點
-                            if (h < 25) {
-                              return Center(
-                                child: Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    color: themeColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              );
-                            }
-
-                            // [標題模式] 高度稍小，只顯示標題
-                            if (h < 45) {
-                              return Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                  ),
-                                  child: Text(
-                                    session.courseTitle,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
+                              // [極小模式] 高度太小，只顯示色點
+                              if (h < 25) {
+                                return Center(
+                                  child: Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: themeColor,
+                                      shape: BoxShape.circle,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                              );
-                            }
+                                );
+                              }
 
-                            // [完整模式]
-                            return Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                6,
-                                3,
-                                4,
-                                3,
-                              ), // 左邊距稍微加大一點
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // 標題
-                                  Text(
-                                    session.courseTitle,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                              // [標題模式] 高度稍小，只顯示標題
+                              if (h < 45) {
+                                return Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                    child: Text(
+                                      session.courseTitle,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
+                                );
+                              }
 
-                                  // 教練
-                                  if (h > 60) ...[
-                                    const SizedBox(height: 1),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.person,
-                                          size: 11,
-                                          color: Colors.grey.shade700,
-                                        ),
-                                        const SizedBox(width: 2),
-                                        Expanded(
-                                          child: Text(
-                                            _getCoachNames(session),
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.grey.shade800,
+                              // [完整模式]
+                              return Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  6,
+                                  3,
+                                  4,
+                                  3,
+                                ), // 左邊距稍微加大一點
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // 標題
+                                    Text(
+                                      session.courseTitle,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+
+                                    // 教練
+                                    if (h > 60) ...[
+                                      const SizedBox(height: 1),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.person,
+                                            size: 11,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Expanded(
+                                            child: Text(
+                                              _getCoachNames(session),
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey.shade800,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                        ],
+                                      ),
+                                    ],
 
-                                  const Spacer(),
+                                    const Spacer(),
 
-                                  // 底部資訊
-                                  if (h > 55)
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          DateFormat(
-                                            'HH:mm',
-                                          ).format(localStart),
-                                          style: TextStyle(
-                                            fontSize: 9,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 3,
-                                            vertical: 0.5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: session.isFull
-                                                ? Colors.red.withOpacity(0.9)
-                                                : Colors.white.withOpacity(0.6),
-                                            borderRadius: BorderRadius.circular(
-                                              3,
-                                            ),
-                                            border: session.isFull
-                                                ? null
-                                                : Border.all(
-                                                    color: Colors.grey.shade400,
-                                                    width: 0.5,
-                                                  ),
-                                          ),
-                                          child: Text(
-                                            '${session.bookingsCount}/${session.maxCapacity}',
+                                    // 底部資訊
+                                    if (h > 55)
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            DateFormat(
+                                              'HH:mm',
+                                            ).format(localStart),
                                             style: TextStyle(
                                               fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: session.isFull
-                                                  ? Colors.white
-                                                  : Colors.black87,
+                                              color: Colors.grey.shade600,
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                ],
-                              ),
-                            );
-                          },
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 3,
+                                              vertical: 0.5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: session.isFull
+                                                  ? Colors.red.withOpacity(0.9)
+                                                  : Colors.white.withOpacity(
+                                                      0.6,
+                                                    ),
+                                              borderRadius:
+                                                  BorderRadius.circular(3),
+                                              border: session.isFull
+                                                  ? null
+                                                  : Border.all(
+                                                      color:
+                                                          Colors.grey.shade400,
+                                                      width: 0.5,
+                                                    ),
+                                            ),
+                                            child: Text(
+                                              '${session.bookingsCount}/${session.maxCapacity}',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: session.isFull
+                                                    ? Colors.white
+                                                    : Colors.black87,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ));
+        );
       }
     }
     return cards;

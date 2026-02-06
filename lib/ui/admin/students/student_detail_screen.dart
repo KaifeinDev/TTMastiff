@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart';
-
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/booking_repository.dart';
+import 'package:ttmastiff/data/services/student_repository.dart';
+import 'package:ttmastiff/data/services/credit_repository.dart';
 import '../../../data/models/student_model.dart';
 import '../../../data/models/booking_model.dart';
 import '../../component/widget/attendance_status_chip.dart';
 import '../../component/user_info_card.dart';
 import '../courses/widgets/session_edit_dialog.dart';
 import '../../../core/utils/util.dart';
-import 'package:ttmastiff/data/services/booking_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StudentDetailScreen extends StatefulWidget {
@@ -31,6 +32,10 @@ class StudentDetailScreen extends StatefulWidget {
 }
 
 class _StudentDetailScreenState extends State<StudentDetailScreen> {
+  final bookingRepository = getIt<BookingRepository>();
+  final studentRepository = getIt<StudentRepository>();
+  final creditRepository = getIt<CreditRepository>();
+  
   // 將 DateFormat 設為靜態常量，避免每次 build 都創建新實例
   static final _dateFormat = DateFormat('yyyy/MM/dd (E)', 'zh_TW');
   static final _timeFormat = DateFormat('HH:mm');

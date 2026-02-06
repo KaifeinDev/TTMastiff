@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart'; // 取得 bookingRepository
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/booking_repository.dart';
 import '../../../../data/models/session_model.dart';
 import '../../../../data/models/student_model.dart';
-import 'student_search_dialog.dart'; // 🔥 引入剛剛建立的搜尋視窗
+import 'student_search_dialog.dart'; 
 
 class BatchEnrollDialog extends StatefulWidget {
   final String courseId;
@@ -31,6 +32,7 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
   final Set<String> _selectedSessionIds = {};
 
   bool _isSubmitting = false;
+  final bookingRepository = getIt<BookingRepository>();
 
   // 開啟搜尋視窗
   Future<void> _openSearchDialog() async {

@@ -7,7 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/services/auth_repository.dart';
 import '../../../data/services/student_repository.dart';
 import '../../../data/models/student_model.dart';
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
 import '../../../data/services/booking_repository.dart';
 import '../../component/user_info_card.dart';
 import '../../component/student_list_item.dart';
@@ -33,6 +34,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _userPhone;
   int _credits = 0;
   String? _membership; // profiles.membership
+
+  final authManager = getIt<AuthManager>(); 
+  
 
   @override
   void initState() {

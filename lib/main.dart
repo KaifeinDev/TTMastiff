@@ -3,31 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:ttmastiff/data/services/auth_manager.dart';
-import 'package:ttmastiff/data/services/auth_repository.dart';
-import 'package:ttmastiff/data/services/session_repository.dart';
-import 'package:ttmastiff/data/services/coach_repository.dart';
-import 'package:ttmastiff/data/services/course_repository.dart';
-import 'package:ttmastiff/data/services/booking_repository.dart';
-import 'package:ttmastiff/data/services/credit_repository.dart';
-import 'package:ttmastiff/data/services/transaction_repository.dart';
-import 'package:ttmastiff/data/services/student_repository.dart';
-import 'package:ttmastiff/data/services/table_repository.dart';
-import 'package:ttmastiff/data/services/salary_repository.dart';
-
+import 'core/di/service_locator.dart';
 import 'router.dart';
-
-late final AuthRepository authRepository;
-late final AuthManager authManager;
-late final SessionRepository sessionRepository;
-late final CoachRepository coachRepository;
-late final CourseRepository courseRepository;
-late final BookingRepository bookingRepository;
-late final CreditRepository creditRepository;
-late final TransactionRepository transactionRepository;
-late final StudentRepository studentRepository;
-late final TableRepository tableRepository;
-late final SalaryRepository salaryRepository;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,36 +15,10 @@ Future<void> main() async {
       url: dotenv.env['SUPABASE_URL']!,
       anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
     );
-    print("✅ Supabase initialized successfully");
-
-    final client = Supabase.instance.client;
-    // 3. 🔥 初始化 AuthRepository (資料層)
-    authRepository = AuthRepository(client);
-
-    // 4. 🔥 初始化 AuthManager (狀態層)
-    authManager = AuthManager(authRepository);
-
-    coachRepository = CoachRepository(client);
-    courseRepository = CourseRepository(client);
-    creditRepository = CreditRepository(client);
-    sessionRepository = SessionRepository(client, creditRepository);
-    transactionRepository = TransactionRepository(client);
-    bookingRepository = BookingRepository(
-      client,
-      creditRepository,
-      transactionRepository,
-    );
-    studentRepository = StudentRepository(client);
-    tableRepository = TableRepository(client);
-    salaryRepository = SalaryRepository(client);
-
-    // 5. 🔥 啟動監聽並檢查權限 (這會決定使用者一進去是 Home 還是 Admin)
-    await authManager.init();
-    print(
-      "✅ AuthManager initialized (Role: ${authManager.isAdmin ? 'Admin' : 'User'})",
-    );
+    setupLocator();
+    runApp(const MyApp());
   } catch (e) {
-    print("❌ ERROR STARTING APP: $e");
+    debugPrint('初始化失敗: $e');
   }
 
   runApp(const MyApp());
@@ -108,17 +59,13 @@ class MyApp extends StatelessWidget {
           ),
         ),
         // 全局 DatePicker 主題設定
-        datePickerTheme: DatePickerThemeData(
-          backgroundColor: Colors.white,
-        ),
+        datePickerTheme: DatePickerThemeData(backgroundColor: Colors.white),
         // 全局 按鈕文字設定
         textTheme: const TextTheme(
           labelLarge: TextStyle(fontWeight: FontWeight.bold),
         ),
         tabBarTheme: const TabBarThemeData(
-          labelStyle: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          labelStyle: TextStyle(fontWeight: FontWeight.bold),
         ),
         // 全局 Menu 主題設定（包含 DropdownButton 的下拉清單）
         menuTheme: MenuThemeData(

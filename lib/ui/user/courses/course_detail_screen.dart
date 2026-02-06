@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
+import 'package:ttmastiff/data/services/student_repository.dart';
+import 'package:ttmastiff/data/services/booking_repository.dart';
 
 // Models & Repositories
 import '../../../data/models/session_model.dart';
@@ -20,6 +23,9 @@ class CourseDetailScreen extends StatefulWidget {
 }
 
 class _CourseDetailScreenState extends State<CourseDetailScreen> {
+  final courseRepository = getIt<CourseRepository>();
+  final studentRepository = getIt<StudentRepository>();
+  final bookingRepository = getIt<BookingRepository>();
   // Data
   CourseModel? _course;
   List<SessionModel> _upcomingSessions = [];
@@ -304,15 +310,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         ),
         const SizedBox(height: 8),
         Builder(
-        builder: (_) {
-          final description = (_course!.description?.trim().isNotEmpty ?? false)
-              ? _course!.description!.trim()
-              : "暫無課程描述";
-          return Text(
-            description,
-          style: TextStyle(color: Colors.grey.shade600, height: 1.5),
-          );
-        },
+          builder: (_) {
+            final description =
+                (_course!.description?.trim().isNotEmpty ?? false)
+                ? _course!.description!.trim()
+                : "暫無課程描述";
+            return Text(
+              description,
+              style: TextStyle(color: Colors.grey.shade600, height: 1.5),
+            );
+          },
         ),
       ],
     );
@@ -404,7 +411,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 ),
                 child: const Text(
                   "額滿",
-                  style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               )
             else if (remain <= 2)
@@ -416,7 +427,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 ),
                 child: Text(
                   "剩 $remain 位",
-                  style: TextStyle(fontSize: 10, color: Colors.red.shade600, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.red.shade600,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
           ],
@@ -467,10 +482,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         if (discountLabel != null)
           Text(
             discountLabel,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
       ],
     );

@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 // 🔥 請確認您的路徑正確
 import '../../../data/models/booking_model.dart';
 import '../../../data/services/booking_repository.dart';
-import '../../../main.dart'; // 為了取得全域 bookingRepository
+import 'package:ttmastiff/core/di/service_locator.dart';
 import '../../../core/constants/attendance_status.dart';
 import '../../component/widget/attendance_status_chip.dart';
 
@@ -28,6 +28,7 @@ class DaySection {
 
 class _MyBookingScreenState extends State<MyBookingScreen>
     with SingleTickerProviderStateMixin {
+  final bookingRepository = getIt<BookingRepository>();
   late TabController _tabController;
 
   bool _isLoading = true;
@@ -513,7 +514,6 @@ class _GroupedBookingCard extends StatelessWidget {
     }
     return Text(booking.attendanceStatus);
   }
-
 }
 
 // ---------------------------------------------------------------------------
@@ -544,7 +544,8 @@ class _HistoryCard extends StatelessWidget {
     } else {
       // 如果 attendanceStatus 是 pending，視為已結束
       final attendanceStatus = booking.attendanceStatus;
-      if (attendanceStatus == 'pending' || attendanceStatus == AttendanceStatus.pending) {
+      if (attendanceStatus == 'pending' ||
+          attendanceStatus == AttendanceStatus.pending) {
         chipStatus = AttendanceStatus.ended;
       } else {
         chipStatus = attendanceStatus;
@@ -630,9 +631,7 @@ class _HistoryCard extends StatelessWidget {
 
           Container(
             margin: const EdgeInsets.only(left: 8),
-            child: AttendanceStatusChip(
-              status: chipStatus,
-            ),
+            child: AttendanceStatusChip(status: chipStatus),
           ),
         ],
       ),

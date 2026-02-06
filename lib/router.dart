@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
 
 // --- 1. 一般頁面 ---
 import 'ui/user/login&register/login_screen.dart';
@@ -40,6 +41,7 @@ import 'data/models/course_model.dart';
 import 'data/models/student_model.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final authManager = getIt<AuthManager>();
 
 final appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
@@ -272,7 +274,7 @@ final appRouter = GoRouter(
           path: '/admin/activities',
           pageBuilder: (context, state) =>
               const NoTransitionPage(child: ActivityManagementScreen()),
-         ),
+        ),
         GoRoute(
           path: '/admin/coach_matrix',
           pageBuilder: (context, state) =>

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-// 🔥 引入 main.dart 裡的全域變數
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
+import 'package:ttmastiff/data/services/booking_repository.dart';
+import 'package:ttmastiff/data/services/coach_repository.dart';
+import 'package:ttmastiff/data/services/table_repository.dart';
+import 'package:ttmastiff/data/services/session_repository.dart';
 
 // Models
 import '../../../../data/models/session_model.dart';
@@ -31,6 +34,11 @@ class SessionEditDialog extends StatefulWidget {
 class _SessionEditDialogState extends State<SessionEditDialog>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final authManager = getIt<AuthManager>();
+  final bookingRepository = getIt<BookingRepository>();
+  final coachRepository = getIt<CoachRepository>();
+  final tableRepository = getIt<TableRepository>();
+  final sessionRepository = getIt<SessionRepository>();
 
   // Tab 1: 學員名單變數
   List<BookingModel> _roster = [];
@@ -93,7 +101,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       // 保留「啟用中」的桌子 OR 「這堂課原本選中的」桌子
       // 這樣可以確保即使桌子被停用，編輯這堂課時依然能看到它顯示在選單上，而不是空白或報錯
       final displayTables = allTables.where((t) {
-        return t.isActive || (currentTableId != null && t.id == currentTableId);
+        return t.isActive || t.id == currentTableId;
       }).toList();
 
       if (mounted) {
@@ -484,7 +492,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                   subtitle: AttendanceStatusChip(
                     status: booking.status == 'cancelled'
                         ? AttendanceStatus.cancelled
-                        : (booking.attendanceStatus ?? AttendanceStatus.pending),
+                        : booking.attendanceStatus,
                     showBackground: false, // 只顯示文字顏色，不顯示背景和邊框
                   ),
                   trailing: booking.status == 'cancelled' || _isExpired

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,6 +12,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   // 初始化 AuthRepository
+  final authManager = getIt<AuthManager>();
+
   // 控制輸入框
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -31,8 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-    // final email = "admin@admin.com";
-    // final password = "test123";
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(
@@ -84,7 +85,10 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (context, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('登入', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: const Text(
+              '登入',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           body: Center(
             child: SingleChildScrollView(

@@ -1,12 +1,15 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart';
 import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/ui/admin/courses/widgets/session_edit_dialog.dart';
 import 'package:ttmastiff/ui/admin/courses/widgets/batch_session_dialog.dart';
 import 'package:ttmastiff/data/models/course_model.dart';
 import '../../../../ui/component/widget/course_category_badge.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/session_repository.dart';
+import 'package:ttmastiff/data/services/coach_repository.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
 
 // Models
 import '../../../../data/models/session_model.dart';
@@ -40,6 +43,10 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
   late ScrollController _dateVertCtrl; // 左側日期列 (垂直)
   late ScrollController _gridHorzCtrl; // 主格子 (水平)
   late ScrollController _gridVertCtrl; // 主格子 (垂直)
+
+  final sessionRepository = getIt<SessionRepository>();
+  final coachRepository = getIt<CoachRepository>();
+  final courseRepository = getIt<CourseRepository>();
 
   // 防止無窮迴圈的鎖
   bool _isSyncing = false;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/main.dart'; // 確保能存取 adminRepository
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
 import '../../../../data/models/course_model.dart';
 
 class CourseEditDialog extends StatefulWidget {
@@ -12,6 +13,7 @@ class CourseEditDialog extends StatefulWidget {
 }
 
 class _CourseEditDialogState extends State<CourseEditDialog> {
+  final courseRepository = getIt<CourseRepository>();
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descController = TextEditingController();

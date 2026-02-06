@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ttmastiff/main.dart';
+import 'package:ttmastiff/core/di/service_locator.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
+import 'package:ttmastiff/data/services/coach_repository.dart';
+import 'package:ttmastiff/data/services/session_repository.dart';
 
 // 🔥 引入 Models
 import '../../../../data/models/course_model.dart';
@@ -29,7 +33,11 @@ class AdminCourseDetailScreen extends StatefulWidget {
 }
 
 class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
-  // 🔥 改動 2: 使用 Model 儲存狀態
+  final courseRepository = getIt<CourseRepository>();
+  final sessionRepository = getIt<SessionRepository>();
+  final coachRepository = getIt<CoachRepository>();
+  final authManager = getIt<AuthManager>();
+
   late CourseModel _courseData;
   List<SessionModel> _upcomingSessions = []; // 未來
   List<SessionModel> _historySessions = []; // 歷史
