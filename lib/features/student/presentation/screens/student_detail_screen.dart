@@ -11,7 +11,6 @@ import '../../../booking/data/models/booking_model.dart';
 import '../../../course/presentation/widgets/status/attendance_status_chip.dart';
 import '../../../../core/widgets/user_info_card.dart';
 import '../../../course/presentation/widgets/dialog/session_edit_dialog.dart';
-import '../../../../core/utils/util.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StudentDetailScreen extends StatefulWidget {

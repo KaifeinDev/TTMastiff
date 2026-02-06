@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ttmastiff/core/utils/util.dart';
 import '../../data/models/student_model.dart';
-import '../../../../../core/utils/util.dart';
 import 'student_avatar.dart';
 import '../../../../core/widgets/gender_icon.dart';
 

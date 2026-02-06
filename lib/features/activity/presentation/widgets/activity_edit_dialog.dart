@@ -10,7 +10,6 @@ import 'package:intl/intl.dart';
 
 import '../../data/models/activity_model.dart';
 import 'dashed_card.dart';
-import 'package:ttmastiff/core/utils/util.dart';
 
 class ActivityEditDialog extends StatefulWidget {
   final String titleText;

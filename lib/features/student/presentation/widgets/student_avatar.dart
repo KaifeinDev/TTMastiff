@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/core/utils/util.dart';
 
 /// 學員頭像 Widget（用於列表顯示）
 class StudentAvatar extends StatelessWidget {

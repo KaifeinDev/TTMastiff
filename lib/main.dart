@@ -7,7 +7,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/di/service_locator.dart';
 import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart';
 import 'router.dart';
-import 'package:ttmastiff/core/utils/util.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

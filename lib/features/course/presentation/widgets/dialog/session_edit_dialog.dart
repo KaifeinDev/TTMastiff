@@ -13,7 +13,6 @@ import '../../../data/models/session_model.dart';
 import '../../../../booking/data/models/booking_model.dart';
 import '../../../../student/data/models/student_model.dart';
 import '../../../../table/data/models/table_model.dart';
-import '../../../../../core/utils/util.dart';
 import '../../../../../core/constants/attendance_status.dart';
 import '../status/attendance_status_chip.dart';
 import '../../../../student/presentation/widgets/student_search_dialog.dart';

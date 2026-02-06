@@ -46,7 +46,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
   bool? _filterIsReconciled; // null=全部, false=未對帳, true=已對帳
 
   // --- State: 勾選 (批量操作) ---
-  Set<String> _selectedIds = {};
+  final Set<String> _selectedIds = {};
 
   // --- State: 儀表板統計 ---
   int _totalPendingCash = 0;

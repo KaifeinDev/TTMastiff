@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/core/utils/util.dart';
 import '../../../core/constants/gender_types.dart';
 
 /// 性別圖示 Widget

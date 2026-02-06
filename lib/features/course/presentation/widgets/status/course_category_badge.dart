@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/core/utils/util.dart';
 import '../../../../../../core/constants/course_types.dart';
 
 /// 課程類別工具函數

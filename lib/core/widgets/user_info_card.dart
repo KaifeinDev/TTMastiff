@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import 'gender_icon.dart';
 import 'membership_utils.dart';

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ttmastiff/core/utils/util.dart';
 import '../widgets/daily_schedule_view.dart';
 
 class AdminDashboardScreen extends StatefulWidget {

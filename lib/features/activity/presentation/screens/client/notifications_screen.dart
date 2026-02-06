@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/repositories/activity_repository.dart';
 import '../../../data/models/activity_model.dart';
-import 'package:ttmastiff/core/utils/util.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
