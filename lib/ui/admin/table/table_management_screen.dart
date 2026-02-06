@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ttmastiff/main.dart';
-import '../../data/models/table_model.dart';
-import '../../data/services/table_repository.dart';
+import '../../../data/models/table_model.dart';
+import '../../../data/services/table_repository.dart';
 
 class TableManagementScreen extends StatefulWidget {
   const TableManagementScreen({super.key});

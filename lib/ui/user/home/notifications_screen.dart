@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/services/activity_repository.dart';
-import '../../data/models/activity_model.dart';
+import '../../../data/services/activity_repository.dart';
+import '../../../data/models/activity_model.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});

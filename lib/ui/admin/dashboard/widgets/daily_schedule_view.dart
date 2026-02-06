@@ -4,6 +4,7 @@ import 'package:ttmastiff/main.dart'; // 取得全域 supabase/sessionRepository
 import '../../../../data/models/session_model.dart';
 import '../../../../data/models/table_model.dart';
 import '../../courses/widgets/session_edit_dialog.dart';
+import '../../../../ui/component/widget/course_category_badge.dart';
 import 'dart:async';
 
 class DailyScheduleView extends StatefulWidget {
@@ -23,10 +24,10 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
   Timer? _timer;
 
   // 🔥 [UI 參數設定] 加大尺寸，讓畫面更清楚
-  final double _hourHeight = 90.0; // 每小時的高度 (原本 80 -> 110)
+  final double _hourHeight = 45.0; // 每小時的高度 (縮短一倍)
   final double _headerHeight = 45.0; // 桌名列高度
   final double _timeColumnWidth = 50.0; // 左側時間欄寬度
-  final double _tableColumnWidth = 110.0; // 每一桌的寬度 (原本 120 -> 160)
+  final double _minTableColumnWidth = 110.0; // 每一桌的最小寬度
   final int _startHour = 8; // 顯示起始時間 (08:00)
   final int _endHour = 23; // 顯示結束時間 (23:00)
 
@@ -224,10 +225,6 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_tables.isEmpty) return const Center(child: Text('無桌次資料'));
 
-    final totalHours = _endHour - _startHour;
-    final totalWidth = _timeColumnWidth + (_tables.length * _tableColumnWidth);
-    final totalHeight = totalHours * _hourHeight;
-
     String _weekdayName(int day) {
       const names = ['一', '二', '三', '四', '五', '六', '日'];
       return names[day - 1];
@@ -345,16 +342,39 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // 1. 計算表格實際需要的總寬度
-              final double contentWidth =
-                  _timeColumnWidth + (_tables.length * _tableColumnWidth);
-              final double availableWidth = constraints.maxWidth;
+              // 1. 計算可用寬度（扣除時間欄）
+              final double availableWidth = constraints.maxWidth - _timeColumnWidth;
+              
+              // 2. 計算單桌寬度邏輯（類似 coach_weekly_matrix_screen）
+              final double minTableWidth = _minTableColumnWidth;
+              final double totalTablesMinWidth = _tables.length * minTableWidth;
+              
+              double tableColumnWidth;
+              if (_tables.isEmpty) {
+                // 如果沒有桌子，使用最小寬度
+                tableColumnWidth = minTableWidth;
+              } else if (totalTablesMinWidth <= availableWidth) {
+                // A. 如果所有桌子排排站都還塞得進去，直接平分剩餘空間，讓表格填滿畫面
+                tableColumnWidth = availableWidth / _tables.length;
+              } else {
+                // B. 塞不下，需要捲動
+                // 計算一頁能顯示幾個 (至少顯示 2 個)
+                int visibleCount = (availableWidth / minTableWidth).floor();
+                if (visibleCount < 2) visibleCount = 2;
+                tableColumnWidth = availableWidth / visibleCount;
+              }
+              
+              // 3. 計算表格實際需要的總寬度
+              // 當所有桌子都能放得下時，確保內容寬度完全填滿可用空間
+              final double contentWidth = _timeColumnWidth + (_tables.length * tableColumnWidth);
+              // 當所有桌子都能放得下時，理論上 contentWidth 應該等於 constraints.maxWidth
+              // 但我們使用實際計算值確保精確，避免浮點數誤差導致的小空間
+              
+              // 4. 計算總高度（在 LayoutBuilder 內部計算，確保一致性）
+              final int totalHours = _endHour - _startHour;
+              final double totalHeight = totalHours * _hourHeight;
 
-              // 2. 判斷是否需要置中 (當內容寬度 < 螢幕寬度時)
-              // 使用 Align(topCenter) 確保垂直方向是靠上的，只有水平方向置中
-              final bool shouldCenter = contentWidth < availableWidth;
-
-              // 3. 定義核心內容 Widget (原本的 Column 結構)
+              // 4. 定義核心內容 Widget (原本的 Column 結構)
               Widget scheduleContent = Column(
                 children: [
                   // A. 上半部：左上角空塊 + 右上角桌名 (水平捲動)
@@ -385,7 +405,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                             itemBuilder: (context, index) {
                               final table = _tables[index];
                               return Container(
-                                width: _tableColumnWidth,
+                                width: tableColumnWidth,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: Colors.white,
@@ -482,16 +502,17 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                     scrollDirection: Axis.horizontal,
                                     physics: const ClampingScrollPhysics(),
                                     child: SizedBox(
-                                      width:
-                                          totalWidth, // 這裡指的是內容的總寬 (tables * width)
+                                      width: contentWidth, // 當所有桌子都能放得下時，等於 constraints.maxWidth，完全填滿
                                       height: totalHeight,
                                       child: Stack(
                                         children: [
                                           // 背景格線
                                           Column(
+                                            key: const ValueKey('background_grid'),
                                             children: List.generate(
                                               totalHours,
                                               (i) => Container(
+                                                key: ValueKey('hour_line_$i'),
                                                 height: _hourHeight,
                                                 decoration: BoxDecoration(
                                                   border: Border(
@@ -505,10 +526,14 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                             ),
                                           ),
                                           Row(
+                                            key: const ValueKey('table_grid'),
                                             children: _tables
+                                                .asMap()
+                                                .entries
                                                 .map(
-                                                  (_) => Container(
-                                                    width: _tableColumnWidth,
+                                                  (entry) => Container(
+                                                    key: ValueKey('table_line_${entry.key}'),
+                                                    width: tableColumnWidth,
                                                     decoration: BoxDecoration(
                                                       border: Border(
                                                         right: BorderSide(
@@ -523,11 +548,12 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                                 .toList(),
                                           ),
                                           // 課程卡片
-                                          ..._buildSessionCards(),
+                                          ..._buildSessionCards(tableColumnWidth),
 
                                           // 🔥 [現在時間紅線]
                                           if (_shouldShowCurrentTimeLine())
                                             Positioned(
+                                              key: const ValueKey('current_time_line'),
                                               top:
                                                   _calculateCurrentTimeTop() -
                                                   5, // 往上提一點，讓線置中於時間點
@@ -582,20 +608,8 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                 ],
               );
 
-              // 4. 根據判斷結果回傳 Widget
-              if (shouldCenter) {
-                // 如果螢幕夠寬，就用 Align(topCenter) + SizedBox 強制限制寬度
-                return Align(
-                  alignment: Alignment.topCenter, // 保持靠上，水平置中
-                  child: SizedBox(
-                    width: contentWidth, // 強制寬度 = 表格實際寬度
-                    child: scheduleContent,
-                  ),
-                );
-              } else {
-                // 如果螢幕不夠寬 (手機)，則填滿並允許捲動
-                return scheduleContent;
-              }
+              // 5. 回傳 Widget（總是填滿可用寬度）
+              return scheduleContent;
             },
           ),
         ),
@@ -604,13 +618,14 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
   }
 
   // 繪製課程卡片
-  List<Widget> _buildSessionCards() {
-    return _sessions.expand((session) {
-      if (session.tables.isEmpty) return <Widget>[];
+  List<Widget> _buildSessionCards(double tableColumnWidth) {
+    final List<Widget> cards = [];
+    for (final session in _sessions) {
+      if (session.tables.isEmpty) continue;
 
-      return session.tables.map((table) {
+      for (final table in session.tables) {
         final tableIdx = _tables.indexWhere((t) => t.id == table.id);
-        if (tableIdx == -1) return const SizedBox();
+        if (tableIdx == -1) continue;
 
         final localStart = session.startTime.toLocal();
         final localEnd = session.endTime.toLocal();
@@ -621,9 +636,9 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
         final durationMin = localEnd.difference(localStart).inMinutes;
 
         // 計算尺寸 (防呆 clamp)
-        final double left = tableIdx * _tableColumnWidth;
+        final double left = tableIdx * tableColumnWidth;
         final double top = (startMin / 60) * _hourHeight;
-        final double width = (_tableColumnWidth - 4).clamp(
+        final double width = (tableColumnWidth - 4).clamp(
           0.0,
           double.infinity,
         );
@@ -633,12 +648,12 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
         );
 
         // 顏色邏輯
-        final isPersonal = session.category == 'personal';
-        final themeColor = isPersonal ? Colors.purple : Colors.orange;
+        final themeColor = CourseCategoryUtils.getCategoryColor(session.category);
         final bgColor = themeColor.withOpacity(0.12);
         final borderColor = themeColor.withOpacity(0.3); // 統一邊框色
 
-        return Positioned(
+        cards.add(Positioned(
+          key: ValueKey('session_${session.id}_table_${table.id}'),
           left: left,
           top: top,
           width: width,
@@ -832,9 +847,10 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
               ),
             ),
           ),
-        );
-      });
-    }).toList();
+        ));
+      }
+    }
+    return cards;
   }
 
   // 🔍 篩選出「待排定」或「資料不完整」的課程

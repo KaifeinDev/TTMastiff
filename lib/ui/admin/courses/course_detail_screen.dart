@@ -10,6 +10,7 @@ import '../../../../data/models/session_model.dart';
 import 'widgets/batch_session_dialog.dart';
 import 'widgets/session_edit_dialog.dart';
 import 'widgets/batch_enroll_dialog.dart';
+import '../../component/widget/course_category_badge.dart';
 
 class AdminCourseDetailScreen extends StatefulWidget {
   final String courseId;
@@ -743,32 +744,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _courseData.category == 'group'
-                          ? Colors.orange.shade50
-                          : Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: _courseData.category == 'group'
-                            ? Colors.orange.shade200
-                            : Colors.purple.shade200,
-                      ),
-                    ),
-                    child: Text(
-                      _courseData.category == 'group' ? '團體班' : '個人班',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: _courseData.category == 'group'
-                            ? Colors.orange.shade800
-                            : Colors.purple.shade800,
-                      ),
-                    ),
-                  ),
+                  CourseCategoryBadge(category: _courseData.category),
                   const SizedBox(width: 8),
                   Text(
                     '\$${_courseData.price}',

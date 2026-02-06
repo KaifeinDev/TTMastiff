@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../../../component/widget/payroll_status_badge.dart';
 
 class SalaryCard extends StatelessWidget {
   final String name;
@@ -89,23 +90,6 @@ class SalaryCard extends StatelessWidget {
     final bankCode = bankInfo['code'] ?? '';
     final accountNum = bankInfo['account'] ?? '';
     final isUnsettled = status == 'unsettled';
-
-    // 定義狀態顏色
-    Color statusColor;
-    String statusText;
-    switch (status) {
-      case 'paid':
-        statusColor = Colors.green;
-        statusText = '已發放';
-        break;
-      case 'calculated':
-        statusColor = Colors.orange;
-        statusText = '已結算';
-        break;
-      default:
-        statusColor = Colors.blue;
-        statusText = '未結算';
-    }
 
     return Card(
       elevation: 3,
@@ -236,24 +220,7 @@ class SalaryCard extends StatelessWidget {
                 ),
 
                 // 純顯示用的 Badge (平面風格)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    statusText,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
+                PayrollStatusBadge(status: status),
               ],
             ),
 

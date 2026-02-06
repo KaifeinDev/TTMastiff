@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 // 🔥 請確認您的路徑正確
-import '../../data/models/booking_model.dart';
-import '../../data/services/booking_repository.dart';
-import '../../main.dart'; // 為了取得全域 bookingRepository
+import '../../../data/models/booking_model.dart';
+import '../../../data/services/booking_repository.dart';
+import '../../../main.dart'; // 為了取得全域 bookingRepository
+import '../../../core/constants/attendance_status.dart';
+import '../../component/widget/attendance_status_chip.dart';
 
 const int kFreeCancelHours = 12; // 課程開始前 12 小時以前可免費取消
 const int kLockoutHours = 1; // 課程開始前 1 小時鎖定
@@ -458,13 +460,13 @@ class _GroupedBookingCard extends StatelessWidget {
 
   Widget _buildRightSideStatus(BookingModel booking) {
     if (booking.attendanceStatus == 'leave') {
-      return _buildStatusBadge('已請假', Colors.orange);
+      return AttendanceStatusChip(status: AttendanceStatus.leave);
     }
     if (booking.attendanceStatus == 'attended') {
-      return _buildStatusBadge('已出席', Colors.green);
+      return AttendanceStatusChip(status: AttendanceStatus.attended);
     }
     if (booking.attendanceStatus == 'absent') {
-      return _buildStatusBadge('曠課', Colors.red);
+      return AttendanceStatusChip(status: AttendanceStatus.absent);
     }
 
     if (booking.attendanceStatus == 'pending') {
@@ -502,34 +504,16 @@ class _GroupedBookingCard extends StatelessWidget {
           child: Text('請假', style: const TextStyle(fontSize: 13)),
         );
       } else {
-        return _buildStatusBadge(
-          hoursLeft < 0 ? '待上課' : '上課中',
-          hoursLeft < 0 ? Colors.blue : Colors.green,
+        return AttendanceStatusChip(
+          status: hoursLeft < 0
+              ? AttendanceStatus.pending
+              : AttendanceStatus.inProgress,
         );
-        // return const SizedBox.shrink();
       }
     }
     return Text(booking.attendanceStatus);
   }
 
-  Widget _buildStatusBadge(String text, MaterialColor color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.shade50,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.shade100),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color.shade700,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -553,37 +537,17 @@ class _HistoryCard extends StatelessWidget {
     final timeRange =
         "${timeFormat.format(booking.startTime)} - ${timeFormat.format(booking.endTime)}";
 
-    String statusText;
-    Color themeColor;
-    Color bgColor;
-
+    // 決定要傳給 AttendanceStatusChip 的狀態
+    final String chipStatus;
     if (booking.status == 'cancelled') {
-      statusText = '已取消';
-      themeColor = Colors.red.shade400;
-      bgColor = Colors.red.shade50;
+      chipStatus = AttendanceStatus.cancelled;
     } else {
-      switch (booking.attendanceStatus) {
-        case 'attended':
-          statusText = '已出席';
-          themeColor = Colors.green.shade700;
-          bgColor = Colors.green.shade50;
-          break;
-        case 'leave':
-          statusText = '已請假';
-          themeColor = Colors.orange.shade700;
-          bgColor = Colors.orange.shade50;
-          break;
-        case 'absent':
-          statusText = '曠課';
-          themeColor = Colors.red.shade800;
-          bgColor = Colors.red.shade100;
-          break;
-        case 'pending':
-        default:
-          statusText = '已結束';
-          themeColor = Colors.grey.shade600;
-          bgColor = Colors.grey.shade100;
-          break;
+      // 如果 attendanceStatus 是 pending，視為已結束
+      final attendanceStatus = booking.attendanceStatus;
+      if (attendanceStatus == 'pending' || attendanceStatus == AttendanceStatus.pending) {
+        chipStatus = AttendanceStatus.ended;
+      } else {
+        chipStatus = attendanceStatus;
       }
     }
 
@@ -666,18 +630,8 @@ class _HistoryCard extends StatelessWidget {
 
           Container(
             margin: const EdgeInsets.only(left: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              statusText,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: themeColor,
-              ),
+            child: AttendanceStatusChip(
+              status: chipStatus,
             ),
           ),
         ],

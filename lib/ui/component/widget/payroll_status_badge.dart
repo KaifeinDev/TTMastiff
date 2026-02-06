@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/payroll_status.dart';
 
-class StudentStatusChip extends StatelessWidget {
+/// 薪資狀態 Badge Widget
+class PayrollStatusBadge extends StatelessWidget {
   final String status;
 
-  const StudentStatusChip({
+  const PayrollStatusBadge({
     super.key,
     required this.status,
   });
@@ -14,21 +16,18 @@ class StudentStatusChip extends StatelessWidget {
     String text;
 
     switch (status) {
-      case 'attended':
+      case PayrollStatus.paid:
         color = Colors.green;
-        text = '已出席';
+        text = '已發放';
         break;
-      case 'absent':
-        color = Colors.red;
-        text = '缺席';
-        break;
-      case 'leave':
+      case PayrollStatus.calculated:
         color = Colors.orange;
-        text = '請假';
+        text = '已結算';
         break;
+      case PayrollStatus.unsettled:
       default:
-        color = Colors.grey;
-        text = '待上課';
+        color = Colors.blue;
+        text = '未結算';
     }
 
     return Container(
@@ -49,4 +48,3 @@ class StudentStatusChip extends StatelessWidget {
     );
   }
 }
-

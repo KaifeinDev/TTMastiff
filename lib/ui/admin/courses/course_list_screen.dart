@@ -5,6 +5,7 @@ import 'widgets/course_edit_dialog.dart';
 
 // 🔥 引入 CourseModel
 import '../../../../data/models/course_model.dart';
+import '../../component/widget/course_category_badge.dart';
 
 class CourseListScreen extends StatefulWidget {
   const CourseListScreen({super.key});
@@ -355,33 +356,7 @@ class _CourseListScreenState extends State<CourseListScreen>
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: course.category == 'group'
-                                      ? (isArchived
-                                            ? Colors.grey.shade300
-                                            : Colors.orange.shade100)
-                                      : (isArchived
-                                            ? Colors.grey.shade300
-                                            : Colors.purple.shade100),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  course.category == 'group' ? '團體課' : '個人課',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isArchived
-                                        ? Colors.grey.shade600
-                                        : (course.category == 'group'
-                                              ? Colors.orange.shade900
-                                              : Colors.purple.shade900),
-                                  ),
-                                ),
-                              ),
+                              CourseCategoryBadge(category: course.category),
                               const SizedBox(width: 8),
                               Text(
                                 '\$${course.price}',

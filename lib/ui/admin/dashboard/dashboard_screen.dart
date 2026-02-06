@@ -147,11 +147,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // const Text(
-                    //   '桌次排程',
-                    //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    // ),
-                    // const SizedBox(height: 8),
                     Expanded(child: scheduleSection),
                   ],
                 ),

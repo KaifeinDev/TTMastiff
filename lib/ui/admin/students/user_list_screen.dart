@@ -7,7 +7,7 @@ import '../../../data/models/student_model.dart';
 import '../../../data/models/course_model.dart';
 import '../../../data/models/session_model.dart';
 import '../../../data/models/booking_model.dart';
-import '../../../core/utils/util.dart';
+import '../../component/student_list_item.dart';
 
 class UserListScreen extends StatefulWidget {
   const UserListScreen({super.key});
@@ -447,94 +447,17 @@ class _UserListScreenState extends State<UserListScreen> {
                             final student = studentData['student'] as StudentModel;
                             final parentPhone = studentData['parentPhone'] as String?;
                             final isPrimary = student.isPrimary;
-                            final name = student.name.trim();
-                            final initials = name.isEmpty
-                                ? '?'
-                                : (name.length >= 2
-                                    ? name.substring(name.length - 2)
-                                    : name);
 
-                            return Card(
+                            return StudentListItem(
+                              student: student,
+                              isPrimary: isPrimary,
+                              parentPhone: parentPhone,
+                              showPoints: false,
                               margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                               elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  radius: 25,
-                                  backgroundColor: isPrimary
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withOpacity(0.12),
-                                  child: Text(
-                                    initials,
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: isPrimary
-                                          ? Colors.white
-                                          : Theme.of(context).colorScheme.primary,
-                                    ),
-                                  ),
-                                ),
-                                title: Text(
-                                  student.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.cake_outlined,
-                                          size: 16,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          student.birthDate.toDateWithAge(),
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (parentPhone != null &&
-                                        parentPhone.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.phone_outlined,
-                                            size: 16,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            parentPhone,
-                                            style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: () {
-                                  _showStudentDetail(studentData);
-                                },
-                              ),
+                              onTap: () {
+                                _showStudentDetail(studentData);
+                              },
                             );
                           }),
                         ],

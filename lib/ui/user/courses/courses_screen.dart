@@ -4,9 +4,11 @@ import 'package:intl/intl.dart'; // 記得引入 intl 用於時間格式化
 import 'package:go_router/go_router.dart';
 
 // Repositories & Models
-import '../../data/services/course_repository.dart';
-import '../../data/models/course_model.dart';
-import 'widgets/level_icon.dart';
+import '../../../data/services/course_repository.dart';
+import '../../../data/models/course_model.dart';
+import '../../component/widget/membership_utils.dart';
+import '../../../core/constants/course_types.dart';
+import '../../component/widget/course_category_badge.dart';
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({super.key});
@@ -358,22 +360,7 @@ class _CourseCard extends StatelessWidget {
                           horizontal: 8,
                           vertical: 4,
                         ),
-                        decoration: BoxDecoration(
-                          color: course.category == 'personal'
-                              ? Colors.purple.shade50
-                              : Color.fromARGB(30, 255, 122, 50),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          course.category == 'personal' ? '一對一' : '團體班',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: course.category == 'personal'
-                                ? Colors.purple
-                                : Colors.orange,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: CourseCategoryBadge(category: course.category),
                       ),
                       const Spacer(),
                       // 價格（根據會員等級套用折扣）

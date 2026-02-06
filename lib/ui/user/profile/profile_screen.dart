@@ -4,15 +4,13 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // 假設您的 Model 和 Repository 路徑如下，請根據實際專案結構調整
-import '../../data/services/auth_repository.dart';
-import '../../data/services/student_repository.dart';
-import '../../data/models/student_model.dart';
-import '../../core/utils/util.dart';
-
+import '../../../data/services/auth_repository.dart';
+import '../../../data/services/student_repository.dart';
+import '../../../data/models/student_model.dart';
 import 'package:ttmastiff/main.dart';
-import '../../data/services/booking_repository.dart';
-import 'widgets/gender_icon.dart';
-import 'widgets/level_icon.dart';
+import '../../../data/services/booking_repository.dart';
+import '../../component/user_info_card.dart';
+import '../../component/student_list_item.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -471,150 +469,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 1. 主帳號資訊卡片
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              Builder(
-                                builder: (_) {
-                                  final name = displayName.trim();
-                                  final initials = name.length >= 2
-                                      ? name.substring(name.length - 2)
-                                      : name;
-
-                                  return CircleAvatar(
-                                    radius: 30,
-                                    backgroundColor:
-                                        Theme.of(context).colorScheme.primary,
-                                    child: Text(
-                                      initials,
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          displayName,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleLarge
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                        ),
-                                        if (primaryGender != null) ...[
-                                          const SizedBox(width: 4),
-                                          buildGenderIcon(primaryGender),
-                                        ],
-                                      ],
-                                    ),
-                                    if (_userEmail != null &&
-                                        _userEmail!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 6),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.email,
-                                              size: 14,
-                                              color: Colors.grey,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              _userEmail!,
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodyMedium,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    if (_userPhone != null &&
-                                        _userPhone!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.phone_iphone,
-                                              size: 14,
-                                              color: Colors.grey,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              _userPhone!,
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodyMedium,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    if (_membership != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.wallet_membership,
-                                              size: 14,
-                                              color: Colors.grey,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              getLevelText(_membership),
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    const SizedBox(height: 8),
-                                    // Container(
-                                    //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    //   decoration: BoxDecoration(
-                                    //     color: Colors.white.withOpacity(0.5),
-                                    //     borderRadius: BorderRadius.circular(12),
-                                    //   ),
-                                    //   child: const Text('主帳號 (家長)', style: TextStyle(fontSize: 12)),
-                                    // )
-                                  ],
-                                ),
-                              ),
-                              // 鎖定按鈕
-                              IconButton(
-                                onPressed: () => _showLockedDialog(
-                                  '資料已鎖定',
-                                  '為了確保會員權益與實名制安全，主帳號資料無法自行修改。\n\n如需變更，請洽櫃檯人員。',
-                                ),
-                                icon: const Icon(
-                                  Icons.lock_outline,
-                                  color: Colors.grey,
-                                ),
-                                tooltip: '資料鎖定',
-                              ),
-                            ],
+                        UserInfoCard(
+                          displayName: displayName,
+                          gender: primaryGender,
+                          email: _userEmail,
+                          phone: _userPhone,
+                          membership: _membership,
+                          padding: const EdgeInsets.all(12),
+                          showLockButton: true,
+                          isPrimary: true, // 主帳號是本人
+                          onLockTap: () => _showLockedDialog(
+                            '資料已鎖定',
+                            '為了確保會員權益與實名制安全，主帳號資料無法自行修改。\n\n如需變更，請洽櫃檯人員。',
                           ),
                         ),
 
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 16),
                         if (isAdmin || isCoach) ...[
                           Card(
                             shadowColor: Colors.blueGrey.shade50,
@@ -803,7 +673,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // 4. 學員列表
+                        // 4. 學員列表（淺灰背景）
                         if (_students.isEmpty)
                           const Center(
                             child: Padding(
@@ -812,149 +682,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           )
                         else
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _students.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final student = _students[index];
-                              final isSelf = student.isPrimary;
-                              final hasNote =
-                                  student.medicalNote != null &&
-                                  student.medicalNote!.isNotEmpty;
-                              final name = student.name.trim();
-                              final initials = name.isEmpty
-                                  ? '?'
-                                  : (name.length >= 2
-                                      ? name.substring(name.length - 2)
-                                      : name);
+                          Container(
+                            color: Colors.grey.shade50,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _students.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 16),
+                              itemBuilder: (context, index) {
+                                final student = _students[index];
+                                final isSelf = student.isPrimary;
 
-                              return Card(
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  side: BorderSide.none,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                color: Colors.grey.shade200,
-                                child: InkWell(
+                                return StudentListItem(
+                                  student: student,
+                                  isPrimary: isSelf,
+                                  medicalNote: student.medicalNote,
+                                  margin: const EdgeInsets.symmetric(horizontal: 8),
                                   onTap: () => _showEditDialog(student),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    child: ListTile(
-                                      leading: Hero(
-                                        tag: 'avatar_${student.id}',
-                                        child: Container(
-                                          width: 50,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: isSelf
-                                                ? Theme.of(context)
-                                                    .colorScheme
-                                                    .primary
-                                                : Theme.of(context)
-                                                    .colorScheme
-                                                    .primary
-                                                    .withOpacity(0.12),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              initials,
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w600,
-                                                color: isSelf
-                                                    ? Colors.white
-                                                    : Colors.black87,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      title: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            student.name,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          if (student.gender != null) ...[
-                                            const SizedBox(width: 4),
-                                            buildGenderIcon(student.gender),
-                                          ],
-                                        ],
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.cake,
-                                                size: 14,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                student.birthDate.toDateWithAge(),
-                                                style: TextStyle(
-                                                  color: Colors.grey.shade700,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.stars,
-                                                size: 14,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                '${student.points}',
-                                                style: TextStyle(
-                                                  color: Colors.grey.shade700,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (hasNote)
-                                            Tooltip(
-                                              message: student.medicalNote,
-                                              child: Icon(
-                                                Icons.medical_information,
-                                                size: 24,
-                                                color: Colors.redAccent,
-                                              ),
-                                            ),
-                                          const SizedBox(width: 8),
-                                          const Icon(
-                                            Icons.chevron_right,
-                                            color: Colors.grey,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
                       ],
                     ),
