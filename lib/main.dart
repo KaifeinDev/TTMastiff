@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/di/service_locator.dart';
+import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart';
 import 'router.dart';
 
 Future<void> main() async {
@@ -16,12 +17,11 @@ Future<void> main() async {
       anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
     );
     setupLocator();
+    getIt<AuthManager>().init();
     runApp(const MyApp());
   } catch (e) {
     debugPrint('初始化失敗: $e');
   }
-
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {

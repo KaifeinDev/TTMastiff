@@ -1,44 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ttmastiff/core/di/service_locator.dart';
-import 'package:ttmastiff/data/services/auth_manager.dart';
+import 'package:ttmastiff/features/auth/data/repositories/auth_manager.dart'; // 注意: AuthManager 路徑通常在 data/services 或 data/repositories
 
-// --- 1. 一般頁面 ---
-import 'ui/user/login&register/login_screen.dart';
-import 'ui/user/login&register/register_screen.dart';
-import 'ui/user/home/homepage_screen.dart';
-import 'ui/user/courses/courses_screen.dart';
-import 'ui/user/courses/course_detail_screen.dart'; // 這是前台的課程詳情
-import 'ui/user/booking/my_bookings_screen.dart';
-import 'ui/user/profile/profile_screen.dart';
-import 'ui/user/scaffold_with_nav_bar.dart';
-import 'ui/user/profile/transaction_history_screen.dart';
-import 'ui/user/login&register/splash_screen.dart';
-import 'ui/user/home/notifications_screen.dart';
-import 'ui/user/home/notification_detail_screen.dart';
-import 'ui/user/home/activity_detail_screen.dart';
+// --- 1. 一般頁面 (Client) ---
+import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/register_screen.dart';
+import 'features/auth/presentation/screens/splash_screen.dart';
+import 'features/auth/presentation/screens/profile_screen.dart';
+import 'features/home/presentation/screens/client_scaffold.dart';
+import 'features/home/presentation/screens/client_home_screen.dart'; // 類別名通常是 ClientHomeScreen
 
-// --- 2. 管理後台頁面 ---
-import '../ui/admin/admin_scaffold.dart';
-import 'ui/admin/dashboard/dashboard_screen.dart';
-import 'ui/admin/students/user_list_screen.dart';
-import 'ui/admin/salary_management/salary_management_screen.dart';
-import 'ui/admin/salary_management/staff_list_screen.dart';
-import 'ui/admin/salary_management/salary_analytics_screen.dart';
-import 'ui/admin/coach/coach_weekly_matrix_screen.dart';
+// 使用 'as' 避免與 Admin 的 CourseDetailScreen 衝突
+import 'features/course/presentation/screens/client/courses_screen.dart';
+import 'features/course/presentation/screens/client/course_detail_screen.dart'
+    as ClientCourse;
 
-// --- 3. 新增的課程管理頁面 (請確認檔案已建立) ---
-// 原本的 course_manage_screen.dart 建議改名為 course_list_screen.dart
-import '../ui/admin/courses/course_list_screen.dart';
-import '../ui/admin/courses/course_detail_screen.dart';
-import '../ui/admin/students/student_detail_screen.dart';
-import '../ui/admin/transactions/admin_transaction_screen.dart';
-import 'ui/admin/table/table_management_screen.dart';
-import '../ui/admin/activities/activity_management_screen.dart';
+import 'features/booking/presentation/screens/my_bookings_screen.dart';
+import 'features/finance/presentation/screens/client/transaction_history_screen.dart';
+import 'features/activity/presentation/screens/client/notifications_screen.dart';
+import 'features/activity/presentation/screens/client/notification_detail_screen.dart';
+import 'features/activity/presentation/screens/client/activity_detail_screen.dart';
 
-// --- 4. Model ---
-import 'data/models/course_model.dart';
-import 'data/models/student_model.dart';
+// --- 2. 管理後台頁面 (Admin) ---
+import 'features/home/presentation/screens/admin_scaffold.dart';
+import 'features/home/presentation/screens/admin_dashboard_screen.dart';
+import 'features/student/presentation/screens/student_list_screen.dart';
+import 'features/student/presentation/screens/student_detail_screen.dart';
+import 'features/finance/presentation/screens/admin/salary_management_screen.dart';
+import 'features/finance/presentation/screens/admin/salary_analytics_screen.dart';
+import 'features/finance/presentation/screens/admin/admin_transaction_screen.dart';
+import 'features/coach/presentation/screens/staff_list_screen.dart';
+import 'features/coach/presentation/screens/coach_weekly_matrix_screen.dart';
+import 'features/table/presentation/screens/table_management_screen.dart';
+import 'features/activity/presentation/screens/admin/activity_management_screen.dart';
+
+// 使用 'as' 避免衝突
+import 'features/course/presentation/screens/admin/course_list_screen.dart';
+import 'features/course/presentation/screens/admin/course_detail_screen.dart'
+    as AdminCourse;
+
+// --- 3. Models ---
+import 'features/course/data/models/course_model.dart';
+import 'features/student/data/models/student_model.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final authManager = getIt<AuthManager>();
@@ -48,7 +52,7 @@ final appRouter = GoRouter(
   initialLocation: '/login',
   refreshListenable: authManager,
 
-  // 路由守衛 (Redirect Logic) - 保持不變
+  // 路由守衛 (Redirect Logic)
   redirect: (context, state) {
     if (authManager.isLoading) {
       return '/splash';
@@ -56,19 +60,22 @@ final appRouter = GoRouter(
     final isSplash = state.matchedLocation == '/splash';
     final isLoggedIn = authManager.currentUser != null;
     final isAdmin = authManager.isAdmin;
-    final isCoach = authManager.isCoach;
+    final isCoach = authManager.isCoach; // 假設 Coach 權限與 Admin 類似
     final location = state.matchedLocation;
     final isLoggingIn = location == '/login' || location == '/register';
 
+    // 規則 1: 啟動檢查
     if (isSplash && !isLoggedIn) return '/login';
-    // 規則 1: 未登入 -> 踢回 /login
+
+    // 規則 2: 未登入用戶嘗試訪問內部頁面 -> 踢回 /login
     if (!isLoggedIn && !isLoggingIn) return '/login';
 
-    // 規則 2: 已登入 -> 根據身分分流
-    if (isLoggedIn && isLoggingIn || isSplash)
-      return isAdmin || isCoach ? '/admin/dashboard' : '/homepage';
+    // 規則 3: 已登入用戶在登入頁或 Splash -> 根據身分分流
+    if (isLoggedIn && (isLoggingIn || isSplash)) {
+      return (isAdmin || isCoach) ? '/admin/dashboard' : '/homepage';
+    }
 
-    // 規則 3: 一般用戶闖入後台 -> 踢回 /homepage
+    // 規則 4: 一般用戶嘗試訪問 /admin 開頭的頁面 -> 踢回首頁
     if (isLoggedIn && location.startsWith('/admin') && !isAdmin && !isCoach) {
       print('⛔ 權限不足：一般使用者嘗試進入後台');
       return '/homepage';
@@ -79,7 +86,6 @@ final appRouter = GoRouter(
 
   routes: [
     GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
-    GoRoute(path: '/', redirect: (context, state) => '/login'),
 
     // --- Auth 區域 ---
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
@@ -88,45 +94,49 @@ final appRouter = GoRouter(
       builder: (context, state) => const RegisterScreen(),
     ),
 
-    // --- App 前台主區域 ---
+    // --- App 前台主區域 (User) ---
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
-        return ScaffoldWithNavBar(navigationShell: navigationShell);
+        // 請確保 ClientScaffold 接受 navigationShell 參數
+        return ClientScaffold(navigationShell: navigationShell);
       },
       branches: [
-        // 分頁 1: 首頁（新增）
+        // 分頁 1: 首頁
         StatefulShellBranch(
           routes: [
             GoRoute(
               path: '/homepage',
-              builder: (context, state) => const HomepageScreen(),
+              // 修正：類別名應對應 client_home_screen.dart
+              builder: (context, state) => const ClientHomeScreen(),
             ),
           ],
         ),
-        // 分頁 2: 課程（原本的 /home）
+        // 分頁 2: 課程列表
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/home',
+              path: '/home', // 建議未來可以改為 /courses 比較語意化，目前先維持 /home
               builder: (context, state) => const CoursesScreen(),
               routes: [
                 GoRoute(
                   path: 'course_detail/:courseId',
                   builder: (context, state) {
                     final courseId = state.pathParameters['courseId']!;
-                    return CourseDetailScreen(courseId: courseId);
+                    // 使用別名 ClientCourse 調用前台的 CourseDetailScreen
+                    return ClientCourse.CourseDetailScreen(courseId: courseId);
                   },
                 ),
               ],
             ),
           ],
         ),
-        // 分頁 3: 我的課程
+        // 分頁 3: 我的課程/預約
         StatefulShellBranch(
           routes: [
             GoRoute(
               path: '/bookings',
-              builder: (context, state) => const MyBookingScreen(),
+              // 修正：類別名應對應 my_bookings_screen.dart (通常有s)
+              builder: (context, state) => const MyBookingsScreen(),
             ),
           ],
         ),
@@ -137,11 +147,9 @@ final appRouter = GoRouter(
               path: '/profile',
               builder: (context, state) => const ProfileScreen(),
               routes: [
-                // 這就是 /profile/transactions
                 GoRoute(
                   path: 'transactions',
-                  parentNavigatorKey:
-                      _rootNavigatorKey, // 🌟 關鍵：加上這行，新頁面會蓋過 Bottom Bar
+                  parentNavigatorKey: _rootNavigatorKey, // 蓋過 Bottom Bar
                   builder: (context, state) => const TransactionHistoryScreen(),
                 ),
               ],
@@ -151,7 +159,7 @@ final appRouter = GoRouter(
       ],
     ),
 
-    // --- 通知頁面 (獨立路由，不在底部導航欄) ---
+    // --- 獨立功能頁面 (User) ---
     GoRoute(
       path: '/notifications',
       builder: (context, state) => const NotificationsScreen(),
@@ -166,8 +174,6 @@ final appRouter = GoRouter(
         ),
       ],
     ),
-
-    // --- 活動詳情頁面 ---
     GoRoute(
       path: '/activity/:activityId',
       parentNavigatorKey: _rootNavigatorKey,
@@ -185,31 +191,26 @@ final appRouter = GoRouter(
       routes: [
         GoRoute(
           path: '/admin/dashboard',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: DashboardScreen()),
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: AdminDashboardScreen(),
+          ), // 修正 Class 名稱
         ),
 
-        // 🔥 修改重點：課程管理路由升級 (巢狀結構)
+        // Admin 課程管理
         GoRoute(
           path: '/admin/courses',
-          // 這是列表頁 (原 CourseManageScreen)
           pageBuilder: (context, state) =>
               const NoTransitionPage(child: CourseListScreen()),
           routes: [
-            // 這是詳情頁 (負責排課/場次管理)
-            // 網址結構: /admin/courses/some-uuid-123
             GoRoute(
               path: ':courseId',
               pageBuilder: (context, state) {
                 final courseId = state.pathParameters['courseId']!;
-
-                // 接收從列表頁傳來的整個 Course 物件 (extra)，這樣可以不讀取 API 直接顯示標題
-                // extra 是可選的，如果沒有傳遞則為 null
                 final courseData = state.extra as CourseModel?;
 
+                // 使用別名 AdminCourse 調用後台的 Detail Screen
                 return NoTransitionPage(
-                  child: AdminCourseDetailScreen(
-                    // 注意：這裡我改了名字區分前台
+                  child: AdminCourse.AdminCourseDetailScreen(
                     courseId: courseId,
                     initialData: courseData,
                   ),
@@ -218,19 +219,20 @@ final appRouter = GoRouter(
             ),
           ],
         ),
+
+        // Admin 用戶/學生管理
         GoRoute(
           path: '/admin/users',
+          // 修正：檔案名是 student_list_screen.dart，所以 Class 應該是 StudentListScreen
           pageBuilder: (context, state) =>
-              const NoTransitionPage(child: UserListScreen()),
+              const NoTransitionPage(child: StudentListScreen()),
           routes: [
-            // 學生詳情頁
             GoRoute(
               path: ':studentId',
               builder: (context, state) {
                 final studentId = state.pathParameters['studentId']!;
                 final extraMap = state.extra as Map<String, dynamic>?;
 
-                // 3. 從 Map 中取出資料 (如果 extraMap 是 null，這些也會是 null)
                 final studentData = extraMap?['student'] as StudentModel?;
                 final parentName = extraMap?['parentName'] as String?;
                 final parentPhone = extraMap?['parentPhone'] as String?;
@@ -245,6 +247,8 @@ final appRouter = GoRouter(
             ),
           ],
         ),
+
+        // Admin 財務與其他
         GoRoute(
           path: '/admin/transactions',
           pageBuilder: (context, state) =>
