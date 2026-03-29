@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ttmastiff/core/utils/util.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
 import 'package:ttmastiff/main.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.authManager});
+
+  /// 測試或自訂注入；為 null 時使用 [main] 的全域 [authManager]。
+  final AuthManager? authManager;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  AuthManager get _auth => widget.authManager ?? authManager;
+
   // 初始化 AuthRepository
   // 控制輸入框
   final _emailController = TextEditingController();
@@ -47,12 +54,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // 呼叫 Repository 進行登入
-      await authManager.signIn(email: email, password: password);
+      await _auth.signIn(email: email, password: password);
 
       if (mounted) {
         // 登入成功，跳轉到首頁
         // context.go 會直接替換堆疊，使用者按上一頁不會回到登入頁
-        if (authManager.isAdmin) {
+        if (_auth.isAdmin) {
           print("🚀 跳轉到後台");
           context.go('/admin/dashboard');
         } else {
@@ -62,11 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // 顯示簡化後的錯誤訊息
-        final msg = e.toString().replaceAll('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, e);
       }
     } finally {
       if (mounted) {
@@ -80,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: authManager,
+      listenable: _auth,
       builder: (context, child) {
         return Scaffold(
           appBar: AppBar(

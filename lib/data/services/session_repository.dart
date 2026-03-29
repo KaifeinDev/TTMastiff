@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/util.dart';
 import '../models/session_model.dart';
 import 'credit_repository.dart';
 import 'package:flutter/material.dart';
@@ -97,8 +98,8 @@ class SessionRepository {
       }
 
       return sessionsData.map((json) => SessionModel.fromJson(json)).toList();
-    } catch (e) {
-      debugPrint('Error fetching sessions: $e');
+    } catch (e, st) {
+      logError(e, st);
       return [];
     }
   }
@@ -182,7 +183,7 @@ class SessionRepository {
       for (int i = 0; i < createdSessions.length; i++) {
         final originalData = sessionsData[i];
         final String sessionId = createdSessions[i]['id'];
-        print(
+        debugPrint(
           'student_id: ${originalData['renter_id']}\ntarget_user_id: ${originalData['target_user_id']}',
         );
 
@@ -207,8 +208,8 @@ class SessionRepository {
           rentalDataList: rentalRequests,
         );
       }
-    } catch (e) {
-      print('建立預約失敗，回滾 Sessions...: $e');
+    } catch (e, st) {
+      logError('建立預約失敗，回滾 Sessions...: $e', st);
       // Rollback 機制保持不變
       if (createdSessionIds.isNotEmpty) {
         await _supabase
@@ -431,7 +432,7 @@ class SessionRepository {
           .eq('status', 'confirmed'); // 只退款有效訂單
 
       if (bookings.isNotEmpty) {
-        print('正在為 Session $sessionId 執行退款，共 ${bookings.length} 筆...');
+        debugPrint('正在為 Session $sessionId 執行退款，共 ${bookings.length} 筆...');
 
         // 4. 逐筆退款
         // 雖然是迴圈，但 processRefund 是 RPC 交易，安全性足夠。
@@ -456,8 +457,8 @@ class SessionRepository {
                 studentId: studentId,
                 reason: '課程取消',
               );
-            } catch (e) {
-              print('退款失敗 (User: $userId): $e');
+            } catch (e, st) {
+              logError('退款失敗 (User: $userId): $e', st);
               // 這裡可以選擇是否中斷，或是繼續退別人的
               // 建議 log 下來，繼續執行，以免卡住刪除流程
             }

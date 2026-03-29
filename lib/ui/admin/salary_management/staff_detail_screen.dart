@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/staff_detail_model.dart';
 import '../../../data/models/work_shift_model.dart';
@@ -52,8 +53,11 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
 
       // 2. 載入當月排班
       await _loadShifts();
-    } catch (e) {
-      debugPrint(e.toString());
+    } catch (e, st) {
+      logError(e, st);
+      if (mounted) {
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -83,9 +87,7 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
         context,
       ).showSnackBar(const SnackBar(content: Text('儲存成功')));
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('儲存失敗: $e')));
+      showErrorSnackBar(context, e, prefix: '儲存失敗：');
     } finally {
       setState(() => _isLoading = false);
     }

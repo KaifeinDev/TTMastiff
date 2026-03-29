@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // 引入 services 以使用 input formatters
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/util.dart';
 import '../../data/services/auth_repository.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -97,11 +98,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // 簡單處理錯誤訊息，去掉 Exception 前綴
-        final msg = e.toString().replaceAll('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ 註冊失敗: $msg'), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, e, prefix: '註冊失敗：');
       }
     } finally {
       if (mounted) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/util.dart';
 import '../../data/services/activity_repository.dart';
 import '../../data/models/activity_model.dart';
 
@@ -58,9 +59,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         });
       }
     } catch (e) {
-      debugPrint('載入活動通知失敗: $e');
+      logError(e);
       if (mounted) {
         setState(() => _isLoadingActivities = false);
+        showErrorSnackBar(context, e, prefix: '載入通知失敗：');
       }
     }
   }

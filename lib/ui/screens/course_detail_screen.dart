@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/main.dart';
 
 // Models & Repositories
@@ -62,8 +63,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               .eq('id', user.id)
               .single();
           membership = profile['membership'] as String?;
-        } catch (e) {
-          debugPrint('載入會員資格失敗: $e');
+        } catch (e, st) {
+          logError(e, st);
         }
       }
 
@@ -96,9 +97,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
       }
     }
   }
@@ -166,9 +165,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isBooking = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('報名失敗: $e'), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, e, prefix: '報名失敗：');
       }
     } finally {
       if (mounted) {

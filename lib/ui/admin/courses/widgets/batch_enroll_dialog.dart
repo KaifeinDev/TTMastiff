@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/main.dart'; // 取得 bookingRepository
 import '../../../../data/models/session_model.dart';
 import '../../../../data/models/student_model.dart';
@@ -110,10 +111,7 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
       }
     } catch (e) {
       if (mounted) {
-        // 5. 失敗處理 (紅色) - 不關閉視窗，讓使用者可以重試
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('報名失敗: $e'), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, e, prefix: '報名失敗：');
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
