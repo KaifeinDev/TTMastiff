@@ -15,6 +15,7 @@ class AuthManager extends ChangeNotifier {
   User? get currentUser => _authRepository.currentUser;
   bool get isAdmin => _userRole == 'admin';
   bool get isCoach => _userRole == 'coach';
+  bool get isStaff => _userRole == 'coach' || _userRole == 'admin';
   bool get isLoading => _isLoading;
   bool _manualLoginInProgress = false;
 
