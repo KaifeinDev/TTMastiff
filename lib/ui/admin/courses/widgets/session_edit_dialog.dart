@@ -84,14 +84,14 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       // 1. 取得所有桌子 (包含停用的)
       final allTables = await tableRepository.getTables();
 
-      // 2. 取得這堂課目前紀錄的 tableId
-      final currentTableId = widget.session.tableIds;
+      // 2. 取得這堂課目前紀錄的 table id 列表
+      final currentTableIds = widget.session.tableIds;
 
       // 3. 過濾邏輯：
       // 保留「啟用中」的桌子 OR 「這堂課原本選中的」桌子
       // 這樣可以確保即使桌子被停用，編輯這堂課時依然能看到它顯示在選單上，而不是空白或報錯
       final displayTables = allTables.where((t) {
-        return t.isActive || (currentTableId != null && t.id == currentTableId);
+        return t.isActive || currentTableIds.contains(t.id);
       }).toList();
 
       if (mounted) {
