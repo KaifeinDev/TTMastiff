@@ -27,7 +27,7 @@ void main() {
       when(() => repo.fetchUserRole('uid1')).thenAnswer((_) async => 'admin');
 
       expect(manager.isLoading, true); // 初始為 true，未呼叫 init 也可被 signIn 覆蓋
-      await manager.signIn(email: 'u.com', password: 'test123');
+      await manager.signIn(email: 'mock_u@u.com', password: 'mock_pw');
       expect(manager.isLoading, false);
       expect(manager.isAdmin, true);
       expect(manager.isCoach, false);
@@ -39,7 +39,7 @@ void main() {
           .thenThrow(Exception('boom'));
       when(() => repo.currentUser).thenReturn(null);
 
-      expect(() => manager.signIn(email: 'u.com', password: 'test123'), throwsA(isA<Exception>()));
+      expect(() => manager.signIn(email: 'mock_u@u.com', password: 'mock_pw'), throwsA(isA<Exception>()));
       expect(manager.isLoading, false);
     });
 
@@ -51,9 +51,9 @@ void main() {
       when(() => repo.signIn(email: any(named: 'email'), password: any(named: 'password')))
           .thenAnswer((_) async {});
       final user = MockUser();
-      when(() => user.id).thenReturn('u');
+      when(() => user.id).thenReturn('mock_u');
       when(() => repo.currentUser).thenReturn(user);
-      await manager.signIn(email: 'u.com', password: 'test123');
+      await manager.signIn(email: 'mock_u@u.com', password: 'mock_pw');
       expect(manager.isAdmin, true);
 
       await manager.signOut();
