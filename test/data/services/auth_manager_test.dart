@@ -4,6 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ttmastiff/data/services/auth_manager.dart';
 import 'package:ttmastiff/data/services/auth_repository.dart';
 
+const fakeEmail = 'fake_user@example.com';
+const fakePassword = 'fake_password';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 class MockUser extends Mock implements User {}
 
@@ -27,7 +30,7 @@ void main() {
       when(() => repo.fetchUserRole('uid1')).thenAnswer((_) async => 'admin');
 
       expect(manager.isLoading, true); // 初始為 true，未呼叫 init 也可被 signIn 覆蓋
-      await manager.signIn(email: 'mock_u@u.com', password: 'mock_pw');
+      await manager.signIn(email: fakeEmail, password: fakePassword);
       expect(manager.isLoading, false);
       expect(manager.isAdmin, true);
       expect(manager.isCoach, false);
@@ -39,7 +42,7 @@ void main() {
           .thenThrow(Exception('boom'));
       when(() => repo.currentUser).thenReturn(null);
 
-      expect(() => manager.signIn(email: 'mock_u@u.com', password: 'mock_pw'), throwsA(isA<Exception>()));
+      expect(() => manager.signIn(email: fakeEmail, password: fakePassword), throwsA(isA<Exception>()));
       expect(manager.isLoading, false);
     });
 
@@ -53,7 +56,7 @@ void main() {
       final user = MockUser();
       when(() => user.id).thenReturn('mock_u');
       when(() => repo.currentUser).thenReturn(user);
-      await manager.signIn(email: 'mock_u@u.com', password: 'mock_pw');
+      await manager.signIn(email: fakeEmail, password: fakePassword);
       expect(manager.isAdmin, true);
 
       await manager.signOut();

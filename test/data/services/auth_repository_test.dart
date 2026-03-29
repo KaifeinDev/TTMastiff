@@ -3,6 +3,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ttmastiff/data/services/auth_repository.dart';
 
+const fakeEmail = 'fake_user@example.com';
+const fakePassword = 'fake_password';
 // Mocks
 class MockSupabaseClient extends Mock implements SupabaseClient {}
 class MockGoTrueClient extends Mock implements GoTrueClient {}
@@ -90,8 +92,8 @@ void main() {
 
         final birth = DateTime(2000, 2, 9, 15, 20);
         await repo2.signUp(
-          email: 'mock_e@e.com',
-          password: 'mock_pw',
+          email: fakeEmail,
+          password: fakePassword,
           fullName: '王小明',
           phone: '0912345678',
           birthDate: birth,
@@ -101,8 +103,8 @@ void main() {
 
         // 驗證 auth.signUp 參數
         verify(() => auth.signUp(
-          email: 'mock_e@e.com',
-          password: 'mock_pw',
+          email: fakeEmail,
+          password: fakePassword,
           data: {'full_name': '王小明', 'phone': '0912345678'},
         )).called(1);
 
@@ -139,8 +141,8 @@ void main() {
 
         expect(
           () => repo.signUp(
-            email: 'mock_a@a.com',
-            password: 'mock_pw',
+            email: fakeEmail,
+            password: fakePassword,
             fullName: '測試',
             phone: '09',
             birthDate: DateTime(2000, 1, 1),
@@ -173,8 +175,8 @@ void main() {
 
         expect(
           () => repo2.signUp(
-            email: 'mock_a@a.com',
-            password: 'mock_pw',
+            email: fakeEmail,
+            password: fakePassword,
             fullName: '測試',
             phone: '09',
             birthDate: DateTime(2000, 1, 1),
