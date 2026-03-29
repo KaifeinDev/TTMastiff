@@ -112,17 +112,19 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
     final now = DateTime.now();
     final current = isStart ? _startTime : _endTime;
     final initialDate = current ?? now;
+    final navigatorContext = context;
 
     final pickedDate = await showDatePicker(
-      context: context,
+      context: navigatorContext,
       initialDate: initialDate.isBefore(now) ? now : initialDate,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365 * 5)),
     );
     if (pickedDate == null) return;
+    if (!navigatorContext.mounted) return;
 
     final pickedTime = await showTimePicker(
-      context: context,
+      context: navigatorContext,
       initialTime: TimeOfDay.fromDateTime(current ?? now),
     );
     if (pickedTime == null) return;
@@ -280,7 +282,7 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
                           if (widget.allowTypeChange) ...[
                             const SizedBox(height: 16),
                             DropdownButtonFormField<String>(
-                              value: _type,
+                              initialValue: _type,
                               decoration: const InputDecoration(
                                 labelText: '區塊',
                                 border: OutlineInputBorder(),
@@ -355,9 +357,11 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
                                           : _base64Image,
                                       type: _type,
                                     );
-                                    if (mounted) Navigator.of(context).pop();
+                                    if (context.mounted) {
+                                      Navigator.of(context).pop();
+                                    }
                                   } catch (e, stackTrace) {
-                                    if (!mounted) return;
+                                    if (!context.mounted) return;
                                     logError(e, stackTrace);
                                     showErrorSnackBar(
                                       context,

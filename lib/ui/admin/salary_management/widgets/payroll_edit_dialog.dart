@@ -236,7 +236,7 @@ class _PayrollEditDialogState extends State<PayrollEditDialog> {
             const SizedBox(height: 12),
             // 狀態選擇
             DropdownButtonFormField<String>(
-              value: _status,
+              initialValue: _status,
               decoration: const InputDecoration(
                 labelText: '結算狀態',
                 isDense: true,

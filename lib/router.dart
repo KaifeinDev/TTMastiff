@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ttmastiff/main.dart';
@@ -63,12 +64,15 @@ final appRouter = GoRouter(
     if (!isLoggedIn && !isLoggingIn) return '/login';
 
     // 規則 2: 已登入 -> 根據身分分流
-    if (isLoggedIn && isLoggingIn || isSplash)
+    if (isLoggedIn && isLoggingIn || isSplash) {
       return isAdmin || isCoach ? '/admin/dashboard' : '/homepage';
+    }
 
     // 規則 3: 一般用戶闖入後台 -> 踢回 /homepage
     if (isLoggedIn && location.startsWith('/admin') && !isAdmin && !isCoach) {
-      print('⛔ 權限不足：一般使用者嘗試進入後台');
+      if (kDebugMode) {
+        debugPrint('[router] 非管理員導向 /admin，已導回 /homepage');
+      }
       return '/homepage';
     }
 

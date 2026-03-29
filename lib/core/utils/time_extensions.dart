@@ -10,7 +10,7 @@ extension PostgresTimeParsing on String {
     try {
       final now = DateTime.now();
       // 拆解字串 "10:00:00" -> ["10", "00", "00"]
-      final parts = this.split(':');
+      final parts = split(':');
       if (parts.length < 2) {
         throw FormatException("Invalid time format: $this");
       }

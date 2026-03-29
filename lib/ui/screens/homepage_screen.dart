@@ -476,7 +476,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
                     color: Theme.of(context)
                         .colorScheme
                         .primary
-                        .withOpacity(0.12),
+                        .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -566,7 +566,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
                           shape: BoxShape.circle,
                           color: _currentPage == index
                               ? Colors.white
-                              : Colors.white.withOpacity(0.5),
+                              : Colors.white.withValues(alpha: 0.5),
                         ),
                       ),
                     ),

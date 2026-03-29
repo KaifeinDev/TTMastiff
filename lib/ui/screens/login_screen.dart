@@ -56,21 +56,16 @@ class _LoginScreenState extends State<LoginScreen> {
       // 呼叫 Repository 進行登入
       await _auth.signIn(email: email, password: password);
 
-      if (mounted) {
-        // 登入成功，跳轉到首頁
-        // context.go 會直接替換堆疊，使用者按上一頁不會回到登入頁
-        if (_auth.isAdmin) {
-          print("🚀 跳轉到後台");
-          context.go('/admin/dashboard');
-        } else {
-          print("🏠 跳轉到前台");
-          context.go('/home');
-        }
+      if (!mounted) return;
+      // 登入成功，跳轉到首頁（context.go 會直接替換堆疊）
+      if (_auth.isAdmin) {
+        context.go('/admin/dashboard');
+      } else {
+        context.go('/home');
       }
     } catch (e) {
-      if (mounted) {
-        showErrorSnackBar(context, e);
-      }
+      if (!mounted) return;
+      showErrorSnackBar(context, e);
     } finally {
       if (mounted) {
         setState(() {

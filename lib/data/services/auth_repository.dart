@@ -111,7 +111,7 @@ class AuthRepository {
     final encoded = Uri.encodeComponent(displayName);
     // 規範化：若 base 不以 / 結尾則補上
     final normalized = base.endsWith('/') ? base : '$base/';
-    return '${normalized}?name=$encoded';
+    return '$normalized?name=$encoded';
   }
 
   // 登出

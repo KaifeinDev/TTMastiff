@@ -5,7 +5,7 @@ import 'package:ttmastiff/data/services/coach_repository.dart';
 
 class MockSupabaseClient extends Mock implements SupabaseClient {}
 class TestableCoachRepository extends CoachRepository {
-  TestableCoachRepository(SupabaseClient c, {this.onSelect}) : super(c);
+  TestableCoachRepository(super.c, {this.onSelect});
   final Future<dynamic> Function()? onSelect;
   @override
   Future<List<Map<String, dynamic>>> getCoaches() async {
