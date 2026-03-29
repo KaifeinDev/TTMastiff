@@ -30,7 +30,13 @@ class ConflictResult {
 class SessionRepository {
   final SupabaseClient _supabase;
   final CreditRepository _creditRepo;
-  SessionRepository(this._supabase, this._creditRepo);
+  final DateTime Function() _clock;
+
+  SessionRepository(
+    this._supabase,
+    this._creditRepo, {
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   // 📅 抓取特定日期的所有課程
   Future<List<SessionModel>> fetchSessionsByDate(DateTime date) async {
@@ -412,7 +418,7 @@ class SessionRepository {
     ).toLocal();
     final String courseTitle = sessionData['courses']['title'] ?? '未知課程';
     final String sessionTimeStr = DateFormat('MM/dd HH:mm').format(startTime);
-    final DateTime now = DateTime.now();
+    final DateTime now = _clock();
 
     // ⛔ [新增保護] 如果是歷史場次 (已結束)，禁止刪除
     if (endTime.isBefore(now)) {
@@ -421,7 +427,7 @@ class SessionRepository {
 
     // 判斷是否需要退款
     // 邏輯：如果課程還沒結束 (endTime 在現在之後)，則視為「取消」，需要退款
-    final bool shouldRefund = endTime.isAfter(DateTime.now());
+    final bool shouldRefund = endTime.isAfter(now);
 
     if (shouldRefund) {
       // 找出所有「已確認 (confirmed)」的預約，並關聯學生資料
