@@ -90,8 +90,8 @@ void main() {
 
         final birth = DateTime(2000, 2, 9, 15, 20);
         await repo2.signUp(
-          email: 'e@e.com',
-          password: 'pw',
+          email: 'mock_e@e.com',
+          password: 'mock_pw',
           fullName: '王小明',
           phone: '0912345678',
           birthDate: birth,
@@ -101,8 +101,8 @@ void main() {
 
         // 驗證 auth.signUp 參數
         verify(() => auth.signUp(
-          email: 'e@e.com',
-          password: 'pw',
+          email: 'mock_e@e.com',
+          password: 'mock_pw',
           data: {'full_name': '王小明', 'phone': '0912345678'},
         )).called(1);
 
@@ -139,8 +139,8 @@ void main() {
 
         expect(
           () => repo.signUp(
-            email: 'a@a.com',
-            password: 'pw',
+            email: 'mock_a@a.com',
+            password: 'mock_pw',
             fullName: '測試',
             phone: '09',
             birthDate: DateTime(2000, 1, 1),
@@ -173,8 +173,8 @@ void main() {
 
         expect(
           () => repo2.signUp(
-            email: 'a@a.com',
-            password: 'pw',
+            email: 'mock_a@a.com',
+            password: 'mock_pw',
             fullName: '測試',
             phone: '09',
             birthDate: DateTime(2000, 1, 1),
