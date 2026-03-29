@@ -5,7 +5,7 @@
 
 ---
 
-## 📖 目錄 (Table of Contents)
+## 📖 目錄 (Table of Contents )
 
 1. [關於專案 (About)](#-關於專案-about)
 2. [技術架構 (Tech Stack)](#-技術架構-tech-stack)
