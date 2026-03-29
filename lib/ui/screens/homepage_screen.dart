@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/util.dart';
 import '../../data/services/student_repository.dart';
 import '../../data/services/activity_repository.dart';
 import '../../data/models/student_model.dart';
@@ -64,8 +65,8 @@ class _HomepageScreenState extends State<HomepageScreen> {
           _unreadCount = unreadCount;
         });
       }
-    } catch (e) {
-      debugPrint('更新未讀數量失敗: $e');
+    } catch (e, st) {
+      logError(e, st);
     }
   }
   
@@ -114,8 +115,11 @@ class _HomepageScreenState extends State<HomepageScreen> {
         });
       }
     } catch (e) {
-      debugPrint('載入使用者資料失敗: $e');
-      if (mounted) setState(() => _isLoadingUserInfo = false);
+      logError(e);
+      if (mounted) {
+        setState(() => _isLoadingUserInfo = false);
+        showErrorSnackBar(context, e, prefix: '載入個人資料失敗：');
+      }
     }
   }
 
@@ -146,9 +150,10 @@ class _HomepageScreenState extends State<HomepageScreen> {
         });
       }
     } catch (e) {
-      debugPrint('載入活動失敗: $e');
+      logError(e);
       if (mounted) {
         setState(() => _isLoadingActivities = false);
+        showErrorSnackBar(context, e, prefix: '載入活動失敗：');
       }
     }
   }

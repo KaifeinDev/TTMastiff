@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 // 🔥 請確認您的路徑正確
+import '../../core/utils/util.dart';
 import '../../data/models/booking_model.dart';
 import '../../data/services/booking_repository.dart';
 import '../../main.dart'; // 為了取得全域 bookingRepository
@@ -121,8 +122,10 @@ class _MyBookingScreenState extends State<MyBookingScreen>
         });
       }
     } catch (e) {
-      debugPrint('Error fetching bookings: $e');
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        showErrorSnackBar(context, e, prefix: '載入預約失敗：');
+      }
     }
   }
 
@@ -192,9 +195,7 @@ class _MyBookingScreenState extends State<MyBookingScreen>
         _fetchBookings(); // 重整列表
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('操作失敗: $e')));
+          showErrorSnackBar(context, e, prefix: '操作失敗：');
         }
       }
     }

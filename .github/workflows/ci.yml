@@ -1,0 +1,58 @@
+# Flutter：靜態分析 + 單元／widget 測試
+# 依賴 pubspec.lock 快取；同一 PR/分支只保留最新一次執行以節省分鐘數。
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-and-test:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # pubspec.yaml 將 .env 列為 asset；倉庫不提交 .env（見 .gitignore），CI 需有檔案才能打包
+      - name: Create .env from example
+        run: cp .env.example .env
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 專案目前尚有大量 info／warning；收緊時可改為 `flutter analyze` 或只加 `--no-fatal-infos`
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run tests
+        run: flutter test --reporter expanded
+
+      # 啟用前請先在本機執行：dart format lib test
+      # - name: Check formatting
+      #   run: dart format --output=none --set-exit-if-changed lib test

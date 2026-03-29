@@ -1,9 +1,9 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/main.dart';
 import 'package:ttmastiff/data/models/payroll_model.dart';
-import 'package:ttmastiff/data/services/salary_repository.dart';
 
 class SalaryAnalyticsScreen extends StatefulWidget {
   const SalaryAnalyticsScreen({super.key});
@@ -51,7 +51,10 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
       _lastYearData = _processData(lastYearPayrolls);
 
     } catch (e) {
-      debugPrint('Error loading analytics: $e');
+      logError(e);
+      if (mounted) {
+        showErrorSnackBar(context, e, prefix: '載入圖表失敗：');
+      }
     } finally {
       setState(() => _isLoading = false);
     }

@@ -98,8 +98,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('載入使用者資料失敗: $e');
-      if (mounted) setState(() => _isLoading = false);
+      logError(e);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        showErrorSnackBar(context, e, prefix: '載入資料失敗：');
+      }
     }
   }
 
@@ -307,9 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ 新增失敗: $e'), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, e, prefix: '新增失敗：');
       }
     }
   }
@@ -420,9 +421,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ 更新失敗: $e'), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, e, prefix: '更新失敗：');
       }
     }
   }

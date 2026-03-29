@@ -15,6 +15,7 @@ import 'package:ttmastiff/data/services/student_repository.dart';
 import 'package:ttmastiff/data/services/table_repository.dart';
 import 'package:ttmastiff/data/services/salary_repository.dart';
 
+import 'core/utils/util.dart';
 import 'router.dart';
 
 late final AuthRepository authRepository;
@@ -66,8 +67,8 @@ Future<void> main() async {
     print(
       "✅ AuthManager initialized (Role: ${authManager.isAdmin ? 'Admin' : 'User'})",
     );
-  } catch (e) {
-    print("❌ ERROR STARTING APP: $e");
+  } catch (e, st) {
+    logError(e, st);
   }
 
   runApp(const MyApp());

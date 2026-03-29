@@ -102,8 +102,8 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           // 因為 initState 已經用 widget.session.tableId 設定好了
         });
       }
-    } catch (e) {
-      debugPrint('載入桌次失敗: $e');
+    } catch (e, st) {
+      logError(e, st);
       if (mounted) setState(() => _isLoadingTables = false);
     }
   }
@@ -119,8 +119,8 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         widget.session.id,
       );
       if (mounted) setState(() => _roster = bookings);
-    } catch (e) {
-      debugPrint('Fetch roster error: $e');
+    } catch (e, st) {
+      logError(e, st);
     } finally {
       if (mounted) setState(() => _isLoadingRoster = false);
     }
@@ -146,7 +146,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         _fetchRoster();
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('更新失敗: $e')));
+      showErrorSnackBar(context, e, prefix: '更新失敗：');
     }
   }
 
@@ -162,7 +162,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         _fetchRoster();
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('取消失敗: $e')));
+      showErrorSnackBar(context, e, prefix: '取消失敗：');
     }
   }
 
@@ -212,20 +212,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       }
     } catch (e) {
       if (mounted) {
-        // 顯示錯誤 (例如：額滿、餘額不足)
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('無法加入'),
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('確定'),
-              ),
-            ],
-          ),
-        );
+        showErrorDialog(context, e, title: '無法加入');
       }
     } finally {
       if (mounted) {
@@ -242,8 +229,8 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       // 🔥 使用全域 coachRepository
       final coaches = await coachRepository.getCoaches();
       if (mounted) setState(() => _allCoaches = coaches);
-    } catch (e) {
-      debugPrint('Fetch coaches error: $e');
+    } catch (e, st) {
+      logError(e, st);
     }
   }
 

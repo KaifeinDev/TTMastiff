@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/main.dart';
 import '../../data/models/table_model.dart';
-import '../../data/services/table_repository.dart';
 
 class TableManagementScreen extends StatefulWidget {
   const TableManagementScreen({super.key});
@@ -31,9 +30,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('讀取失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '讀取失敗：');
       }
     } finally {
       if (mounted) {
@@ -88,9 +85,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('狀態更新失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '狀態更新失敗：');
       }
     }
   }
@@ -117,9 +112,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('更新失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '更新失敗：');
       }
     }
   }
@@ -200,9 +193,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('儲存失敗: $e')));
+                  showErrorSnackBar(context, e, prefix: '儲存失敗：');
                 }
               }
             },
