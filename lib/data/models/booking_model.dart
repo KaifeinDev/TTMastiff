@@ -16,6 +16,7 @@ class BookingModel {
   // 關聯物件
   final SessionModel session;
   final StudentModel? student;
+  final bool isTeaching;
 
   BookingModel({
     required this.id,
@@ -30,6 +31,7 @@ class BookingModel {
     this.student,
     this.guestName,
     this.guestPhone,
+    this.isTeaching = false, // 預設一般學員
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
@@ -54,6 +56,23 @@ class BookingModel {
       student: json['students'] != null
           ? StudentModel.fromJson(json['students'])
           : null,
+      isTeaching: false,
+    );
+  }
+
+  // 🔥 新增：將 Session 轉換為 BookingModel (給教練/Admin 用)
+  factory BookingModel.fromCoachSession(SessionModel session, String coachId) {
+    return BookingModel(
+      id: 'teach_${session.id}', // 給一個虛擬 ID 避免重複
+      status: 'confirmed', // 教練排程視為已確認
+      attendanceStatus: 'pending',
+      priceSnapshot: 0, // 教練不需付費
+      studentId: coachId, // 這裡借用 studentId 放教練 ID
+      sessionId: session.id,
+      createdAt: DateTime.now(),
+      session: session,
+      student: null, // 教練視角沒有「上級學生」
+      isTeaching: true, // ⭐️ 標記為教學模式
     );
   }
 
