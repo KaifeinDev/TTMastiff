@@ -1,9 +1,9 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/util.dart';
 import '../models/session_model.dart';
 import 'credit_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:ttmastiff/main.dart';
 
 enum ConflictType {
@@ -438,7 +438,11 @@ class SessionRepository {
           .eq('status', 'confirmed'); // 只退款有效訂單
 
       if (bookings.isNotEmpty) {
-        debugPrint('正在為 Session $sessionId 執行退款，共 ${bookings.length} 筆...');
+        if (kDebugMode) {
+          debugPrint(
+            '[SessionRepository] deleteSession 退款 session=$sessionId 筆數=${bookings.length}',
+          );
+        }
 
         // 4. 逐筆退款
         // 雖然是迴圈，但 processRefund 是 RPC 交易，安全性足夠。

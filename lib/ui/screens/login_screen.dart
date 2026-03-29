@@ -57,13 +57,10 @@ class _LoginScreenState extends State<LoginScreen> {
       await _auth.signIn(email: email, password: password);
 
       if (!mounted) return;
-      // 登入成功，跳轉到首頁
-      // context.go 會直接替換堆疊，使用者按上一頁不會回到登入頁
+      // 登入成功，跳轉到首頁（context.go 會直接替換堆疊）
       if (_auth.isAdmin) {
-        debugPrint('🚀 跳轉到後台');
         context.go('/admin/dashboard');
       } else {
-        debugPrint('🏠 跳轉到前台');
         context.go('/home');
       }
     } catch (e) {
