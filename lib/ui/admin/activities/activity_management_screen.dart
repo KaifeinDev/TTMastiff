@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
+import '../../../core/utils/util.dart';
 import '../../../data/models/activity_model.dart';
 import '../../../data/services/activity_repository.dart';
 
@@ -62,9 +63,7 @@ class _ActivityManagementScreenState
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('載入失敗: $e')),
-        );
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
       }
     }
   }
@@ -499,9 +498,7 @@ class _ActivityManagementScreenState
       await _loadActivities();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('更新順序失敗: $e')),
-        );
+        showErrorSnackBar(context, e, prefix: '更新順序失敗：');
       }
     }
   }
@@ -517,9 +514,7 @@ class _ActivityManagementScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('下架失敗: $e')),
-        );
+        showErrorSnackBar(context, e, prefix: '下架失敗：');
       }
     }
   }
@@ -535,9 +530,7 @@ class _ActivityManagementScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('上架失敗: $e')),
-        );
+        showErrorSnackBar(context, e, prefix: '上架失敗：');
       }
     }
   }
@@ -554,9 +547,7 @@ class _ActivityManagementScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('變更失敗: $e')),
-        );
+        showErrorSnackBar(context, e, prefix: '變更失敗：');
       }
     }
   }
@@ -593,9 +584,7 @@ class _ActivityManagementScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('刪除失敗: $e')),
-        );
+        showErrorSnackBar(context, e, prefix: '刪除失敗：');
       }
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/data/models/transaction_model.dart';
 import 'package:ttmastiff/main.dart'; // 取得全域 creditRepository & authManager
 
@@ -74,9 +75,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
         setState(() => _isLoading = false);
       }
     }
@@ -127,9 +126,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('對帳失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '對帳失敗：');
         setState(() => _isLoading = false);
       }
     }
@@ -191,9 +188,7 @@ class _AdminTransactionScreenState extends State<AdminTransactionScreen> {
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('退款失敗: $e')));
+                  showErrorSnackBar(context, e, prefix: '退款失敗：');
                 }
               } finally {
                 // 無論成功失敗，確保停止轉圈
