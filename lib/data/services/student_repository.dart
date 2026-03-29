@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/util.dart';
 import '../models/student_model.dart';
 
 class StudentRepository {
@@ -191,9 +191,9 @@ class StudentRepository {
             parentPhones[student.id] = parentInfo?['phone'];
             parentNames[student.id] = parentInfo?['name'];
           }
-        } catch (e) {
-          // 如果查詢失敗，只記錄錯誤，不影響返回學員列表
-          debugPrint('⚠️ 查詢家長資訊失敗: $e');
+        } catch (e, st) {
+          // 查詢失敗時仍回傳學員列表，只記錄錯誤
+          logError(e, st);
         }
       }
 
