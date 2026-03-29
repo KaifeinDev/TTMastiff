@@ -244,7 +244,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
                   onPressed: () {
                     // 關閉 Dialog，並觸發主畫面 setState 更新
                     Navigator.of(context).pop();
-                    this.setState(() {});
+                    setState(() {});
                   },
                   child: const Text('確定'),
                 ),
@@ -287,7 +287,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
       context,
     );
 
-    if (selectedCourse != null && mounted) {
+    if (selectedCourse != null && context.mounted) {
       // 6. 開啟 BatchSessionDialog 並帶入參數
       await showDialog(
         context: context,
@@ -634,7 +634,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
       height: _rowHeight,
       width: _dateColWidth,
       decoration: BoxDecoration(
-        color: isToday ? Colors.orange.shade50.withOpacity(0.5) : Colors.white,
+        color: isToday ? Colors.orange.shade50.withValues(alpha: 0.5) : Colors.white,
         border: Border(bottom: border, right: border),
       ),
       child: Stack(
@@ -739,7 +739,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
       width: width,
       height: _rowHeight,
       decoration: BoxDecoration(
-        color: isToday ? Colors.orange.shade50.withOpacity(0.3) : Colors.white,
+        color: isToday ? Colors.orange.shade50.withValues(alpha: 0.3) : Colors.white,
         border: Border(bottom: border, right: border),
       ),
       child: LayoutBuilder(
@@ -811,8 +811,8 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
 
     final isPersonal = session.category == 'personal';
     final themeColor = isPersonal ? Colors.orange : Colors.blue;
-    final bgColor = themeColor.withOpacity(0.15);
-    final borderColor = themeColor.withOpacity(0.4);
+    final bgColor = themeColor.withValues(alpha: 0.15);
+    final borderColor = themeColor.withValues(alpha: 0.4);
 
     final String courseTimeStr =
         "${DateFormat('HH:mm').format(session.startTime)} - ${DateFormat('HH:mm').format(session.endTime)}";

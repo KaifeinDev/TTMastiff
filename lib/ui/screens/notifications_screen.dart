@@ -151,6 +151,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           // 通知首頁更新未讀數量（通過重新取得未讀數量）
           // 這裡可以觸發一個事件或使用 callback，但最簡單的方式是讓首頁在返回時重新載入
         }
+        if (!mounted) return;
         context.push('/activity/${activity.id}');
       },
       child: Container(

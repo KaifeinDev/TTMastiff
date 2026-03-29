@@ -589,7 +589,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     // Container(
                                     //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     //   decoration: BoxDecoration(
-                                    //     color: Colors.white.withOpacity(0.5),
+                                    //     color: Colors.white.withValues(alpha: 0.5),
                                     //     borderRadius: BorderRadius.circular(12),
                                     //   ),
                                     //   child: const Text('主帳號 (家長)', style: TextStyle(fontSize: 12)),
@@ -721,7 +721,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         ),
                                         const SizedBox(width: 12),
                                         Text(
-                                          '${NumberFormat('#,###').format(_credits)}',
+                                          NumberFormat('#,###').format(_credits),
                                           style: TextStyle(
                                             color: Theme.of(context).primaryColor,
                                             fontSize: 28,
@@ -851,7 +851,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 : Theme.of(context)
                                                     .colorScheme
                                                     .primary
-                                                    .withOpacity(0.12),
+                                                    .withValues(alpha: 0.12),
                                           ),
                                           child: Center(
                                             child: Text(

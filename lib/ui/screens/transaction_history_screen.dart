@@ -203,7 +203,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
-      selectedColor: Theme.of(context).primaryColor.withOpacity(0.2) ,
+      selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2) ,
       backgroundColor: Colors.grey.shade100,
       labelStyle: TextStyle(
         color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade700,

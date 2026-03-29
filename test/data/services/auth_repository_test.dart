@@ -12,11 +12,11 @@ class MockGoTrueClient extends Mock implements GoTrueClient {}
 // 測試用：可覆寫 insert 行為與捕捉 payload
 class TestableAuthRepository extends AuthRepository {
   TestableAuthRepository(
-    SupabaseClient client, {
+    super.client, {
     this.onInsertProfile,
     this.onInsertStudent,
-    String? Function(String displayName)? avatarUrlGenerator,
-  }) : super(client, avatarUrlGenerator: avatarUrlGenerator);
+    super.avatarUrlGenerator,
+  });
   final Future<void> Function(Map<String, dynamic> row)? onInsertProfile;
   final Future<void> Function(Map<String, dynamic> row)? onInsertStudent;
   @override

@@ -294,7 +294,7 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
           });
         }
       },
-      selectedColor: themeColor.withOpacity(0.15),
+      selectedColor: themeColor.withValues(alpha: 0.15),
       backgroundColor: Colors.white,
       side: BorderSide(color: isSelected ? themeColor : Colors.grey.shade300),
       labelStyle: TextStyle(

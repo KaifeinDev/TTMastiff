@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -39,7 +40,9 @@ Future<void> main() async {
       url: dotenv.env['SUPABASE_URL']!,
       anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
     );
-    print("✅ Supabase initialized successfully");
+    if (kDebugMode) {
+      debugPrint('[main] Supabase initialized');
+    }
 
     final client = Supabase.instance.client;
     // 3. 🔥 初始化 AuthRepository (資料層)
@@ -64,9 +67,11 @@ Future<void> main() async {
 
     // 5. 🔥 啟動監聽並檢查權限 (這會決定使用者一進去是 Home 還是 Admin)
     await authManager.init();
-    print(
-      "✅ AuthManager initialized (Role: ${authManager.isAdmin ? 'Admin' : 'User'})",
-    );
+    if (kDebugMode) {
+      debugPrint(
+        '[main] AuthManager ready (admin=${authManager.isAdmin})',
+      );
+    }
   } catch (e, st) {
     logError(e, st);
   }

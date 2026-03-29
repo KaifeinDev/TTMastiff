@@ -187,12 +187,12 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                   );
                   await tableRepository.updateTable(updatedTable);
                 }
-                if (mounted) {
+                if (context.mounted) {
                   Navigator.pop(context);
                   _loadTables();
                 }
               } catch (e) {
-                if (mounted) {
+                if (context.mounted) {
                   showErrorSnackBar(context, e, prefix: '儲存失敗：');
                 }
               }
@@ -359,7 +359,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                               children: [
                                 Switch(
                                   value: table.isActive,
-                                  activeColor: Colors.green,
+                                  activeThumbColor: Colors.green,
                                   onChanged: (val) =>
                                       _toggleTableStatus(table, val),
                                 ),

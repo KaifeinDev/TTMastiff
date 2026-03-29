@@ -242,7 +242,7 @@ class SalaryCard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -411,7 +411,7 @@ class SalaryCard extends StatelessWidget {
                     foregroundColor: Colors.white,
                     elevation: 2, // 增加陰影，讓它看起來是浮起來的按鈕
                     shadowColor: (isUnsettled ? Colors.blue : Colors.orange)
-                        .withOpacity(0.4),
+                        .withValues(alpha: 0.4),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 10,
@@ -576,7 +576,7 @@ Widget _buildMoneyStat(
         label,
         style: TextStyle(
           fontSize: 10,
-          color: color.withOpacity(0.8),
+          color: color.withValues(alpha: 0.8),
           fontWeight: FontWeight.bold,
         ),
       ),
