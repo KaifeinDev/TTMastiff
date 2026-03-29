@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:meta/meta.dart';
 import '../models/student_model.dart';
 
 class StudentRepository {
@@ -11,13 +12,7 @@ class StudentRepository {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('尚未登入');
 
-    final response = await _supabase
-        .from('students')
-        .select()
-        .eq('parent_id', userId)
-        // 🌟 排序重點：讓 is_primary = true (本人) 排在最前面，其他依建立時間排
-        .order('is_primary', ascending: false)
-        .order('created_at', ascending: true);
+    final response = await queryStudentsByParentId(userId);
 
     return (response as List).map((e) => StudentModel.fromJson(e)).toList();
   }
@@ -40,7 +35,7 @@ class StudentRepository {
     final avatarUrl =
         'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
 
-    await _supabase.from('students').insert({
+    await insertStudentRow({
       'parent_id': userId,
       'name': name,
       'birth_date': birthDate.toIso8601String(),
@@ -61,22 +56,16 @@ class StudentRepository {
     final newAvatarUrl =
         'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
 
-    await _supabase
-        .from('students')
-        .update({
-          'name': newName,
-          'avatar_url': newAvatarUrl,
-          'medical_note': note,
-        })
-        .eq('id', id);
+    await updateStudentRow(id, {
+      'name': newName,
+      'avatar_url': newAvatarUrl,
+      'medical_note': note,
+    });
   }
 
   // 更新學員點數
   Future<void> updateStudentPoints(String id, int points) async {
-    await _supabase
-        .from('students')
-        .update({'points': points})
-        .eq('id', id);
+    await updatePointsRow(id, points);
   }
 
   /// 根據課程和場次篩選學員（管理員用）
@@ -96,10 +85,8 @@ class StudentRepository {
       // 1. 統一處理電話篩選：先查詢符合電話的家長 ID
       List<String>? parentIdsForPhone;
       if (phone != null && phone.trim().isNotEmpty) {
-        final profilesResponse = await _supabase
-            .from('profiles')
-            .select('id')
-            .ilike('phone', '%${phone.trim()}%');
+        final profilesResponse =
+            await queryProfilesByPhoneLike(phone.trim());
 
         parentIdsForPhone = (profilesResponse as List)
             .map((p) => p['id'] as String)
@@ -115,12 +102,7 @@ class StudentRepository {
 
       if (sessionId != null) {
         // 指定場次：查詢該場次的報名
-        final bookingsData = await _supabase
-            .from('bookings')
-            .select('students(*)')
-            .eq('session_id', sessionId)
-            .eq('status', 'confirmed')
-            .then((response) => List<Map<String, dynamic>>.from(response));
+        final bookingsData = await queryBookingsBySession(sessionId);
 
         // 提取學員數據
         for (var booking in bookingsData) {
@@ -130,10 +112,7 @@ class StudentRepository {
         }
       } else if (courseId != null) {
         // 指定課程：先獲取該課程的所有場次 ID
-        final sessionsResponse = await _supabase
-            .from('sessions')
-            .select('id')
-            .eq('course_id', courseId);
+        final sessionsResponse = await querySessionsByCourse(courseId);
 
         final sessionIds = (sessionsResponse as List)
             .map((s) => s['id'] as String)
@@ -144,12 +123,7 @@ class StudentRepository {
         }
 
         // 查詢這些場次的所有報名
-        final bookingsData = await _supabase
-            .from('bookings')
-            .select('students(*)')
-            .filter('session_id', 'in', sessionIds)
-            .eq('status', 'confirmed')
-            .then((response) => List<Map<String, dynamic>>.from(response));
+        final bookingsData = await queryBookingsBySessionIds(sessionIds);
 
         // 提取學員數據
         for (var booking in bookingsData) {
@@ -159,11 +133,7 @@ class StudentRepository {
         }
       } else {
         // 沒有指定課程或場次：直接從 students 表查詢
-        final response = await _supabase
-            .from('students')
-            .select('*')
-            .order('created_at', ascending: true)
-            .then((data) => List<Map<String, dynamic>>.from(data));
+        final response = await queryAllStudents();
 
         studentsData = response;
       }
@@ -202,10 +172,8 @@ class StudentRepository {
       if (studentsList.isNotEmpty) {
         final parentIds = studentsList.map((s) => s.parentId).toSet().toList();
         try {
-          final profilesResponse = await _supabase
-              .from('profiles')
-              .select('id, phone, full_name')
-              .inFilter('id', parentIds);
+          final profilesResponse =
+              await queryParentProfilesByIds(parentIds);
 
           // 建立 parentId -> phone/name 的映射
           final Map<String, Map<String, String?>> parentInfoMap = {};
@@ -234,18 +202,8 @@ class StudentRepository {
       if (includeBookings && studentsList.isNotEmpty) {
         final studentIds = studentsList.map((s) => s.id).toList();
         try {
-          final bookingsResponse = await _supabase
-              .from('bookings')
-              .select('''
-                *,
-                sessions (
-                  *,
-                  courses (*)
-                )
-              ''')
-              .inFilter('student_id', studentIds)
-              .eq('status', 'confirmed')
-              .order('created_at', ascending: false);
+          final bookingsResponse =
+              await queryBookingsDetailsByStudentIds(studentIds);
 
           for (var booking in bookingsResponse) {
             final bookingStudentId = booking['student_id'] as String;
@@ -255,7 +213,7 @@ class StudentRepository {
             studentsBookings[bookingStudentId]!.add(booking);
           }
         } catch (e) {
-          print('⚠️ 查詢報名課程失敗: $e');
+          // ignore
         }
       }
 
@@ -276,17 +234,7 @@ class StudentRepository {
   Future<Map<String, dynamic>> fetchStudentAndParentProfile(
     String studentId,
   ) async {
-    final response = await _supabase
-        .from('students')
-        .select('''
-        *,
-        profiles (
-          full_name,
-          phone,
-        )
-      ''')
-        .eq('id', studentId)
-        .single(); // 只抓一筆
+    final response = await queryStudentWithProfile(studentId);
 
     // 整理回傳格式
     // 這裡回傳一個 Map 包含 StudentModel 和 家長資訊
@@ -296,4 +244,140 @@ class StudentRepository {
       'parentPhone': response['profiles']?['phone'] ?? '無資料',
     };
   }
+}
+
+// ===== Hooks for testability =====
+@protected
+Future<List<Map<String, dynamic>>> queryStudentsByParentId(
+    String userId, {
+  SupabaseClient? client,
+}) async {
+  final c = client ?? Supabase.instance.client;
+  final response = await c
+      .from('students')
+      .select()
+      .eq('parent_id', userId)
+      .order('is_primary', ascending: false)
+      .order('created_at', ascending: true);
+  return List<Map<String, dynamic>>.from(response);
+}
+
+@protected
+Future<void> insertStudentRow(Map<String, dynamic> row,
+    {SupabaseClient? client}) {
+  final c = client ?? Supabase.instance.client;
+  return c.from('students').insert(row);
+}
+
+@protected
+Future<void> updateStudentRow(String id, Map<String, dynamic> row,
+    {SupabaseClient? client}) {
+  final c = client ?? Supabase.instance.client;
+  return c.from('students').update(row).eq('id', id);
+}
+
+@protected
+Future<void> updatePointsRow(String id, int points,
+    {SupabaseClient? client}) {
+  final c = client ?? Supabase.instance.client;
+  return c.from('students').update({'points': points}).eq('id', id);
+}
+
+@protected
+Future<List<Map<String, dynamic>>> queryBookingsBySession(String sessionId,
+    {SupabaseClient? client}) async {
+  final c = client ?? Supabase.instance.client;
+  final response = await c
+      .from('bookings')
+      .select('students(*)')
+      .eq('session_id', sessionId)
+      .eq('status', 'confirmed');
+  return List<Map<String, dynamic>>.from(response);
+}
+
+@protected
+Future<List<Map<String, dynamic>>> querySessionsByCourse(String courseId,
+    {SupabaseClient? client}) async {
+  final c = client ?? Supabase.instance.client;
+  final response = await c.from('sessions').select('id').eq('course_id', courseId);
+  return List<Map<String, dynamic>>.from(response);
+}
+
+@protected
+Future<List<Map<String, dynamic>>> queryBookingsBySessionIds(
+    List<String> sessionIds,
+    {SupabaseClient? client}) async {
+  final c = client ?? Supabase.instance.client;
+  final response = await c
+      .from('bookings')
+      .select('students(*)')
+      .filter('session_id', 'in', sessionIds)
+      .eq('status', 'confirmed');
+  return List<Map<String, dynamic>>.from(response);
+}
+
+@protected
+Future<List<Map<String, dynamic>>> queryAllStudents(
+    {SupabaseClient? client}) async {
+  final c = client ?? Supabase.instance.client;
+  final response =
+      await c.from('students').select('*').order('created_at', ascending: true);
+  return List<Map<String, dynamic>>.from(response);
+}
+
+@protected
+Future<List<Map<String, dynamic>>> queryProfilesByPhoneLike(String phoneLike,
+    {SupabaseClient? client}) async {
+  final c = client ?? Supabase.instance.client;
+  final response =
+      await c.from('profiles').select('id').ilike('phone', '%$phoneLike%');
+  return List<Map<String, dynamic>>.from(response);
+}
+
+@protected
+Future<List<Map<String, dynamic>>> queryParentProfilesByIds(
+    List<String> parentIds,
+    {SupabaseClient? client}) async {
+  final c = client ?? Supabase.instance.client;
+  final response =
+      await c.from('profiles').select('id, phone, full_name').inFilter('id', parentIds);
+  return List<Map<String, dynamic>>.from(response);
+}
+
+@protected
+Future<List<Map<String, dynamic>>> queryBookingsDetailsByStudentIds(
+    List<String> studentIds,
+    {SupabaseClient? client}) async {
+  final c = client ?? Supabase.instance.client;
+  final response = await c
+      .from('bookings')
+      .select('''
+                *,
+                sessions (
+                  *,
+                  courses (*)
+                )
+              ''')
+      .inFilter('student_id', studentIds)
+      .eq('status', 'confirmed')
+      .order('created_at', ascending: false);
+  return List<Map<String, dynamic>>.from(response);
+}
+
+@protected
+Future<Map<String, dynamic>> queryStudentWithProfile(String studentId,
+    {SupabaseClient? client}) async {
+  final c = client ?? Supabase.instance.client;
+  final response = await c
+      .from('students')
+      .select('''
+        *,
+        profiles (
+          full_name,
+          phone,
+        )
+      ''')
+      .eq('id', studentId)
+      .single();
+  return Map<String, dynamic>.from(response);
 }
