@@ -51,6 +51,4 @@ jobs:
             --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
             --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
 
-      # 啟用前請先在本機執行：dart format lib test
-      # - name: Check formatting
-      #   run: dart format --output=none --set-exit-if-changed lib test
+     
