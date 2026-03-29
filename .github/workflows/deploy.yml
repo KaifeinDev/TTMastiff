@@ -31,5 +31,5 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: 你的-firebase-project-id
+          projectId: ttmastiff-b1845
           channelId: live
