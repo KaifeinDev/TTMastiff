@@ -34,10 +34,20 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await initializeDateFormatting('zh_TW', null);
-    await dotenv.load(fileName: ".env");
+    await dotenv.load(fileName: "env.prod");
+    final supabaseUrl = dotenv.env['SUPABASE_URL'];
+    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+
+    if (supabaseUrl == null || supabaseUrl.isEmpty) {
+      throw Exception('Missing SUPABASE_URL in .env');
+    }
+    if (supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
+      throw Exception('Missing SUPABASE_ANON_KEY in .env');
+    }
+
     await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL']!,
-      anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
     );
     print("✅ Supabase initialized successfully");
 
