@@ -157,7 +157,7 @@ class _UserListScreenState extends State<UserListScreen> {
 
                 // 課程選擇
                 DropdownButtonFormField<CourseModel>(
-                  value: _selectedCourse,
+                  initialValue: _selectedCourse,
                   isExpanded: true, // 讓下拉選單可以展開，避免溢出
                   decoration: const InputDecoration(
                     labelText: '選擇課程',
@@ -187,7 +187,7 @@ class _UserListScreenState extends State<UserListScreen> {
                 // 場次選擇
                 if (_selectedCourse != null)
                   DropdownButtonFormField<SessionModel>(
-                    value: _selectedSession,
+                    initialValue: _selectedSession,
                     decoration: InputDecoration(
                       labelText: '選擇場次',
                       border: const OutlineInputBorder(),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/booking_model.dart';
 import 'credit_repository.dart';
@@ -62,7 +63,9 @@ class BookingRepository {
       final String studentName = studentNameMap[studentId] ?? '未知學生';
       final String? targetUserId = studentOwnerMap[studentId];
       if (targetUserId == null) {
-        print('錯誤：學生 $studentName ($studentId) 沒有綁定使用者(user_id)，無法扣款。');
+        debugPrint(
+          '錯誤：學生 $studentName ($studentId) 沒有綁定使用者(user_id)，無法扣款。',
+        );
         // 可以選擇拋出錯誤或是跳過
         continue;
       }
@@ -105,7 +108,7 @@ class BookingRepository {
 
           if (currentStatus == 'confirmed') {
             // A-1. 已經報名成功 -> 略過
-            print('學生 $studentName 已經報名過，跳過');
+            debugPrint('學生 $studentName 已經報名過，跳過');
             skippedCount++;
             continue;
           } else if (currentStatus == 'cancelled') {

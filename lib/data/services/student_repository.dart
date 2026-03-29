@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/student_model.dart';
 
@@ -192,7 +193,7 @@ class StudentRepository {
           }
         } catch (e) {
           // 如果查詢失敗，只記錄錯誤，不影響返回學員列表
-          print('⚠️ 查詢家長資訊失敗: $e');
+          debugPrint('⚠️ 查詢家長資訊失敗: $e');
         }
       }
 

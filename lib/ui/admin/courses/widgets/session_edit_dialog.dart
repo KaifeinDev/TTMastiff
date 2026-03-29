@@ -146,6 +146,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         _fetchRoster();
       }
     } catch (e) {
+      if (!mounted) return;
       showErrorSnackBar(context, e, prefix: '更新失敗：');
     }
   }
@@ -162,6 +163,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         _fetchRoster();
       }
     } catch (e) {
+      if (!mounted) return;
       showErrorSnackBar(context, e, prefix: '取消失敗：');
     }
   }
@@ -244,9 +246,10 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     final now = DateTime.now();
     final initialDate = isStart ? _startDateTime : _endDateTime;
     final effectiveInitialDate = initialDate.isBefore(now) ? now : initialDate;
+    final navigatorContext = context;
 
     final DateTime? date = await showDatePicker(
-      context: context,
+      context: navigatorContext,
       initialDate: effectiveInitialDate,
       // 🔥 關鍵 1：設定最早日期為「現在」，鎖住過去的日期
       firstDate: now,
@@ -263,12 +266,13 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       },
     );
 
-    if (date == null || !mounted) return;
+    if (date == null || !navigatorContext.mounted) return;
     final time = await showTimePicker(
-      context: context,
+      context: navigatorContext,
       initialTime: TimeOfDay.fromDateTime(initialDate),
     );
     if (time == null) return;
+    if (!navigatorContext.mounted) return;
     final newDateTime = DateTime(
       date.year,
       date.month,
@@ -277,7 +281,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       time.minute,
     );
     if (newDateTime.isBefore(now)) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(navigatorContext).showSnackBar(
         const SnackBar(
           content: Text('無法設定為過去的時間'),
           backgroundColor: Colors.red,
@@ -288,12 +292,13 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     setState(() {
       if (isStart) {
         _startDateTime = newDateTime;
-        if (_startDateTime.isAfter(_endDateTime))
+        if (_startDateTime.isAfter(_endDateTime)) {
           _endDateTime = _startDateTime.add(const Duration(hours: 1));
+        }
       } else {
         if (newDateTime.isBefore(_startDateTime)) {
           ScaffoldMessenger.of(
-            context,
+            navigatorContext,
           ).showSnackBar(const SnackBar(content: Text('結束時間不能早於開始時間')));
           return;
         }
@@ -363,7 +368,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
+      child: SizedBox(
         width: 500,
         height: 700,
         child: Column(
@@ -372,7 +377,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
             Container(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50.withOpacity(0.5),
+                color: Colors.blue.shade50.withValues(alpha: 0.5),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
                 ),
@@ -456,7 +461,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
               // padding: const EdgeInsets.all(16),
               padding: const EdgeInsets.only(bottom: 80),
               itemCount: _roster.length,
-              separatorBuilder: (_, __) => const Divider(),
+              separatorBuilder: (context, _) => const Divider(),
               itemBuilder: (context, index) {
                 final booking = _roster[index];
                 return ListTile(
@@ -572,7 +577,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   }
 
   Widget _buildSettingsView() {
-    void _adjustCapacity(int amount) {
+    void adjustCapacity(int amount) {
       // 1. 嘗試將目前文字轉為整數，若為空或格式錯誤則預設為 0
       int currentValue = int.tryParse(_capacityController.text) ?? 0;
 
@@ -692,7 +697,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           else if (_selectedCoachIds.isEmpty && _isExpired)
             const Text('未指定', style: TextStyle(color: Colors.grey))
           else
-            Container(
+            SizedBox(
               width: double.infinity,
               child: Wrap(
                 spacing: 8.0,
@@ -802,14 +807,14 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                             Icons.remove_circle_outline,
                             color: Colors.grey,
                           ),
-                          onPressed: () => _adjustCapacity(-1),
+                          onPressed: () => adjustCapacity(-1),
                         ),
                         IconButton(
                           icon: const Icon(
                             Icons.add_circle_outline,
                             color: Colors.blue,
                           ),
-                          onPressed: () => _adjustCapacity(1),
+                          onPressed: () => adjustCapacity(1),
                         ),
                       ],
                     ),

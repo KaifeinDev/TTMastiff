@@ -119,7 +119,7 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    void _adjustPrice(int amount) {
+    void adjustPrice(int amount) {
       int currentValue = int.tryParse(_priceController.text) ?? 0;
       int newValue = currentValue + amount;
       if (newValue < 0) newValue = 0;
@@ -154,7 +154,7 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
 
                 // 2. 類別選擇
                 DropdownButtonFormField<String>(
-                  value: _category,
+                  initialValue: _category,
                   decoration: const InputDecoration(
                     labelText: '類別 (Category)',
                     border: OutlineInputBorder(),
@@ -195,14 +195,14 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
                             Icons.remove_circle_outline,
                             color: Colors.grey,
                           ),
-                          onPressed: () => _adjustPrice(-50),
+                          onPressed: () => adjustPrice(-50),
                         ),
                         IconButton(
                           icon: const Icon(
                             Icons.add_circle_outline,
                             color: Colors.blue,
                           ),
-                          onPressed: () => _adjustPrice(50),
+                          onPressed: () => adjustPrice(50),
                         ),
                       ],
                     ),

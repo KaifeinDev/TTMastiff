@@ -199,7 +199,7 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                               ? const Center(child: Text('無未來場次'))
                               : ListView.separated(
                                   itemCount: widget.upcomingSessions.length,
-                                  separatorBuilder: (_, __) =>
+                                  separatorBuilder: (context, _) =>
                                       const Divider(height: 1),
                                   itemBuilder: (context, index) {
                                     final session =
@@ -231,12 +231,13 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                       ),
                                       onChanged: (val) {
                                         setState(() {
-                                          if (val == true)
+                                          if (val == true) {
                                             _selectedSessionIds.add(session.id);
-                                          else
+                                          } else {
                                             _selectedSessionIds.remove(
                                               session.id,
                                             );
+                                          }
                                         });
                                       },
                                     );
