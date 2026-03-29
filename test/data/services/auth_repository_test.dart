@@ -11,8 +11,12 @@ class MockGoTrueClient extends Mock implements GoTrueClient {}
 
 // 測試用：可覆寫 insert 行為與捕捉 payload
 class TestableAuthRepository extends AuthRepository {
-  TestableAuthRepository(SupabaseClient client, {this.onInsertProfile, this.onInsertStudent})
-      : super(client);
+  TestableAuthRepository(
+    SupabaseClient client, {
+    this.onInsertProfile,
+    this.onInsertStudent,
+    String? Function(String displayName)? avatarUrlGenerator,
+  }) : super(client, avatarUrlGenerator: avatarUrlGenerator);
   final Future<void> Function(Map<String, dynamic> row)? onInsertProfile;
   final Future<void> Function(Map<String, dynamic> row)? onInsertStudent;
   @override
@@ -82,6 +86,7 @@ void main() {
         Map<String, dynamic>? studentPayload;
         final repo2 = TestableAuthRepository(
           client,
+          avatarUrlGenerator: (name) => 'https://mock.local/avatar?name=${Uri.encodeComponent(name)}',
           onInsertProfile: (row) async {
             profilePayload = Map<String, dynamic>.from(row);
           },
@@ -127,7 +132,7 @@ void main() {
         expect(studentPayload!['medical_note'], 'note');
         expect(studentPayload!['is_primary'], true);
         final avatar = studentPayload!['avatar_url'] as String;
-        expect(avatar.contains('ui-avatars.com'), true);
+        expect(avatar.contains('mock.local'), true);
         expect(avatar.contains(Uri.encodeComponent('小明')), true);
       });
 
