@@ -545,7 +545,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50.withOpacity(0.3), // 淡淡的背景色區隔
+                color: Colors.blue.shade50.withValues(alpha: 0.3), // 淡淡的背景色區隔
                 border: Border(top: BorderSide(color: Colors.grey.shade100)),
               ),
               child: Column(

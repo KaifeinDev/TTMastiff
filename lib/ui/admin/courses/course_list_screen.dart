@@ -282,8 +282,9 @@ class _CourseListScreenState extends State<CourseListScreen>
         // 為了讓 RefreshIndicator 在空內容時也能運作，建議把 itemCount 加 1 (padding) 或用 physics
         itemCount: courses.length + 1,
         itemBuilder: (context, index) {
-          if (index == courses.length)
+          if (index == courses.length) {
             return const SizedBox(height: 80); // 底部留白給 FAB
+          }
 
           final course = courses[index];
 

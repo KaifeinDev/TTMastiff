@@ -31,7 +31,7 @@ class TransactionDesktopTable extends StatelessWidget {
         width: double.infinity,
         child: DataTable(
           showCheckboxColumn: true,
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
           dataRowMinHeight: 60,
           dataRowMaxHeight: 84, // 🔥 加高行高，以容納退款時間與理由
           columnSpacing: 24,
@@ -254,7 +254,7 @@ class TransactionDesktopTable extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: textColor.withOpacity(0.2)),
+        border: Border.all(color: textColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

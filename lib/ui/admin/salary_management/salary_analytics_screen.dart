@@ -60,7 +60,7 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
     }
   }
 
-  /// 將 List<Payroll> 轉為 12 個月份的總金額
+  /// 將 [PayrollModel] 列表轉為 12 個月份的總金額
   List<double> _processData(List<PayrollModel> payrolls) {
     List<double> monthlyTotals = List.filled(12, 0);
 
@@ -172,7 +172,7 @@ class _SalaryAnalyticsScreenState extends State<SalaryAnalyticsScreen> {
                           barWidth: 4,
                           isStrokeCapRound: true,
                           dotData: const FlDotData(show: true),
-                          belowBarData: BarAreaData(show: true, color: Colors.blue.withOpacity(0.1)),
+                          belowBarData: BarAreaData(show: true, color: Colors.blue.withValues(alpha: 0.1)),
                         ),
                       ],
                       // 互動 Tooltip

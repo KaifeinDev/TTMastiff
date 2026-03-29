@@ -1,9 +1,9 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/util.dart';
 import '../models/session_model.dart';
 import 'credit_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:ttmastiff/main.dart';
 
 enum ConflictType {
@@ -30,7 +30,13 @@ class ConflictResult {
 class SessionRepository {
   final SupabaseClient _supabase;
   final CreditRepository _creditRepo;
-  SessionRepository(this._supabase, this._creditRepo);
+  final DateTime Function() _clock;
+
+  SessionRepository(
+    this._supabase,
+    this._creditRepo, {
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   // 📅 抓取特定日期的所有課程
   Future<List<SessionModel>> fetchSessionsByDate(DateTime date) async {
@@ -412,7 +418,7 @@ class SessionRepository {
     ).toLocal();
     final String courseTitle = sessionData['courses']['title'] ?? '未知課程';
     final String sessionTimeStr = DateFormat('MM/dd HH:mm').format(startTime);
-    final DateTime now = DateTime.now();
+    final DateTime now = _clock();
 
     // ⛔ [新增保護] 如果是歷史場次 (已結束)，禁止刪除
     if (endTime.isBefore(now)) {
@@ -421,7 +427,7 @@ class SessionRepository {
 
     // 判斷是否需要退款
     // 邏輯：如果課程還沒結束 (endTime 在現在之後)，則視為「取消」，需要退款
-    final bool shouldRefund = endTime.isAfter(DateTime.now());
+    final bool shouldRefund = endTime.isAfter(now);
 
     if (shouldRefund) {
       // 找出所有「已確認 (confirmed)」的預約，並關聯學生資料
@@ -432,7 +438,11 @@ class SessionRepository {
           .eq('status', 'confirmed'); // 只退款有效訂單
 
       if (bookings.isNotEmpty) {
-        debugPrint('正在為 Session $sessionId 執行退款，共 ${bookings.length} 筆...');
+        if (kDebugMode) {
+          debugPrint(
+            '[SessionRepository] deleteSession 退款 session=$sessionId 筆數=${bookings.length}',
+          );
+        }
 
         // 4. 逐筆退款
         // 雖然是迴圈，但 processRefund 是 RPC 交易，安全性足夠。

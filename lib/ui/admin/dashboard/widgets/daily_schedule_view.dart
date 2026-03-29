@@ -226,7 +226,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
     final totalWidth = _timeColumnWidth + (_tables.length * _tableColumnWidth);
     final totalHeight = totalHours * _hourHeight;
 
-    String _weekdayName(int day) {
+    String weekdayName(int day) {
       const names = ['一', '二', '三', '四', '五', '六', '日'];
       return names[day - 1];
     }
@@ -247,7 +247,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 2,
                 offset: const Offset(0, 2),
               ),
@@ -301,7 +301,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                 // const Icon(Icons.calendar_month, size: 16, color: Colors.grey),
                                 // const SizedBox(width: 4),
                                 Text(
-                                  '${_selectedDate.year}/${_selectedDate.month}/${_selectedDate.day} (${_weekdayName(_selectedDate.weekday)})',
+                                  '${_selectedDate.year}/${_selectedDate.month}/${_selectedDate.day} (${weekdayName(_selectedDate.weekday)})',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18, // 主標題字體
@@ -633,8 +633,8 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
         // 顏色邏輯
         final isPersonal = session.category == 'personal';
         final themeColor = isPersonal ? Colors.orange : Colors.blue;
-        final bgColor = themeColor.withOpacity(0.12);
-        final borderColor = themeColor.withOpacity(0.3); // 統一邊框色
+        final bgColor = themeColor.withValues(alpha: 0.12);
+        final borderColor = themeColor.withValues(alpha: 0.3); // 統一邊框色
 
         return Positioned(
           left: left,
@@ -656,7 +656,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
               margin: const EdgeInsets.symmetric(horizontal: 10),
               showDuration: const Duration(seconds: 3), // 手機上顯示久一點
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.8),
+                color: Colors.black.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(6),
               ),
               textStyle: const TextStyle(color: Colors.white, fontSize: 12),
@@ -793,8 +793,8 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: session.isFull
-                                                ? Colors.red.withOpacity(0.9)
-                                                : Colors.white.withOpacity(0.6),
+                                                ? Colors.red.withValues(alpha: 0.9)
+                                                : Colors.white.withValues(alpha: 0.6),
                                             borderRadius: BorderRadius.circular(
                                               3,
                                             ),
@@ -886,7 +886,7 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: pendingList.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (context, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final session = pendingList[index];
 
