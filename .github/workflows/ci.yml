@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # pubspec.yaml 將 .env 列為 asset；倉庫不提交 .env（見 .gitignore），CI 需有檔案才能打包
       - name: Create .env from example
