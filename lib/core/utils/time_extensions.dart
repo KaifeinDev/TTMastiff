@@ -1,6 +1,8 @@
 // lib/core/utils/time_extensions.dart
 import 'package:intl/intl.dart'; // 記得 import intl
 
+import 'util.dart' show logError;
+
 extension PostgresTimeParsing on String {
   /// 將 PostgreSQL 的 TIME 格式 (e.g. "10:00:00")
   /// 轉換為今天的 DateTime (e.g. 2023-10-25 10:00:00)
@@ -18,9 +20,8 @@ extension PostgresTimeParsing on String {
       final second = parts.length > 2 ? int.parse(parts[2]) : 0;
 
       return DateTime(now.year, now.month, now.day, hour, minute, second);
-    } catch (e) {
-      // 萬一解析失敗，回傳現在時間或是拋出錯誤，看您的需求
-      print('Time parsing error: $e');
+    } catch (e, st) {
+      logError(e, st);
       return DateTime.now();
     }
   }

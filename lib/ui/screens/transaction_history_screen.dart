@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/util.dart';
 import '../../data/models/transaction_model.dart';
 
 // 定義篩選類型枚舉
@@ -100,9 +101,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
         setState(() => _isLoading = false);
       }
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/util.dart';
 import '../../data/services/activity_repository.dart';
 import '../../data/models/activity_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -41,9 +42,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('載入活動失敗: $e')),
-        );
+        showErrorSnackBar(context, e, prefix: '載入活動失敗：');
       }
     }
   }
