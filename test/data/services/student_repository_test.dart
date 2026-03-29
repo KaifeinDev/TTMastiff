@@ -1,426 +1,324 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ttmastiff/data/models/student_model.dart';
 import 'package:ttmastiff/data/services/student_repository.dart';
 
-class MockSupabaseClient extends Mock implements SupabaseClient {}
-class MockGoTrueClient extends Mock implements GoTrueClient {}
-class TestableStudentRepository extends StudentRepository {
-  TestableStudentRepository(
-    SupabaseClient c, {
-    this.onQueryStudentsByParentId,
-    this.onInsertStudentRow,
-    this.onUpdateStudentRow,
-    this.onUpdatePointsRow,
-    this.onQueryBookingsBySession,
-    this.onQuerySessionsByCourse,
-    this.onQueryBookingsBySessionIds,
-    this.onQueryAllStudents,
-    this.onQueryProfilesByPhoneLike,
-    this.onQueryParentProfilesByIds,
-    this.onQueryBookingsDetailsByStudentIds,
-    this.onQueryStudentWithProfile,
-  }) : super(c);
+class _MockHttpClient extends Mock implements http.Client {}
 
-  final Future<List<Map<String, dynamic>>> Function(String userId)?
-      onQueryStudentsByParentId;
-  final Future<void> Function(Map<String, dynamic> row)? onInsertStudentRow;
-  final Future<void> Function(String id, Map<String, dynamic> row)?
-      onUpdateStudentRow;
-  final Future<void> Function(String id, int points)? onUpdatePointsRow;
-  final Future<List<Map<String, dynamic>>> Function(String sessionId)?
-      onQueryBookingsBySession;
-  final Future<List<Map<String, dynamic>>> Function(String courseId)?
-      onQuerySessionsByCourse;
-  final Future<List<Map<String, dynamic>>> Function(List<String> sessionIds)?
-      onQueryBookingsBySessionIds;
-  final Future<List<Map<String, dynamic>>> Function()? onQueryAllStudents;
-  final Future<List<Map<String, dynamic>>> Function(String phoneLike)?
-      onQueryProfilesByPhoneLike;
-  final Future<List<Map<String, dynamic>>> Function(List<String> parentIds)?
-      onQueryParentProfilesByIds;
-  final Future<List<Map<String, dynamic>>> Function(List<String> studentIds)?
-      onQueryBookingsDetailsByStudentIds;
-  final Future<Map<String, dynamic>> Function(String studentId)?
-      onQueryStudentWithProfile;
+class _MockGoTrueClient extends Mock implements GoTrueClient {}
 
-  Future<dynamic> queryStudentsByParentId(String userId) {
-    if (onQueryStudentsByParentId != null) {
-      return onQueryStudentsByParentId!(userId);
-    }
-    throw UnimplementedError();
-  }
+class _MockSupabaseClient extends Mock implements SupabaseClient {}
 
-  Future<void> insertStudentRow(Map<String, dynamic> row) {
-    if (onInsertStudentRow != null) return onInsertStudentRow!(row);
-    throw UnimplementedError();
-  }
-
-  Future<void> updateStudentRow(String id, Map<String, dynamic> row) {
-    if (onUpdateStudentRow != null) return onUpdateStudentRow!(id, row);
-    throw UnimplementedError();
-  }
-
-  Future<void> updatePointsRow(String id, int points) {
-    if (onUpdatePointsRow != null) return onUpdatePointsRow!(id, points);
-    throw UnimplementedError();
-  }
-
-  Future<List<Map<String, dynamic>>> queryBookingsBySession(
-      String sessionId) {
-    if (onQueryBookingsBySession != null) {
-      return onQueryBookingsBySession!(sessionId);
-    }
-    throw UnimplementedError();
-  }
-
-  Future<List<Map<String, dynamic>>> querySessionsByCourse(
-      String courseId) {
-    if (onQuerySessionsByCourse != null) {
-      return onQuerySessionsByCourse!(courseId);
-    }
-    throw UnimplementedError();
-  }
-
-  Future<List<Map<String, dynamic>>> queryBookingsBySessionIds(
-      List<String> sessionIds) {
-    if (onQueryBookingsBySessionIds != null) {
-      return onQueryBookingsBySessionIds!(sessionIds);
-    }
-    throw UnimplementedError();
-  }
-
-  Future<List<Map<String, dynamic>>> queryAllStudents() {
-    if (onQueryAllStudents != null) {
-      return onQueryAllStudents!();
-    }
-    throw UnimplementedError();
-  }
-
-  Future<List<Map<String, dynamic>>> queryProfilesByPhoneLike(
-      String phoneLike) {
-    if (onQueryProfilesByPhoneLike != null) {
-      return onQueryProfilesByPhoneLike!(phoneLike);
-    }
-    throw UnimplementedError();
-  }
-
-  Future<List<Map<String, dynamic>>> queryParentProfilesByIds(
-      List<String> parentIds) {
-    if (onQueryParentProfilesByIds != null) {
-      return onQueryParentProfilesByIds!(parentIds);
-    }
-    throw UnimplementedError();
-  }
-
-  Future<List<Map<String, dynamic>>> queryBookingsDetailsByStudentIds(
-      List<String> studentIds) {
-    if (onQueryBookingsDetailsByStudentIds != null) {
-      return onQueryBookingsDetailsByStudentIds!(studentIds);
-    }
-    throw UnimplementedError();
-  }
-
-  Future<Map<String, dynamic>> queryStudentWithProfile(String studentId) {
-    if (onQueryStudentWithProfile != null) {
-      return onQueryStudentWithProfile!(studentId);
-    }
-    throw UnimplementedError();
-  }
+http.StreamedResponse _streamedJson(
+  http.BaseRequest req,
+  String body,
+  int statusCode, {
+  Map<String, String> headers = const {
+    'content-type': 'application/json; charset=utf-8',
+  },
+}) {
+  return http.StreamedResponse(
+    Stream.value(utf8.encode(body)),
+    statusCode,
+    request: req,
+    headers: headers,
+  );
 }
 
-// 假的 user
+http.StreamedResponse _streamedEmpty(http.BaseRequest req, int statusCode) {
+  return http.StreamedResponse(
+    Stream<List<int>>.value(Uint8List(0)),
+    statusCode,
+    request: req,
+  );
+}
+
 User buildUser(String id) => User(
-  id: id,
-  appMetadata: const {},
-  userMetadata: const {},
-  aud: 'authenticated',
-  createdAt: DateTime.now().toIso8601String(),
-);
-
-// 針對 getMyStudents 的鏈式查詢：select()->eq()->order()->order()->await
-class FakeStudentsChain {
-  final List<Map<String, dynamic>> data;
-  int _orderCount = 0;
-  FakeStudentsChain(this.data);
-  dynamic select([dynamic _]) => this;
-  dynamic eq(String _col, dynamic _val) => this;
-  dynamic order(String _col, {bool ascending = true}) {
-    _orderCount += 1;
-    if (_orderCount >= 2) {
-      // 最後一次 order 回傳 Future，模擬 await
-      return Future.value(List<Map<String, dynamic>>.from(data));
-    }
-    return this;
-  }
-}
-
-// 針對 addStudent/ updateStudent 的 insert/update/eq
-class FakeStudentsMutations {
-  Map<String, dynamic>? lastInsertedRow;
-  Map<String, dynamic>? lastUpdatedRow;
-  String? lastEqId;
-
-  Future<void> insert(Map<String, dynamic> row) async {
-    lastInsertedRow = Map<String, dynamic>.from(row);
-  }
-
-  dynamic update(Map<String, dynamic> row) {
-    lastUpdatedRow = Map<String, dynamic>.from(row);
-    return this;
-  }
-
-  Future<void> eq(String _col, dynamic val) async {
-    lastEqId = val as String?;
-  }
-}
-
-// for fetchStudentsByFilter - sessionId path: bookings.select(...).eq(...).eq(...).then(...)
-class FakeBookingsThenable {
-  final List<Map<String, dynamic>> data;
-  FakeBookingsThenable(this.data);
-  dynamic select(String _cols) => this;
-  dynamic eq(String _col, dynamic _val) => this;
-  Future<T> then<T>(T Function(List<Map<String, dynamic>>) fn) async {
-    return fn(List<Map<String, dynamic>>.from(data));
-  }
-}
-
-// for fetchStudentsByFilter - direct students path: select('*').order(...).then(...)
-class FakeStudentsThenable {
-  final List<Map<String, dynamic>> data;
-  FakeStudentsThenable(this.data);
-  dynamic select([String? _cols]) => this;
-  dynamic order(String _col, {bool ascending = true}) => this;
-  Future<T> then<T>(T Function(List<Map<String, dynamic>>) fn) async {
-    return fn(List<Map<String, dynamic>>.from(data));
-  }
-}
-
-// for fetchStudentsByFilter - profiles ilike phone -> returns [{id: ...}]
-class FakeProfilesPhoneSearch {
-  final List<Map<String, dynamic>> ids;
-  FakeProfilesPhoneSearch(this.ids);
-  dynamic select(String _cols) => this;
-  Future<List<Map<String, dynamic>>> ilike(String _col, String _pattern) async => ids;
-}
-
-// for fetchStudentsByFilter - profiles inFilter to map id->phone/name
-class FakeProfilesInFilter {
-  final List<Map<String, dynamic>> profiles;
-  FakeProfilesInFilter(this.profiles);
-  dynamic select(String _cols) => this;
-  Future<List<Map<String, dynamic>>> inFilter(String _col, List<dynamic> _ids) async => profiles;
-}
-
-// for fetchStudentAndParentProfile - students.select(...).eq(...).single()
-class FakeStudentsSingle {
-  final Map<String, dynamic> row;
-  FakeStudentsSingle(this.row);
-  dynamic select(String _cols) => this;
-  dynamic eq(String _col, dynamic _val) => this;
-  Future<Map<String, dynamic>> single() async => row;
-}
+      id: id,
+      appMetadata: const {},
+      userMetadata: const {},
+      aud: 'authenticated',
+      createdAt: DateTime.now().toIso8601String(),
+    );
 
 void main() {
-  group('StudentRepository', () {
-    late MockSupabaseClient client;
-    late MockGoTrueClient auth;
-    late StudentRepository repo;
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    setUp(() {
-      client = MockSupabaseClient();
-      auth = MockGoTrueClient();
-      when(() => client.auth).thenReturn(auth);
-      repo = StudentRepository(client);
-    });
+  late _MockHttpClient mockHttp;
+  late SupabaseClient realSupabase;
+  late _MockSupabaseClient mockClient;
+  late _MockGoTrueClient mockAuth;
+  late StudentRepository repo;
 
+  setUpAll(() {
+    registerFallbackValue(Uri());
+    registerFallbackValue('');
+    registerFallbackValue(http.Request('GET', Uri.parse('http://localhost/')));
+  });
+
+  setUp(() {
+    mockHttp = _MockHttpClient();
+    realSupabase = SupabaseClient(
+      'http://localhost:54321',
+      'test_anon_key',
+      httpClient: mockHttp,
+    );
+    mockClient = _MockSupabaseClient();
+    mockAuth = _MockGoTrueClient();
+    when(() => mockClient.from(any())).thenAnswer(
+      (inv) => realSupabase.from(inv.positionalArguments[0] as String),
+    );
+    when(() => mockClient.auth).thenReturn(mockAuth);
+    when(() => mockAuth.currentUser).thenReturn(null);
+    repo = StudentRepository(mockClient);
+  });
+
+  group('StudentRepository（HTTP 由 mocktail 隔離）', () {
     test('getMyStudents：未登入會拋出', () async {
-      when(() => auth.currentUser).thenReturn(null);
-      expect(() => repo.getMyStudents(), throwsA(isA<Exception>()));
+      await expectLater(repo.getMyStudents(), throwsA(isA<Exception>()));
+      verifyNever(() => mockHttp.send(any()));
     });
 
-    test('getMyStudents：回傳解析後的 StudentModel 清單，且 primary 在前', () async {
-      when(() => auth.currentUser).thenReturn(buildUser('u1'));
-      final data = [
-        {
-          'id': 's2',
-          'parent_id': 'u1',
-          'name': '小華',
-          'is_primary': false,
-          'birth_date': '2012-03-01',
-          'points': 5,
-        },
-        {
-          'id': 's1',
-          'parent_id': 'u1',
-          'name': '王小明',
-          'is_primary': true,
-          'birth_date': '2010-01-05',
-          'points': 10,
-        },
-      ];
-      final repo2 = TestableStudentRepository(
-        client,
-        onQueryStudentsByParentId: (uid) async => data,
-      );
-      final list = await repo2.getMyStudents();
-      expect(list, isA<List<StudentModel>>());
-      // 因為我們在 fake 中不真的排序，這裡只驗證解析正確與長度
-      expect(list.length, 2);
-      expect(list.first.name, '小華'); // 解析正確
-      expect(list[1].isPrimary, true); // 主帳號有被解析
+    test('getMyStudents：GET students 並轉成 StudentModel 列表', () async {
+      when(() => mockAuth.currentUser).thenReturn(buildUser('u1'));
+      when(() => mockHttp.send(any())).thenAnswer((invocation) async {
+        final req = invocation.positionalArguments.first as http.BaseRequest;
+        expect(req.method, 'GET');
+        expect(req.url.path, '/rest/v1/students');
+        expect(req.url.queryParameters['parent_id'], 'eq.u1');
+        return _streamedJson(
+          req,
+          jsonEncode([
+            {
+              'id': 's2',
+              'parent_id': 'u1',
+              'name': '小華',
+              'is_primary': false,
+              'birth_date': '2012-03-01',
+              'points': 5,
+            },
+            {
+              'id': 's1',
+              'parent_id': 'u1',
+              'name': '王小明',
+              'is_primary': true,
+              'birth_date': '2010-01-05',
+              'points': 10,
+            },
+          ]),
+          200,
+        );
+      });
+
+      final list = await repo.getMyStudents();
+      expect(list, hasLength(2));
+      expect(list.first.name, '小華');
+      expect(list[1].isPrimary, true);
+      verify(() => mockHttp.send(any())).called(1);
     });
 
-    test('addStudent：會帶入 parent_id、is_primary=false 與 avatar_url', () async {
-      when(() => auth.currentUser).thenReturn(buildUser('parent-1'));
-      final fake = FakeStudentsMutations();
-      final repo2 = TestableStudentRepository(
-        client,
-        onInsertStudentRow: (row) async => fake.insert(row),
-      );
+    test('addStudent：POST 帶入 parent_id、is_primary=false 與 avatar_url', () async {
+      when(() => mockAuth.currentUser).thenReturn(buildUser('parent-1'));
+      when(() => mockHttp.send(any())).thenAnswer((invocation) async {
+        final req = invocation.positionalArguments.first as http.BaseRequest;
+        expect(req.method, 'POST');
+        expect(req.url.path, '/rest/v1/students');
+        final r = req as http.Request;
+        final row = jsonDecode(r.body) as Map<String, dynamic>;
+        expect(row['parent_id'], 'parent-1');
+        expect(row['name'], '王小明');
+        expect(row['medical_note'], 'note');
+        expect(row['is_primary'], false);
+        expect((row['avatar_url'] as String).contains(Uri.encodeComponent('小明')), true);
+        return _streamedEmpty(req, 201);
+      });
 
-      await repo2.addStudent(
+      await repo.addStudent(
         name: '王小明',
         birthDate: DateTime(2010, 1, 5),
         medicalNote: 'note',
       );
 
-      final row = fake.lastInsertedRow!;
-      expect(row['parent_id'], 'parent-1');
-      expect(row['name'], '王小明');
-      expect(row['birth_date'], isA<String>());
-      expect(row['medical_note'], 'note');
-      expect(row['is_primary'], false);
-      expect((row['avatar_url'] as String).contains(Uri.encodeComponent('小明')), true);
+      verify(() => mockHttp.send(any())).called(1);
     });
 
-    test('updateStudent：會更新 name / avatar_url / medical_note 並 eq(id)', () async {
-      final fake = FakeStudentsMutations();
-      final repo2 = TestableStudentRepository(
-        client,
-        onUpdateStudentRow: (id, row) async {
-          fake.lastEqId = id;
-          fake.lastUpdatedRow = Map<String, dynamic>.from(row);
-        },
-      );
+    test('updateStudent：PATCH name / avatar_url / medical_note', () async {
+      when(() => mockHttp.send(any())).thenAnswer((invocation) async {
+        final req = invocation.positionalArguments.first as http.BaseRequest;
+        expect(req.method, 'PATCH');
+        expect(req.url.queryParameters['id'], 'eq.sid-1');
+        final r = req as http.Request;
+        final row = jsonDecode(r.body) as Map<String, dynamic>;
+        expect(row['name'], '王小明');
+        expect((row['avatar_url'] as String).contains(Uri.encodeComponent('小明')), true);
+        expect(row['medical_note'], 'new-note');
+        return _streamedEmpty(req, 204);
+      });
 
-      await repo2.updateStudent('sid-1', '王小明', 'new-note');
-      expect(fake.lastUpdatedRow!['name'], '王小明');
-      expect((fake.lastUpdatedRow!['avatar_url'] as String).contains(Uri.encodeComponent('小明')), true);
-      expect(fake.lastUpdatedRow!['medical_note'], 'new-note');
-      expect(fake.lastEqId, 'sid-1');
+      await repo.updateStudent('sid-1', '王小明', 'new-note');
+      verify(() => mockHttp.send(any())).called(1);
     });
 
-    test('updateStudentPoints：更新 points 並 eq(id)', () async {
-      final fake = FakeStudentsMutations();
-      final repo2 = TestableStudentRepository(
-        client,
-        onUpdatePointsRow: (id, points) async {
-          fake.lastEqId = id;
-          fake.lastUpdatedRow = {'points': points};
-        },
-      );
-      await repo2.updateStudentPoints('sid-2', 99);
-      expect(fake.lastUpdatedRow, {'points': 99});
-      expect(fake.lastEqId, 'sid-2');
+    test('updateStudentPoints：PATCH points', () async {
+      when(() => mockHttp.send(any())).thenAnswer((invocation) async {
+        final req = invocation.positionalArguments.first as http.BaseRequest;
+        expect(req.method, 'PATCH');
+        expect(req.url.queryParameters['id'], 'eq.sid-2');
+        final r = req as http.Request;
+        expect(jsonDecode(r.body), {'points': 99});
+        return _streamedEmpty(req, 204);
+      });
+
+      await repo.updateStudentPoints('sid-2', 99);
+      verify(() => mockHttp.send(any())).called(1);
     });
 
-    test('fetchStudentsByFilter：sessionId 分支（不含 bookings 詳細）', () async {
-      final repo2 = TestableStudentRepository(
-        client,
-        onQueryBookingsBySession: (sessionId) async => [
-          {
-            'students': {
-              'id': 's1',
-              'parent_id': 'p1',
-              'name': '小明',
-              'birth_date': '2010-01-05',
-              'is_primary': true,
-            }
-          },
-          {
-            'students': {
-              'id': 's2',
-              'parent_id': 'p2',
-              'name': '小華',
-              'birth_date': '2012-03-01',
-              'is_primary': false,
-            }
-          },
-        ],
-        onQueryParentProfilesByIds: (ids) async => [
-          {'id': 'p1', 'phone': '0912', 'full_name': '爸爸甲'},
-          {'id': 'p2', 'phone': '0922', 'full_name': '媽媽乙'},
-        ],
-      );
+    test('fetchStudentsByFilter：sessionId 分支', () async {
+      var call = 0;
+      when(() => mockHttp.send(any())).thenAnswer((invocation) async {
+        call++;
+        final req = invocation.positionalArguments.first as http.BaseRequest;
+        if (call == 1) {
+          expect(req.method, 'GET');
+          expect(req.url.path, '/rest/v1/bookings');
+          expect(req.url.queryParameters['session_id'], 'eq.sess-1');
+          return _streamedJson(
+            req,
+            jsonEncode([
+              {
+                'students': {
+                  'id': 's1',
+                  'parent_id': 'p1',
+                  'name': '小明',
+                  'birth_date': '2010-01-05',
+                  'is_primary': true,
+                }
+              },
+              {
+                'students': {
+                  'id': 's2',
+                  'parent_id': 'p2',
+                  'name': '小華',
+                  'birth_date': '2012-03-01',
+                  'is_primary': false,
+                }
+              },
+            ]),
+            200,
+          );
+        }
+        if (call == 2) {
+          expect(req.method, 'GET');
+          expect(req.url.path, '/rest/v1/profiles');
+          return _streamedJson(
+            req,
+            jsonEncode([
+              {'id': 'p1', 'phone': '0912', 'full_name': '爸爸甲'},
+              {'id': 'p2', 'phone': '0922', 'full_name': '媽媽乙'},
+            ]),
+            200,
+          );
+        }
+        fail('未預期的第 $call 次 HTTP');
+      });
 
-      final result = await repo2.fetchStudentsByFilter(sessionId: 'sess-1');
+      final result = await repo.fetchStudentsByFilter(sessionId: 'sess-1');
       expect(result.length, 2);
       final r1 = result.first;
       expect((r1['student'] as StudentModel).id, 's1');
       expect(r1['parentPhone'], '0912');
       expect(r1['parentName'], '爸爸甲');
       expect(r1['bookings'], isNull);
+      expect(call, 2);
     });
 
     test('fetchStudentsByFilter：無 course/session，套用 name 與 phone 篩選', () async {
-      final repo2 = TestableStudentRepository(
-        client,
-        onQueryProfilesByPhoneLike: (phoneLike) async => [
-          {'id': 'p1'}
-        ],
-        onQueryAllStudents: () async => [
-          {
+      var call = 0;
+      when(() => mockHttp.send(any())).thenAnswer((invocation) async {
+        call++;
+        final req = invocation.positionalArguments.first as http.BaseRequest;
+        if (call == 1) {
+          expect(req.url.path, '/rest/v1/profiles');
+          expect(req.url.queryParameters['select'], 'id');
+          return _streamedJson(req, jsonEncode([{'id': 'p1'}]), 200);
+        }
+        if (call == 2) {
+          expect(req.url.path, '/rest/v1/students');
+          return _streamedJson(
+            req,
+            jsonEncode([
+              {
+                'id': 's1',
+                'parent_id': 'p1',
+                'name': '王小明',
+                'birth_date': '2010-01-05',
+                'is_primary': true,
+              },
+              {
+                'id': 's2',
+                'parent_id': 'p2',
+                'name': '小華',
+                'birth_date': '2012-03-01',
+                'is_primary': false,
+              },
+            ]),
+            200,
+          );
+        }
+        if (call == 3) {
+          expect(req.url.path, '/rest/v1/profiles');
+          return _streamedJson(
+            req,
+            jsonEncode([
+              {'id': 'p1', 'phone': '0912', 'full_name': '爸爸甲'},
+            ]),
+            200,
+          );
+        }
+        fail('未預期的第 $call 次 HTTP');
+      });
+
+      final result =
+          await repo.fetchStudentsByFilter(name: '明', phone: '0912');
+      expect(result.length, 1);
+      final stu = result.first['student'] as StudentModel;
+      expect(stu.name, '王小明');
+      expect(result.first['parentPhone'], '0912');
+      expect(result.first['parentName'], '爸爸甲');
+      expect(call, 3);
+    });
+
+    test('fetchStudentAndParentProfile：單筆含 profiles 巢狀', () async {
+      when(() => mockHttp.send(any())).thenAnswer((invocation) async {
+        final req = invocation.positionalArguments.first as http.BaseRequest;
+        expect(req.method, 'GET');
+        expect(req.url.path, '/rest/v1/students');
+        expect(req.url.queryParameters['id'], 'eq.s1');
+        return _streamedJson(
+          req,
+          jsonEncode({
             'id': 's1',
             'parent_id': 'p1',
             'name': '王小明',
             'birth_date': '2010-01-05',
             'is_primary': true,
-          },
-          {
-            'id': 's2',
-            'parent_id': 'p2',
-            'name': '小華',
-            'birth_date': '2012-03-01',
-            'is_primary': false,
-          },
-        ],
-        onQueryParentProfilesByIds: (ids) async => [
-          {'id': 'p1', 'phone': '0912', 'full_name': '爸爸甲'},
-        ],
-      );
+            'profiles': {'full_name': '爸爸甲', 'phone': '0912'},
+          }),
+          200,
+        );
+      });
 
-      final result =
-          await repo2.fetchStudentsByFilter(name: '明', phone: '0912');
-      expect(result.length, 1);
-      final r = result.first;
-      final stu = r['student'] as StudentModel;
-      expect(stu.name, '王小明');
-      expect(r['parentPhone'], '0912');
-      expect(r['parentName'], '爸爸甲');
-    });
-
-    test('fetchStudentAndParentProfile：合併回傳 student 與家長資訊', () async {
-      final repo2 = TestableStudentRepository(
-        client,
-        onQueryStudentWithProfile: (id) async => {
-          'id': 's1',
-          'parent_id': 'p1',
-          'name': '王小明',
-          'birth_date': '2010-01-05',
-          'is_primary': true,
-          'profiles': {'full_name': '爸爸甲', 'phone': '0912'},
-        },
-      );
-
-      final res = await repo2.fetchStudentAndParentProfile('s1');
+      final res = await repo.fetchStudentAndParentProfile('s1');
       final stu = res['student'] as StudentModel;
       expect(stu.id, 's1');
       expect(res['parentName'], '爸爸甲');
       expect(res['parentPhone'], '0912');
+      verify(() => mockHttp.send(any())).called(1);
     });
   });
 }
-

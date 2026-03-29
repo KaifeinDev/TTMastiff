@@ -73,6 +73,7 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
 
   Future<void> _saveBasicInfo() async {
     if (_detail == null) return;
+    final navigatorContext = context;
     setState(() => _isLoading = true);
     try {
       final newDetail = StaffDetailModel(
@@ -83,11 +84,15 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
         status: _detail!.status,
       );
       await _repository.updateStaffDetail(newDetail);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('儲存成功')));
+      if (navigatorContext.mounted) {
+        ScaffoldMessenger.of(
+          navigatorContext,
+        ).showSnackBar(const SnackBar(content: Text('儲存成功')));
+      }
     } catch (e) {
-      showErrorSnackBar(context, e, prefix: '儲存失敗：');
+      if (navigatorContext.mounted) {
+        showErrorSnackBar(navigatorContext, e, prefix: '儲存失敗：');
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -304,12 +309,12 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
                       firstDate: DateTime(2020),
                       lastDate: DateTime(2030),
                     );
-                    if (date != null) {
+                    if (date != null && context.mounted) {
                       final time = await showTimePicker(
                         context: context,
                         initialTime: TimeOfDay.fromDateTime(start),
                       );
-                      if (time != null) {
+                      if (time != null && context.mounted) {
                         setDialogState(
                           () => start = DateTime(
                             date.year,
@@ -333,12 +338,12 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
                       firstDate: DateTime(2020),
                       lastDate: DateTime(2030),
                     );
-                    if (date != null) {
+                    if (date != null && context.mounted) {
                       final time = await showTimePicker(
                         context: context,
                         initialTime: TimeOfDay.fromDateTime(end),
                       );
-                      if (time != null) {
+                      if (time != null && context.mounted) {
                         setDialogState(
                           () => end = DateTime(
                             date.year,
@@ -373,7 +378,7 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
                     note: noteCtrl.text,
                   );
                   await _repository.upsertWorkShift(newShift);
-                  if (mounted) Navigator.pop(context);
+                  if (context.mounted) Navigator.pop(context);
                   _loadShifts(); // 重整列表
                 },
                 child: const Text('儲存'),

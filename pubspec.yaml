@@ -45,13 +45,14 @@ dependencies:
   flutter_dotenv: ^6.0.0
   image_picker: ^1.1.2
 
+  fl_chart: ^0.66.0
+  meta: ^1.15.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
   mocktail: ^1.0.4
-  fl_chart: ^0.66.0
   http: ^1.6.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
