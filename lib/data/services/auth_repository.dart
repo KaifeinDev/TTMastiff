@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:meta/meta.dart';
 
 class AuthRepository {
   final SupabaseClient _supabase;
@@ -46,7 +47,7 @@ class AuthRepository {
 
       // 2. 寫入 public.profiles 表
       // 因為我們剛剛刪除了 Trigger，這裡寫入後，"不會" 自動產生 student
-      await _supabase.from('profiles').insert({
+      await insertProfile({
         'id': user.id,
         'full_name': fullName,
         'phone': phone,
@@ -66,7 +67,7 @@ class AuthRepository {
       final avatarUrl =
           'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
 
-      await _supabase.from('students').insert({
+      await insertStudent({
         'parent_id': user.id,
         'name': fullName,
         // 優化：只取 YYYY-MM-DD，避免時區導致日期跑掉
@@ -81,6 +82,17 @@ class AuthRepository {
       print('註冊流程詳細錯誤: $e');
       throw Exception('註冊流程失敗: $e');
     }
+  }
+
+  // 可覆寫：提供測試用攔截點，避免直接依賴 Postgrest builder 型別鏈
+  @protected
+  Future<void> insertProfile(Map<String, dynamic> row) async {
+    await _supabase.from('profiles').insert(row);
+  }
+
+  @protected
+  Future<void> insertStudent(Map<String, dynamic> row) async {
+    await _supabase.from('students').insert(row);
   }
 
   // 登出
