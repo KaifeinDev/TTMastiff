@@ -1,9 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:meta/meta.dart';
 
 class AuthRepository {
   final SupabaseClient _supabase;
+  final String? Function(String displayName)? _avatarUrlGenerator;
 
-  AuthRepository(this._supabase);
+  /// avatarUrlGenerator: 可注入產生頭像 URL 的方法，避免硬編碼外部服務與便於測試/設定
+  /// 若為 null，將不寫入 avatar_url 欄位
+  AuthRepository(this._supabase, {String? Function(String displayName)? avatarUrlGenerator})
+      : _avatarUrlGenerator = avatarUrlGenerator ?? _defaultAvatarUrlFromEnv;
 
   // 取得目前的使用者
   User? get currentUser => _supabase.auth.currentUser;
@@ -46,7 +51,7 @@ class AuthRepository {
 
       // 2. 寫入 public.profiles 表
       // 因為我們剛剛刪除了 Trigger，這裡寫入後，"不會" 自動產生 student
-      await _supabase.from('profiles').insert({
+      await insertProfile({
         'id': user.id,
         'full_name': fullName,
         'phone': phone,
@@ -57,30 +62,56 @@ class AuthRepository {
       });
 
       // 3. 建立 Primary Student (由程式碼完全控制，包含所有細節)
-      // 生成頭像 URL
+      // 生成顯示名稱（預設取最後兩字）
       String avatarName = fullName.trim();
       if (fullName.length > 2) {
         avatarName = fullName.substring(fullName.length - 2);
       }
-      final encodedName = Uri.encodeComponent(avatarName);
-      final avatarUrl =
-          'https://ui-avatars.com/api/?name=$encodedName&background=random&size=128&format=png';
+      final avatarUrl = _avatarUrlGenerator?.call(avatarName);
 
-      await _supabase.from('students').insert({
+      final studentRow = <String, dynamic>{
         'parent_id': user.id,
         'name': fullName,
         // 優化：只取 YYYY-MM-DD，避免時區導致日期跑掉
         'birth_date': birthDate.toIso8601String().substring(0, 10),
         'gender': gender,
         'medical_note': medicalNote,
-        'avatar_url': avatarUrl,
         'is_primary': true,
-      });
+      };
+      if (avatarUrl != null && avatarUrl.isNotEmpty) {
+        studentRow['avatar_url'] = avatarUrl;
+      }
+      await insertStudent(studentRow);
     } catch (e) {
-      // 這裡可以印出詳細錯誤，方便除錯
-      print('註冊流程詳細錯誤: $e');
       throw Exception('註冊流程失敗: $e');
     }
+  }
+
+  // 可覆寫：提供測試用攔截點，避免直接依賴 Postgrest builder 型別鏈
+  @protected
+  Future<void> insertProfile(Map<String, dynamic> row) async {
+    await _supabase.from('profiles').insert(row);
+  }
+
+  @protected
+  Future<void> insertStudent(Map<String, dynamic> row) async {
+    await _supabase.from('students').insert(row);
+  }
+
+  /// 預設的頭像 URL 產生器：從編譯期環境變數讀取 AVATAR_BASE_URL（dart-define）
+  /// - 若未設定或不合法，回傳 null（不寫入 avatar_url）
+  /// - 僅允許 http/https，並對 name 進行 URL encode
+  static String? _defaultAvatarUrlFromEnv(String displayName) {
+    const base = String.fromEnvironment('AVATAR_BASE_URL', defaultValue: '');
+    if (base.isEmpty) return null;
+    final uri = Uri.tryParse(base);
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return null;
+    }
+    final encoded = Uri.encodeComponent(displayName);
+    // 規範化：若 base 不以 / 結尾則補上
+    final normalized = base.endsWith('/') ? base : '$base/';
+    return '${normalized}?name=$encoded';
   }
 
   // 登出

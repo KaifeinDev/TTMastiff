@@ -1,0 +1,9 @@
+# 定期更新 GitHub Actions，減少過舊 action 的安全與維護成本
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5

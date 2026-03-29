@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/main.dart'; // 記得確認你的 main.dart 路徑
 import '../../../../data/models/payroll_model.dart';
 import 'widgets/payroll_edit_dialog.dart';
@@ -66,7 +67,10 @@ class _SalaryManagementScreenState extends State<SalaryManagementScreen> {
         _staffList = report;
       });
     } catch (e) {
-      debugPrint('Error: $e');
+      logError(e);
+      if (mounted) {
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

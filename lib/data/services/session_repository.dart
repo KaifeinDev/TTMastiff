@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/util.dart';
 import '../models/session_model.dart';
 import 'credit_repository.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +30,13 @@ class ConflictResult {
 class SessionRepository {
   final SupabaseClient _supabase;
   final CreditRepository _creditRepo;
-  SessionRepository(this._supabase, this._creditRepo);
+  final DateTime Function() _clock;
+
+  SessionRepository(
+    this._supabase,
+    this._creditRepo, {
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   // 📅 抓取特定日期的所有課程
   Future<List<SessionModel>> fetchSessionsByDate(DateTime date) async {
@@ -97,8 +104,8 @@ class SessionRepository {
       }
 
       return sessionsData.map((json) => SessionModel.fromJson(json)).toList();
-    } catch (e) {
-      debugPrint('Error fetching sessions: $e');
+    } catch (e, st) {
+      logError(e, st);
       return [];
     }
   }
@@ -182,7 +189,7 @@ class SessionRepository {
       for (int i = 0; i < createdSessions.length; i++) {
         final originalData = sessionsData[i];
         final String sessionId = createdSessions[i]['id'];
-        print(
+        debugPrint(
           'student_id: ${originalData['renter_id']}\ntarget_user_id: ${originalData['target_user_id']}',
         );
 
@@ -207,8 +214,8 @@ class SessionRepository {
           rentalDataList: rentalRequests,
         );
       }
-    } catch (e) {
-      print('建立預約失敗，回滾 Sessions...: $e');
+    } catch (e, st) {
+      logError('建立預約失敗，回滾 Sessions...: $e', st);
       // Rollback 機制保持不變
       if (createdSessionIds.isNotEmpty) {
         await _supabase
@@ -411,7 +418,7 @@ class SessionRepository {
     ).toLocal();
     final String courseTitle = sessionData['courses']['title'] ?? '未知課程';
     final String sessionTimeStr = DateFormat('MM/dd HH:mm').format(startTime);
-    final DateTime now = DateTime.now();
+    final DateTime now = _clock();
 
     // ⛔ [新增保護] 如果是歷史場次 (已結束)，禁止刪除
     if (endTime.isBefore(now)) {
@@ -420,7 +427,7 @@ class SessionRepository {
 
     // 判斷是否需要退款
     // 邏輯：如果課程還沒結束 (endTime 在現在之後)，則視為「取消」，需要退款
-    final bool shouldRefund = endTime.isAfter(DateTime.now());
+    final bool shouldRefund = endTime.isAfter(now);
 
     if (shouldRefund) {
       // 找出所有「已確認 (confirmed)」的預約，並關聯學生資料
@@ -431,7 +438,7 @@ class SessionRepository {
           .eq('status', 'confirmed'); // 只退款有效訂單
 
       if (bookings.isNotEmpty) {
-        print('正在為 Session $sessionId 執行退款，共 ${bookings.length} 筆...');
+        debugPrint('正在為 Session $sessionId 執行退款，共 ${bookings.length} 筆...');
 
         // 4. 逐筆退款
         // 雖然是迴圈，但 processRefund 是 RPC 交易，安全性足夠。
@@ -456,8 +463,8 @@ class SessionRepository {
                 studentId: studentId,
                 reason: '課程取消',
               );
-            } catch (e) {
-              print('退款失敗 (User: $userId): $e');
+            } catch (e, st) {
+              logError('退款失敗 (User: $userId): $e', st);
               // 這裡可以選擇是否中斷，或是繼續退別人的
               // 建議 log 下來，繼續執行，以免卡住刪除流程
             }

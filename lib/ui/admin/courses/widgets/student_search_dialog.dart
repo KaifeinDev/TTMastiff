@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/utils/util.dart';
 import '../../../../data/models/student_model.dart';
 
 class StudentSearchDialog extends StatefulWidget {
@@ -56,7 +57,11 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
         });
       }
     } catch (e) {
-      debugPrint('搜尋失敗: $e');
+      if (mounted) {
+        showErrorSnackBar(context, e, prefix: '搜尋失敗：');
+      } else {
+        logError(e);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -4,12 +4,23 @@ import 'package:intl/intl.dart'; // 記得引入 intl 用於時間格式化
 import 'package:go_router/go_router.dart';
 
 // Repositories & Models
+import '../../core/utils/util.dart';
 import '../../data/services/course_repository.dart';
 import '../../data/models/course_model.dart';
 import 'widgets/level_icon.dart';
 
 class CoursesScreen extends StatefulWidget {
-  const CoursesScreen({super.key});
+  const CoursesScreen({
+    super.key,
+    this.courseRepository,
+    this.membershipLoader,
+  });
+
+  /// 測試或自訂注入時傳入；為 null 時於 state 內建立預設 [CourseRepository]。
+  final CourseRepository? courseRepository;
+
+  /// 若提供，用此載入會員等級並略過 Supabase `profiles` 查詢（便於測試與離線情境）。
+  final Future<String?> Function()? membershipLoader;
 
   @override
   State<CoursesScreen> createState() => _CoursesScreenState();
@@ -33,7 +44,8 @@ class _CoursesScreenState extends State<CoursesScreen> {
   @override
   void initState() {
     super.initState();
-    _courseRepo = CourseRepository(Supabase.instance.client);
+    _courseRepo =
+        widget.courseRepository ?? CourseRepository(Supabase.instance.client);
     CourseRepository.courseRefreshSignal.addListener(_fetchCourses);
     // 初始化時，自動選擇「今天」是星期幾
     // DateTime.weekday 回傳 1(Mon)~7(Sun)，我們轉成 0~6 的 index
@@ -43,7 +55,26 @@ class _CoursesScreenState extends State<CoursesScreen> {
     _loadMemberLevel();
   }
 
+  @override
+  void dispose() {
+    CourseRepository.courseRefreshSignal.removeListener(_fetchCourses);
+    super.dispose();
+  }
+
   Future<void> _loadMemberLevel() async {
+    if (widget.membershipLoader != null) {
+      try {
+        final level = await widget.membershipLoader!();
+        if (!mounted) return;
+        setState(() {
+          _memberLevel = level ?? 'beginner';
+        });
+      } catch (e, st) {
+        logError(e, st);
+      }
+      return;
+    }
+
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
@@ -58,9 +89,9 @@ class _CoursesScreenState extends State<CoursesScreen> {
       setState(() {
         _memberLevel = (data['membership'] as String?) ?? 'beginner';
       });
-    } catch (e) {
+    } catch (e, st) {
       // 會員等級載入失敗時，不影響課程顯示，只是不套用折扣
-      debugPrint('載入會員等級失敗: $e');
+      logError(e, st);
     }
   }
 
@@ -87,7 +118,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMsg = e.toString();
+          _errorMsg = formatErrorMessage(e);
           _isLoading = false;
         });
       }

@@ -18,8 +18,10 @@ class BookingRepository {
     required List<String> sessionIds,
     required List<String> studentIds,
     required int priceSnapshot,
+    /// 單元測試用：有值時略過 [SupabaseClient.auth]，不依賴真實登入狀態。
+    String? authUserIdOverride,
   }) async {
-    final adminId = _supabase.auth.currentUser?.id;
+    final adminId = authUserIdOverride ?? _supabase.auth.currentUser?.id;
     if (adminId == null) throw Exception('未登入使用者');
 
     // 1. 查詢課程資訊 (包含 max_capacity)

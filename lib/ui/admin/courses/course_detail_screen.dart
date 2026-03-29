@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:ttmastiff/core/utils/util.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
+import 'package:ttmastiff/data/services/coach_repository.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
+import 'package:ttmastiff/data/services/session_repository.dart';
 import 'package:ttmastiff/main.dart';
 
 // 🔥 引入 Models
@@ -16,10 +21,19 @@ class AdminCourseDetailScreen extends StatefulWidget {
   // 🔥 改動 1: 這裡接收 CourseModel
   final CourseModel? initialData;
 
+  final CourseRepository? courseRepository;
+  final SessionRepository? sessionRepository;
+  final CoachRepository? coachRepository;
+  final AuthManager? authManager;
+
   const AdminCourseDetailScreen({
     super.key,
     required this.courseId,
     this.initialData,
+    this.courseRepository,
+    this.sessionRepository,
+    this.coachRepository,
+    this.authManager,
   });
 
   @override
@@ -33,7 +47,14 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
   List<SessionModel> _upcomingSessions = []; // 未來
   List<SessionModel> _historySessions = []; // 歷史
   Map<dynamic, String> _coachMap = {};
-  bool get _isAdmin => authManager.isAdmin;
+  CourseRepository get _courseRepo =>
+      widget.courseRepository ?? courseRepository;
+  SessionRepository get _sessionRepo =>
+      widget.sessionRepository ?? sessionRepository;
+  CoachRepository get _coachRepo =>
+      widget.coachRepository ?? coachRepository;
+  bool get _isAdmin =>
+      (widget.authManager ?? authManager).isAdmin;
 
   bool _isLoading = true;
 
@@ -58,16 +79,16 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
     try {
       // 1. 如果沒有 initialData，需重新抓取 Course 資訊
       if (widget.initialData == null) {
-        final course = await courseRepository.getCourseById(widget.courseId);
+        final course = await _courseRepo.getCourseById(widget.courseId);
         _courseData = course;
       }
 
       // 2. 抓取 Sessions (Repo 現在回傳 List<SessionModel>)
-      final sessions = await sessionRepository.getSessionsByCourse(
+      final sessions = await _sessionRepo.getSessionsByCourse(
         widget.courseId,
       );
 
-      final coachesList = await coachRepository.getCoaches();
+      final coachesList = await _coachRepo.getCoaches();
       final coachMap = {
         for (var c in coachesList) c['id']: c['full_name'] as String,
       };
@@ -95,9 +116,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
       }
     } finally {
       if (mounted) {
@@ -162,7 +181,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
 
     if (confirm == true) {
       try {
-        await sessionRepository.deleteSession(sessionId);
+        await _sessionRepo.deleteSession(sessionId);
         _refreshData();
         if (mounted) {
           ScaffoldMessenger.of(
@@ -171,9 +190,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('刪除失敗: $e')));
+          showErrorSnackBar(context, e, prefix: '刪除失敗：');
         }
       }
     }

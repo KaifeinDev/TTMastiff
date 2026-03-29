@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/main.dart'; // 確保能存取 adminRepository
 import '../../../../data/models/course_model.dart';
 
@@ -109,9 +110,7 @@ class _CourseEditDialogState extends State<CourseEditDialog> {
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('錯誤: $e')));
+        showErrorSnackBar(context, e, prefix: '儲存失敗：');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
