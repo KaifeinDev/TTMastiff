@@ -174,7 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // 3. 性別
                 DropdownButtonFormField<String>(
-                  value: _selectedGender,
+                  initialValue: _selectedGender,
                   decoration: const InputDecoration(
                     labelText: '性別',
                     prefixIcon: Icon(Icons.person_outline),

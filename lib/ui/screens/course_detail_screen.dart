@@ -469,7 +469,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
-          "\$${finalPrice}",
+          "\$$finalPrice",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: isFull ? Colors.grey : Colors.black87,
@@ -506,7 +506,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -4),
             ),

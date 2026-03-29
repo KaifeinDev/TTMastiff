@@ -63,12 +63,13 @@ final appRouter = GoRouter(
     if (!isLoggedIn && !isLoggingIn) return '/login';
 
     // 規則 2: 已登入 -> 根據身分分流
-    if (isLoggedIn && isLoggingIn || isSplash)
+    if (isLoggedIn && isLoggingIn || isSplash) {
       return isAdmin || isCoach ? '/admin/dashboard' : '/homepage';
+    }
 
     // 規則 3: 一般用戶闖入後台 -> 踢回 /homepage
     if (isLoggedIn && location.startsWith('/admin') && !isAdmin && !isCoach) {
-      print('⛔ 權限不足：一般使用者嘗試進入後台');
+      debugPrint('⛔ 權限不足：一般使用者嘗試進入後台');
       return '/homepage';
     }
 

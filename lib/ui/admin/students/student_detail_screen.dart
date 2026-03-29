@@ -200,40 +200,30 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             title: const Text('編輯會員等級'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile<String>(
-                  title: const Text('初級'),
-                  value: 'beginner',
-                  groupValue: selectedLevel,
-                  onChanged: (value) {
-                    setDialogState(() {
-                      selectedLevel = value;
-                    });
-                  },
-                ),
-                RadioListTile<String>(
-                  title: const Text('中級'),
-                  value: 'intermediate',
-                  groupValue: selectedLevel,
-                  onChanged: (value) {
-                    setDialogState(() {
-                      selectedLevel = value;
-                    });
-                  },
-                ),
-                RadioListTile<String>(
-                  title: const Text('高級'),
-                  value: 'advanced',
-                  groupValue: selectedLevel,
-                  onChanged: (value) {
-                    setDialogState(() {
-                      selectedLevel = value;
-                    });
-                  },
-                ),
-              ],
+            content: RadioGroup<String>(
+              groupValue: selectedLevel,
+              onChanged: (value) {
+                setDialogState(() {
+                  selectedLevel = value;
+                });
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    title: const Text('初級'),
+                    value: 'beginner',
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('中級'),
+                    value: 'intermediate',
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('高級'),
+                    value: 'advanced',
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -258,14 +248,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       _membership = selectedLevel!;
                     });
 
-                    if (mounted) {
+                    if (context.mounted) {
                       Navigator.of(dialogContext).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('✅ 會員等級更新成功！')),
                       );
                     }
                   } catch (e) {
-                    if (mounted) {
+                    if (context.mounted) {
                       Navigator.of(dialogContext).pop();
                       showErrorSnackBar(context, e, prefix: '更新失敗：');
                     }
@@ -388,14 +378,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       );
                     });
 
-                    if (mounted) {
+                    if (context.mounted) {
                       Navigator.of(dialogContext).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('✅ 點數更新成功！')),
                       );
                     }
                   } catch (e) {
-                    if (mounted) {
+                    if (context.mounted) {
                       Navigator.of(dialogContext).pop();
                       showErrorSnackBar(context, e, prefix: '更新失敗：');
                     }
@@ -534,7 +524,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                                 : descriptionController.text,
                           );
 
-                          if (mounted) {
+                          if (context.mounted) {
                             setState(() {
                               _parentCredits = newBalance;
                             });
@@ -548,11 +538,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                             );
                           }
                         } catch (e) {
-                          if (mounted) {
+                          if (context.mounted) {
                             showErrorSnackBar(context, e, prefix: '儲值失敗：');
                           }
                         } finally {
-                          if (mounted) setDialogState(() => isLoading = false);
+                          if (context.mounted) {
+                            setDialogState(() => isLoading = false);
+                          }
                         }
                       },
                 child: isLoading

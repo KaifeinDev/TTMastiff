@@ -495,7 +495,7 @@ class _CourseCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
-          '\$${finalPrice}',
+          '\$$finalPrice',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
