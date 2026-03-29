@@ -8,8 +8,10 @@ import '../../core/utils/time_extensions.dart';
 class CourseRepository {
   static final RefreshSignal courseRefreshSignal = RefreshSignal();
   final SupabaseClient _supabase;
+  final DateTime Function() _clock;
 
-  CourseRepository(this._supabase);
+  CourseRepository(this._supabase, {DateTime Function()? clock})
+      : _clock = clock ?? DateTime.now;
 
   // ==========================================
   // 核心私有方法：標準化查詢字串
@@ -24,7 +26,7 @@ class CourseRepository {
   /// 取得特定星期幾有開課的「課程列表」
   /// 邏輯：抓未來 45 天的場次 -> 過濾星期幾 -> 取出不重複課程
   Future<List<CourseModel>> fetchCoursesByWeekday(int weekday) async {
-    final start = DateTime.now();
+    final start = _clock();
     final end = start.add(const Duration(days: 45));
 
     try {
@@ -67,7 +69,7 @@ class CourseRepository {
           // 直接在 Select 裡過濾已確認的報名數
           .select('*, courses(*), bookings(count)')
           .eq('bookings.status', 'confirmed') // 只計算 status='confirmed' 的
-          .gte('start_time', DateTime.now().toIso8601String())
+          .gte('start_time', _clock().toIso8601String())
           .order('start_time', ascending: true);
 
       // 注意：這裡不需要再做二次查詢，因為基本的 SessionModel.fromJson
@@ -154,7 +156,7 @@ class CourseRepository {
   Future<List<SessionModel>> fetchUpcomingSessionsByCourseId(
     String courseId,
   ) async {
-    final now = DateTime.now().toIso8601String();
+    final nowIso = _clock().toIso8601String();
 
     try {
       final response = await _supabase
@@ -162,7 +164,7 @@ class CourseRepository {
           .select('*, courses(*), bookings(count)') // 記得加 bookings(count)
           .eq('bookings.status', 'confirmed')
           .eq('course_id', courseId)
-          .gte('start_time', now)
+          .gte('start_time', nowIso)
           .order('start_time', ascending: true);
 
       return (response as List).map((e) => SessionModel.fromJson(e)).toList();

@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:gotrue/gotrue.dart' show AuthException;
 import 'package:intl/intl.dart';
+import 'package:postgrest/postgrest.dart' show PostgrestException;
 
 // ==========================================
 // 🛠️ Error Handling & Logging (錯誤處理與記錄)
@@ -13,6 +14,30 @@ void logError(dynamic error, [StackTrace? stackTrace]) {
   if (stackTrace != null) {
     debugPrint('📜 [錯誤堆疊]: $stackTrace');
   }
+}
+
+/// 格式化錯誤訊息字串（給使用者看的簡潔說明）
+/// 會處理 [PostgrestException]、[AuthException]，並移除一般 Exception 前綴雜訊。
+String formatErrorMessage(dynamic error) {
+  if (error is PostgrestException) {
+    final buf = StringBuffer(error.message);
+    if (error.hint != null && error.hint!.trim().isNotEmpty) {
+      buf.write('\n');
+      buf.write(error.hint);
+    }
+    return buf.toString();
+  }
+  if (error is AuthException) {
+    return error.message;
+  }
+
+  String message = error.toString();
+
+  if (message.startsWith('Exception: ')) {
+    message = message.replaceAll('Exception: ', '');
+  }
+
+  return message;
 }
 
 // ==========================================
@@ -30,14 +55,11 @@ void showErrorDialog(
   StackTrace? stackTrace,
   String title = '發生錯誤',
 }) {
-  // 1. 先在 Console 印出錯誤 (給開發者看)
   logError(error, stackTrace);
 
-  // 2. 處理文字 (給使用者看)
   final message = formatErrorMessage(error);
 
-  // 3. 顯示彈窗
-  showDialog(
+  showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Row(
@@ -58,20 +80,28 @@ void showErrorDialog(
   );
 }
 
-/// 格式化錯誤訊息字串
-/// 移除 "Exception: " 以及可能的雜訊
-String formatErrorMessage(dynamic error) {
-  String message = error.toString();
-
-  // 移除常見的 Exception 前綴
-  if (message.startsWith('Exception: ')) {
-    message = message.replaceAll('Exception: ', '');
-  }
-
-  // 你也可以在這裡加入針對 Supabase PostgrestException 的處理
-  // if (message.contains('PostgrestException')) { ... }
-
-  return message;
+/// 以 SnackBar 顯示錯誤（適合非阻斷式操作：載入失敗、表單送出失敗等）
+/// 會先 [logError]，再將 [formatErrorMessage] 後的文字顯示給使用者。
+void showErrorSnackBar(
+  BuildContext context,
+  dynamic error, {
+  String? prefix,
+  Color? backgroundColor,
+  Duration duration = const Duration(seconds: 4),
+}) {
+  logError(error);
+  if (!context.mounted) return;
+  final formatted = formatErrorMessage(error);
+  final text = (prefix != null && prefix.isNotEmpty)
+      ? '$prefix$formatted'
+      : formatted;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(text),
+      backgroundColor: backgroundColor ?? Colors.red.shade700,
+      duration: duration,
+    ),
+  );
 }
 
 // ==========================================

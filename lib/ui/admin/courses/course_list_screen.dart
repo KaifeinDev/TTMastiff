@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ttmastiff/core/utils/util.dart';
+import 'package:ttmastiff/data/services/auth_manager.dart';
+import 'package:ttmastiff/data/services/course_repository.dart';
 import 'package:ttmastiff/main.dart'; // 取得 adminRepository
 import 'widgets/course_edit_dialog.dart';
 
@@ -7,7 +10,14 @@ import 'widgets/course_edit_dialog.dart';
 import '../../../../data/models/course_model.dart';
 
 class CourseListScreen extends StatefulWidget {
-  const CourseListScreen({super.key});
+  const CourseListScreen({
+    super.key,
+    this.courseRepository,
+    this.authManager,
+  });
+
+  final CourseRepository? courseRepository;
+  final AuthManager? authManager;
 
   @override
   State<CourseListScreen> createState() => _CourseListScreenState();
@@ -20,7 +30,10 @@ class _CourseListScreenState extends State<CourseListScreen>
   List<CourseModel> _archivedCourses = []; // 已封存
 
   bool _isLoading = true;
-  bool get _isAdmin => authManager.isAdmin;
+  CourseRepository get _repo =>
+      widget.courseRepository ?? courseRepository;
+  bool get _isAdmin =>
+      (widget.authManager ?? authManager).isAdmin;
   late TabController _tabController;
 
   @override
@@ -39,7 +52,7 @@ class _CourseListScreenState extends State<CourseListScreen>
   Future<void> _fetchCourses() async {
     try {
       // Repository 現在回傳 List<CourseModel>
-      final data = await courseRepository.getCourses();
+      final data = await _repo.getCourses();
       if (mounted) {
         setState(() {
           _publishedCourses = data.where((c) => c.isPublished).toList();
@@ -49,9 +62,7 @@ class _CourseListScreenState extends State<CourseListScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
         setState(() => _isLoading = false);
       }
     }
@@ -93,7 +104,7 @@ class _CourseListScreenState extends State<CourseListScreen>
     setState(() => _isLoading = true);
 
     try {
-      await courseRepository.toggleCoursePublishStatus(
+      await _repo.toggleCoursePublishStatus(
         course.id,
         isCurrentlyPublished,
       );
@@ -106,9 +117,7 @@ class _CourseListScreenState extends State<CourseListScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('操作失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '操作失敗：');
         setState(() => _isLoading = false);
       }
     }
@@ -177,7 +186,7 @@ class _CourseListScreenState extends State<CourseListScreen>
 
     try {
       // 呼叫後端 Repo 進行刪除 (這裡會觸發我們剛寫的防護檢查)
-      await courseRepository.deleteCourse(courseId);
+      await _repo.deleteCourse(courseId);
 
       // 成功處理
       if (mounted) {
@@ -192,34 +201,8 @@ class _CourseListScreenState extends State<CourseListScreen>
         await _fetchCourses();
       }
     } catch (e) {
-      // 失敗 (使用 Dialog 顯示詳細錯誤)
       if (mounted) {
-        // 處理錯誤訊息字串 (去掉 "Exception: " 字頭讓畫面好看點)
-        final String errorMessage = e.toString().replaceAll('Exception: ', '');
-
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.red.shade700),
-                const SizedBox(width: 8),
-                const Text('無法刪除'),
-              ],
-            ),
-            // 這裡顯示 Repository 拋出的詳細指導文字
-            content: Text(
-              errorMessage,
-              style: const TextStyle(fontSize: 15, height: 1.5),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('我了解了'), // 引導使用者去處理場次
-              ),
-            ],
-          ),
-        );
+        showErrorDialog(context, e, title: '無法刪除');
       }
     } finally {
       // 不管成功或失敗，都要解除鎖定

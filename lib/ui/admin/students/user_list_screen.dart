@@ -53,9 +53,7 @@ class _UserListScreenState extends State<UserListScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('載入課程失敗: $e'), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, e, prefix: '載入課程失敗：');
       }
     }
   }
@@ -79,9 +77,7 @@ class _UserListScreenState extends State<UserListScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingFilter = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('載入場次失敗: $e'), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, e, prefix: '載入場次失敗：');
       }
     }
   }
@@ -127,9 +123,7 @@ class _UserListScreenState extends State<UserListScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('查詢失敗: $e'), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, e, prefix: '查詢失敗：');
       }
     }
   }
@@ -413,15 +407,14 @@ class _UserListScreenState extends State<UserListScreen> {
         try {
           // 檢查必要的數據是否存在
           if (bookingData['sessions'] == null) {
-            print('⚠️ 警告：booking ${bookingData['id']} 缺少 sessions 數據');
+            logError('警告：booking ${bookingData['id']} 缺少 sessions 數據');
             continue;
           }
 
           final booking = BookingModel.fromJson(bookingData);
           bookings.add(booking);
-        } catch (e) {
-          print('❌ 解析 booking 失敗: $e');
-          print('📦 數據內容: $bookingData');
+        } catch (e, st) {
+          logError('解析 booking 失敗: $bookingData — $e', st);
           // 繼續處理其他 booking，不中斷整個流程
         }
       }

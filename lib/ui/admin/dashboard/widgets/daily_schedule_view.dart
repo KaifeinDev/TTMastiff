@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/main.dart'; // 取得全域 supabase/sessionRepository
 import '../../../../data/models/session_model.dart';
 import '../../../../data/models/table_model.dart';
@@ -159,11 +160,8 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading schedule: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

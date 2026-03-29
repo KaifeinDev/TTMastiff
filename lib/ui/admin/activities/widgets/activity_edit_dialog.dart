@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/util.dart';
 import '../../../../data/models/activity_model.dart';
 import 'dashed_card.dart';
 
@@ -357,13 +358,12 @@ class _ActivityEditDialogState extends State<ActivityEditDialog> {
                                     if (mounted) Navigator.of(context).pop();
                                   } catch (e, stackTrace) {
                                     if (!mounted) return;
-                                    debugPrint('ActivityEditDialog submit error: $e');
-                                    debugPrint('Stack trace: $stackTrace');
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('儲存失敗: ${e.toString()}'),
-                                        duration: const Duration(seconds: 5),
-                                      ),
+                                    logError(e, stackTrace);
+                                    showErrorSnackBar(
+                                      context,
+                                      e,
+                                      prefix: '儲存失敗：',
+                                      duration: const Duration(seconds: 5),
                                     );
                                     setState(() => _submitting = false);
                                   }

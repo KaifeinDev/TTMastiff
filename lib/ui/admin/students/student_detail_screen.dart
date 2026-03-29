@@ -118,11 +118,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error loading data: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('載入失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '載入失敗：');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -147,8 +144,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             .eq('id', targetParentId)
             .single();
         membership = profile['membership'] as String?;
-      } catch (e) {
-        debugPrint('讀取會員資格失敗: $e');
+      } catch (e, st) {
+        logError(e, st);
       }
 
       if (mounted) {
@@ -158,8 +155,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           _isLoadingCredits = false;
         });
       }
-    } catch (e) {
-      debugPrint('讀取點數失敗: $e');
+    } catch (e, st) {
+      logError(e, st);
     }
   }
 
@@ -175,11 +172,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         });
       }
     } catch (e) {
-      debugPrint('刷新預約失敗: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('資料刷新失敗: $e')));
+        showErrorSnackBar(context, e, prefix: '資料刷新失敗：');
       }
     }
   }
@@ -273,12 +267,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   } catch (e) {
                     if (mounted) {
                       Navigator.of(dialogContext).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('❌ 更新失敗: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      showErrorSnackBar(context, e, prefix: '更新失敗：');
                     }
                   }
                 },
@@ -408,12 +397,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   } catch (e) {
                     if (mounted) {
                       Navigator.of(dialogContext).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('❌ 更新失敗: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      showErrorSnackBar(context, e, prefix: '更新失敗：');
                     }
                   }
                 },
@@ -565,14 +549,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                           }
                         } catch (e) {
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '儲值失敗: ${e.toString().replaceAll('Exception:', '')}',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
+                            showErrorSnackBar(context, e, prefix: '儲值失敗：');
                           }
                         } finally {
                           if (mounted) setDialogState(() => isLoading = false);
