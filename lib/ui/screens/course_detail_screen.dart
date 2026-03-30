@@ -130,42 +130,99 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       final totalCost = result['totalCost'] ?? 0;
 
       if (mounted) {
-        String message = '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
-        Color snackBarColor;
+        String message =
+            '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
+        Color dialogTextColor;
+        String dialogTitle = '報名作業完成';
 
         if (successCount > 0) {
-          // A. 有成功新增 (綠色)
-          snackBarColor = Colors.green;
-          message = '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
+          dialogTextColor = Colors.black;
+          dialogTitle = '報名成功！';
+          message =
+              '成功: $successCount 堂，扣除 $totalCost 點';
 
           if (skippedCount > 0) {
             message += '\n(另有 $skippedCount 堂因重複而略過)';
           }
         } else {
-          // B. 全部都是重複，沒有任何變動 (灰色)
-          snackBarColor = Colors.grey.shade700;
+          dialogTextColor = Colors.grey.shade700;
           message = '沒有新增任何報名\n(所有選擇的項目皆已報名過)';
+          dialogTitle = '報名完成';
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: snackBarColor,
-            duration: const Duration(seconds: 3),
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(dialogTitle),
+            content: Text(
+              message,
+              style: TextStyle(color: dialogTextColor),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('確定'),
+              ),
+            ],
           ),
         );
-        // 清空選擇 & 刷新資料
+
+        if (!mounted) return;
+        // 清空選擇 & 刷新資料，並回到上一頁
         setState(() {
           _selectedStudentIds.clear();
           _selectedSessionIds.clear();
         });
-        _loadData();
-        // Navigator.pop(context); // 回到上一頁
+        await _loadData();
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isBooking = false);
-        showErrorSnackBar(context, e, prefix: '報名失敗：');
+        var errorText = e.toString().trim();
+        // 清理錯誤文字：
+        // 1) 去掉開頭的 `Exception: ...`
+        // 2) 去掉前綴 `報名失敗：`
+        // 3) 去掉結尾的 `(1/1)` 或類似片段
+        errorText = errorText.replaceFirst(
+          RegExp(r'^Exception:\s*'),
+          '',
+        );
+        errorText = errorText.replaceFirst(
+          RegExp(r'^報名失敗[:：]?\s*'),
+          '',
+        );
+        errorText = errorText.replaceFirst(
+          RegExp(r'\s*\(\d+\/\d+\)\s*$'),
+          '',
+        );
+        errorText = errorText.trim();
+
+        const dialogTitle = '報名失敗';
+        final dialogTextColor = Colors.black;
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text(
+              dialogTitle,
+              style: TextStyle(color: Colors.redAccent),
+            ),
+            content: Text(
+              errorText,
+              style: TextStyle(color: dialogTextColor),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('確定'),
+              ),
+            ],
+          ),
+        );
       }
     } finally {
       if (mounted) {
