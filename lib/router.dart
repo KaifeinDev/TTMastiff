@@ -49,15 +49,21 @@ final appRouter = GoRouter(
 
   // 路由守衛 (Redirect Logic) - 保持不變
   redirect: (context, state) {
+    final location = state.matchedLocation;
+    final isLoggingIn = location == '/login' || location == '/register';
+
+    // 如果 auth 正在初始化/刷新 token，但使用者目前已在登入/註冊頁
+    // 就不要跳 splash，否則 login 頁會被重建，validator 的錯誤訊息會消失。
     if (authManager.isLoading) {
-      return '/splash';
+      final isAuthPage = location == '/login' || location == '/register';
+      if (!isAuthPage) {
+        return '/splash';
+      }
     }
     final isSplash = state.matchedLocation == '/splash';
     final isLoggedIn = authManager.currentUser != null;
     final isAdmin = authManager.isAdmin;
     final isCoach = authManager.isCoach;
-    final location = state.matchedLocation;
-    final isLoggingIn = location == '/login' || location == '/register';
 
     if (isSplash && !isLoggedIn) return '/login';
     // 規則 1: 未登入 -> 踢回 /login
