@@ -162,6 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final nameController = TextEditingController();
     final noteController = TextEditingController();
     DateTime? tempSelectedDate; // 暫存選到的日期
+    String? tempSelectedGender; // 'male' | 'female' | 'other'
 
     showDialog(
       context: context,
@@ -228,7 +229,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 3. 備註輸入
+                    // 3. 性別
+                    DropdownButtonFormField<String>(
+                      initialValue: tempSelectedGender,
+                      decoration: const InputDecoration(
+                        labelText: '性別',
+                        prefixIcon: Icon(Icons.person_outline),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'male',
+                          child: Text('男生'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'female',
+                          child: Text('女生'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'other',
+                          child: Text('中性'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setStateDialog(() => tempSelectedGender = value);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 4. 備註輸入
                     TextField(
                       controller: noteController,
                       decoration: const InputDecoration(
@@ -262,6 +291,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ).showSnackBar(const SnackBar(content: Text('請選擇生日')));
                       return;
                     }
+                    if (tempSelectedGender == null) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(const SnackBar(content: Text('請選擇性別')));
+                      return;
+                    }
 
                     Navigator.pop(context);
 
@@ -269,6 +304,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     await _performAddStudent(
                       name,
                       tempSelectedDate!, // 👈 確保不為 null
+                      tempSelectedGender!,
                       noteController.text.trim().isEmpty
                           ? null
                           : noteController.text.trim(),
@@ -287,6 +323,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _performAddStudent(
     String name,
     DateTime birthDate,
+    String gender,
     String? note,
   ) async {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -300,6 +337,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _studentRepository.addStudent(
         name: name,
         birthDate: birthDate,
+        gender: gender,
         medicalNote: note,
       );
       await _loadData(); // 重新整理全部資料
