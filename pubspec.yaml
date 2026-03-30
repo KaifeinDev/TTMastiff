@@ -54,6 +54,7 @@ dev_dependencies:
     sdk: flutter
   mocktail: ^1.0.4
   http: ^1.6.0
+  flutter_launcher_icons: ^0.13.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -62,6 +63,35 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+flutter_launcher_icons:
+  # 源圖的路徑
+  image_path: "assets/images/logo.png"
+
+  # 1. iOS 設定 (必填)
+  ios: true
+  # 🌟 強烈建議設定為 true，它會自動把透明部分填充為白色，防止 iOS 將其顯示為黑色
+  remove_alpha_ios: true
+
+  # 2. Android 設定 (必填)
+  android: true
+  # (選填) 自適應圖標設定 (Foreground/Background)
+  adaptive_icon_background: "#FFFFFF" 
+  adaptive_icon_foreground: "assets/images/logo.png"
+
+  # 3. Web PWA 設定 (你要用的功能！)
+  web: 
+    generate: true
+    background_color: "#FFFFFF"  # App 載入時的背景色
+    theme_color: "#000000"
+    display: standalone
+    orientation: portrait
+    display_override: ['window-controls-overlay']
+    start_url: /
+    scope: /
+    icons:
+      - src: "assets/images/logo.png"
+        sizes: "192x192"
+        type: "image/png"
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
