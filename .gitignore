@@ -44,6 +44,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Dotenv / local secrets
+# Dotenv
 .env
-env.prod

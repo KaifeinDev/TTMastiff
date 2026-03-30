@@ -6,7 +6,7 @@ Widget buildGenderIcon(String? gender) {
   
   switch (gender) {
     case 'male':
-      return const Icon(Icons.male, color: Colors.blueGrey);
+      return const Icon(Icons.male, color: Colors.blueAccent);
     case 'female':
       return const Icon(Icons.female, color: Colors.redAccent);
     case 'other':
