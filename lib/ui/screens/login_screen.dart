@@ -82,7 +82,10 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (context, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('登入', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: const Text(
+              '登入',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           body: Center(
             child: SingleChildScrollView(
@@ -97,12 +100,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: 120,
                     height: 120,
                     fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '歡迎回到 TTMastiff',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 32),
 
