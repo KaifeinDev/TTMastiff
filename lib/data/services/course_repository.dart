@@ -35,7 +35,8 @@ class CourseRepository {
           .select('*, courses!inner(*)') // 這裡只需要 course 資訊
           .gte('start_time', start.toIso8601String())
           .lte('start_time', end.toIso8601String())
-          .eq('courses.is_published', true);
+          .eq('courses.is_published', true)
+          .filter('courses.category', 'neq', 'rental');
 
       final sessions = (response as List)
           .map((e) => SessionModel.fromJson(e))
