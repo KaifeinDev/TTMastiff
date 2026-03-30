@@ -29,7 +29,7 @@
 | **Frontend** | Flutter (Dart) | 跨平台 App 開發框架 |
 | **Backend** | Supabase | BaaS (PostgreSQL, Auth, Realtime) |
 | **Routing** | go_router | 宣告式路由管理 |
-| **Config** | flutter_dotenv | 環境變數與機密管理 |
+| **Config** | `--dart-define-from-file` | 編譯期注入 Supabase（勿將含金鑰檔案提交至 Git） |
 | **Formatting** | intl | 日期與時間格式化 |
 | **Fonts** | google_fonts | Google 字體整合 |
 
@@ -66,24 +66,24 @@ lib/
 3. 設定環境變數 (Environment Variables) ⚠️ 重要
 本專案使用 `.env` 檔案管理敏感資訊 (Supabase URL & Key)。 此檔案被列在 `.gitignore` 中，不會隨程式碼下載。
 
-請在專案根目錄建立一個名為 `.env` 的檔案，並填入以下內容：
-
-    ```
-    # .env
-    SUPABASE_URL=[https://你的專案ID.supabase.co](https://你的專案ID.supabase.co)
-    SUPABASE_ANON_KEY=你的SupabaseAnonKey
-    (請向專案管理員索取這些 Key，或至 Supabase Dashboard 查看)
-    ```
+請複製 `env.example` 為 `.env`，並填入 Supabase URL 與 Anon Key（可向管理員索取或至 Supabase Dashboard 查看）。
 
 4. 資料庫設定 (Database Setup)
 若你是第一次建立此專案的後端，請參考專案目錄下的 `docs/db_schema.sql`，將其內容複製到 Supabase SQL Editor 執行，以建立必要的資料表。
 
-5. 執行專案
-確認模擬器已開啟：
+5. 執行專案（必須帶入環境變數，否則啟動會失敗）
 
-    ```Bash
-    flutter run
+    ```bash
+    flutter run --dart-define-from-file=.env
     ```
+
+    Web 範例：
+
+    ```bash
+    flutter run -d chrome --dart-define-from-file=.env
+    ```
+
+6. CI／部署：merge 至 `main` 後由 GitHub Actions 建置並部署至 Firebase Hosting。請在 Repository **Secrets** 設定 `SUPABASE_URL`、`SUPABASE_ANON_KEY`，以及 Firebase 服務帳戶 JSON（見 `.github/workflows/deploy.yml` 內使用的 secret 名稱）。
 
 ## 🗄 資料庫設計 (Database Schema)
 主要包含三張核心資料表：

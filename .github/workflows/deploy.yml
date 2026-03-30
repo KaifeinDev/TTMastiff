@@ -1,9 +1,25 @@
+# merge / push 至 main 時：建置 Flutter Web 並部署至 Firebase Hosting（正式站）。
+# 請在 GitHub Repository → Settings → Secrets and variables → Actions 設定：
+#   - SUPABASE_URL
+#   - SUPABASE_ANON_KEY
+#   - FIREBASE_SERVICE_ACCOUNT_TTMASTIFF_B1845（Firebase 服務帳戶 JSON 全文）
+#
+# 若 Firebase 專案 ID 不同，請一併修改下方 projectId。
+
 name: Deploy Flutter Web to Firebase Hosting
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-hosting-production
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -13,26 +29,32 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build web
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          set -euo pipefail
           flutter build web --release \
-            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
-            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
-      - name: Deploy to Firebase Hosting
+      - name: Deploy to Firebase Hosting (live)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TTMASTIFF_B1845 }}

@@ -1,7 +1,15 @@
+# 同儲存庫 PR：建立 Firebase Hosting preview channel，並在 PR 留言預覽網址。
+# Fork PR 不執行（無 secrets）。需設定與 deploy.yml 相同的 Secrets。
+
 name: Deploy Preview Channel
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
 
 permissions:
   contents: read
@@ -10,27 +18,34 @@ permissions:
 
 jobs:
   preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build web
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          set -euo pipefail
           flutter build web --release \
-            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
-            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
-      - name: Deploy Preview
+      - name: Deploy preview
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

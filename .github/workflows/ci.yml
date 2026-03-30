@@ -1,3 +1,4 @@
+# PR 與 push：Analyze、測試、建置 Web（需同儲存庫 secrets；fork PR 僅跑 analyze/test）。
 name: CI
 
 on:
@@ -45,10 +46,14 @@ jobs:
       - name: Run tests
         run: flutter test --reporter expanded
 
+      # Fork 開過來的 PR 無法讀取 secrets，略過需金鑰的 web build。
       - name: Build web
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          set -euo pipefail
           flutter build web --release \
-            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
-            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-
-     
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
