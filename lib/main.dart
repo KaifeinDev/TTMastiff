@@ -18,6 +18,7 @@ import 'package:ttmastiff/data/services/salary_repository.dart';
 
 import 'core/utils/util.dart';
 import 'router.dart';
+import 'ui/screens/splash_screen.dart';
 
 late final AuthRepository authRepository;
 late final AuthManager authManager;
@@ -33,60 +34,127 @@ late final SalaryRepository salaryRepository;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await initializeDateFormatting('zh_TW', null);
-    await dotenv.load(fileName: "env.prod");
-    final supabaseUrl = dotenv.env['SUPABASE_URL'];
-    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+  await initializeDateFormatting('zh_TW', null);
+  runApp(const AppRoot());
+}
 
-    if (supabaseUrl == null || supabaseUrl.isEmpty) {
-      throw Exception('Missing SUPABASE_URL in .env');
-    }
-    if (supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
-      throw Exception('Missing SUPABASE_ANON_KEY in .env');
-    }
+/// 啟動殼：先顯示 Splash，再在背景初始化 Supabase / Repositories / AuthManager。
+class AppRoot extends StatefulWidget {
+  const AppRoot({super.key});
 
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
-    if (kDebugMode) {
-      debugPrint('[main] Supabase initialized');
-    }
+  @override
+  State<AppRoot> createState() => _AppRootState();
+}
 
-    final client = Supabase.instance.client;
-    // 3. 🔥 初始化 AuthRepository (資料層)
-    authRepository = AuthRepository(client);
+class _AppRootState extends State<AppRoot> {
+  bool _ready = false;
+  Object? _error;
 
-    // 4. 🔥 初始化 AuthManager (狀態層)
-    authManager = AuthManager(authRepository);
-
-    coachRepository = CoachRepository(client);
-    courseRepository = CourseRepository(client);
-    creditRepository = CreditRepository(client);
-    sessionRepository = SessionRepository(client, creditRepository);
-    transactionRepository = TransactionRepository(client);
-    bookingRepository = BookingRepository(
-      client,
-      creditRepository,
-      transactionRepository,
-    );
-    studentRepository = StudentRepository(client);
-    tableRepository = TableRepository(client);
-    salaryRepository = SalaryRepository(client);
-
-    // 5. 🔥 啟動監聽並檢查權限 (這會決定使用者一進去是 Home 還是 Admin)
-    await authManager.init();
-    if (kDebugMode) {
-      debugPrint(
-        '[main] AuthManager ready (admin=${authManager.isAdmin})',
-      );
-    }
-  } catch (e, st) {
-    logError(e, st);
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
   }
 
-  runApp(const MyApp());
+  Future<void> _bootstrap() async {
+    try {
+      await dotenv.load(fileName: "env.prod");
+      final supabaseUrl = dotenv.env['SUPABASE_URL'];
+      final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+
+      if (supabaseUrl == null || supabaseUrl.isEmpty) {
+        throw Exception('Missing SUPABASE_URL in .env');
+      }
+      if (supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
+        throw Exception('Missing SUPABASE_ANON_KEY in .env');
+      }
+
+      await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+      if (kDebugMode) {
+        debugPrint('[main] Supabase initialized');
+      }
+
+      final client = Supabase.instance.client;
+      authRepository = AuthRepository(client);
+      authManager = AuthManager(authRepository);
+
+      coachRepository = CoachRepository(client);
+      courseRepository = CourseRepository(client);
+      creditRepository = CreditRepository(client);
+      sessionRepository = SessionRepository(client, creditRepository);
+      transactionRepository = TransactionRepository(client);
+      bookingRepository = BookingRepository(
+        client,
+        creditRepository,
+        transactionRepository,
+      );
+      studentRepository = StudentRepository(client);
+      tableRepository = TableRepository(client);
+      salaryRepository = SalaryRepository(client);
+
+      await authManager.init();
+      if (kDebugMode) {
+        debugPrint(
+          '[main] AuthManager ready (admin=${authManager.isAdmin})',
+        );
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _ready = true;
+      });
+    } catch (e, st) {
+      logError(e, st);
+      if (!mounted) return;
+      setState(() {
+        _error = e;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) {
+      // 啟動失敗時，顯示簡單錯誤畫面，避免白屏。
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    '無法啟動應用程式',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _error.toString(),
+                    style: const TextStyle(fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (!_ready) {
+      // 初始化期間，先顯示 Splash 畫面（Logo + 轉圈）。
+      return const MaterialApp(
+        home: SplashScreen(),
+      );
+    }
+
+    return const MyApp();
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -95,7 +163,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'TTMastiff 球館系統',
+      title: '天生好手',
       theme: ThemeData(
         brightness: Brightness.light,
         scaffoldBackgroundColor: Colors.grey.shade50,
@@ -128,17 +196,13 @@ class MyApp extends StatelessWidget {
           ),
         ),
         // 全局 DatePicker 主題設定
-        datePickerTheme: DatePickerThemeData(
-          backgroundColor: Colors.white,
-        ),
+        datePickerTheme: DatePickerThemeData(backgroundColor: Colors.white),
         // 全局 按鈕文字設定
         textTheme: const TextTheme(
           labelLarge: TextStyle(fontWeight: FontWeight.bold),
         ),
         tabBarTheme: const TabBarThemeData(
-          labelStyle: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          labelStyle: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       // 🔥 新增：深色主題

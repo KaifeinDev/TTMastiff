@@ -19,7 +19,7 @@ class _AdminScaffoldState extends State<AdminScaffold> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TTMastiff 球館管理系統'),
+        title: const Text('天生好手'),
         backgroundColor: Colors.blueGrey.shade900,
         foregroundColor: Colors.white,
         actions: [
