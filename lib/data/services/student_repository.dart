@@ -26,6 +26,7 @@ class StudentRepository {
   Future<void> addStudent({
     required String name,
     required DateTime birthDate,
+    required String gender,
     String? medicalNote,
   }) async {
     final userId = _supabase.auth.currentUser?.id;
@@ -43,6 +44,7 @@ class StudentRepository {
       'parent_id': userId,
       'name': name,
       'birth_date': birthDate.toIso8601String(),
+      'gender': gender,
       'medical_note': medicalNote,
       'avatar_url': avatarUrl,
       'is_primary': false,

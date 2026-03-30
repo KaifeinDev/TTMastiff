@@ -140,6 +140,7 @@ void main() {
 
       await repo.addStudent(
         name: '王小明',
+        gender: 'male',
         birthDate: DateTime(2010, 1, 5),
         medicalNote: 'note',
       );
