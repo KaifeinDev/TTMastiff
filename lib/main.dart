@@ -46,10 +46,7 @@ Future<void> main() async {
       throw Exception('Missing SUPABASE_ANON_KEY in .env');
     }
 
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
+    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
     if (kDebugMode) {
       debugPrint('[main] Supabase initialized');
     }
@@ -78,9 +75,7 @@ Future<void> main() async {
     // 5. 🔥 啟動監聽並檢查權限 (這會決定使用者一進去是 Home 還是 Admin)
     await authManager.init();
     if (kDebugMode) {
-      debugPrint(
-        '[main] AuthManager ready (admin=${authManager.isAdmin})',
-      );
+      debugPrint('[main] AuthManager ready (admin=${authManager.isAdmin})');
     }
   } catch (e, st) {
     logError(e, st);
@@ -95,7 +90,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'TTMastiff 球館系統',
+      title: '天生好手',
       theme: ThemeData(
         brightness: Brightness.light,
         scaffoldBackgroundColor: Colors.grey.shade50,
@@ -128,17 +123,13 @@ class MyApp extends StatelessWidget {
           ),
         ),
         // 全局 DatePicker 主題設定
-        datePickerTheme: DatePickerThemeData(
-          backgroundColor: Colors.white,
-        ),
+        datePickerTheme: DatePickerThemeData(backgroundColor: Colors.white),
         // 全局 按鈕文字設定
         textTheme: const TextTheme(
           labelLarge: TextStyle(fontWeight: FontWeight.bold),
         ),
         tabBarTheme: const TabBarThemeData(
-          labelStyle: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          labelStyle: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       // 🔥 新增：深色主題

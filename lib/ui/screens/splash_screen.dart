@@ -19,7 +19,7 @@ class SplashScreen extends StatelessWidget {
             ), // 暫時用 Icon 代替
             const SizedBox(height: 24),
             const Text(
-              'TTMastiff 球館系統',
+              '天生好手',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
