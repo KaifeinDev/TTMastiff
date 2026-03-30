@@ -178,35 +178,30 @@ void main() {
       verify(() => mockHttp.send(any())).called(1);
     });
 
-    test('fetchStudentsByFilter：sessionId 分支', () async {
+    test('fetchStudentsByFilter：忽略 sessionId，僅 name/phone 篩選', () async {
       var call = 0;
       when(() => mockHttp.send(any())).thenAnswer((invocation) async {
         call++;
         final req = invocation.positionalArguments.first as http.BaseRequest;
         if (call == 1) {
           expect(req.method, 'GET');
-          expect(req.url.path, '/rest/v1/bookings');
-          expect(req.url.queryParameters['session_id'], 'eq.sess-1');
+          expect(req.url.path, '/rest/v1/students');
           return _streamedJson(
             req,
             jsonEncode([
               {
-                'students': {
-                  'id': 's1',
-                  'parent_id': 'p1',
-                  'name': '小明',
-                  'birth_date': '2010-01-05',
-                  'is_primary': true,
-                }
+                'id': 's1',
+                'parent_id': 'p1',
+                'name': '小明',
+                'birth_date': '2010-01-05',
+                'is_primary': true,
               },
               {
-                'students': {
-                  'id': 's2',
-                  'parent_id': 'p2',
-                  'name': '小華',
-                  'birth_date': '2012-03-01',
-                  'is_primary': false,
-                }
+                'id': 's2',
+                'parent_id': 'p2',
+                'name': '小華',
+                'birth_date': '2012-03-01',
+                'is_primary': false,
               },
             ]),
             200,

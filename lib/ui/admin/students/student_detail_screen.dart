@@ -409,6 +409,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final descriptionController = TextEditingController();
     final pinController = TextEditingController();
     bool isLoading = false;
+    bool isClampingAmount = false;
 
     showDialog(
       context: context,
@@ -425,6 +426,17 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                 TextField(
                   controller: amountController,
                   keyboardType: TextInputType.number,
+                  onChanged: (value) {
+                    if (isClampingAmount) return;
+                    final parsed = int.tryParse(value);
+                    if (parsed != null && parsed < 0) {
+                      isClampingAmount = true;
+                      amountController.text = '0';
+                      amountController.selection =
+                          const TextSelection.collapsed(offset: 1);
+                      isClampingAmount = false;
+                    }
+                  },
                   decoration: const InputDecoration(
                     labelText: '儲值金額/點數',
                     suffixText: '點',
