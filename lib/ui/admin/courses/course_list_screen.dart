@@ -8,6 +8,7 @@ import 'widgets/course_edit_dialog.dart';
 
 // 🔥 引入 CourseModel
 import '../../../../data/models/course_model.dart';
+import '../../screens/widgets/class_category.dart';
 
 class CourseListScreen extends StatefulWidget {
   const CourseListScreen({
@@ -325,31 +326,13 @@ class _CourseListScreenState extends State<CourseListScreen>
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              Container(
+                              ClassCategory(
+                                category: course.category,
+                                isArchived: isArchived,
+                                borderRadius: 4,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: course.category == 'group'
-                                      ? (isArchived
-                                            ? Colors.grey.shade300
-                                            : Colors.orange.shade100)
-                                      : (isArchived
-                                            ? Colors.grey.shade300
-                                            : Colors.blue.shade100),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  course.category == 'group' ? '團體課' : '個人課',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isArchived
-                                        ? Colors.grey.shade600
-                                        : (course.category == 'group'
-                                              ? Colors.orange.shade900
-                                              : Colors.blue.shade900),
-                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),

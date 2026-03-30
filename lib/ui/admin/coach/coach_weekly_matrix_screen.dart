@@ -6,6 +6,7 @@ import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/ui/admin/courses/widgets/session_edit_dialog.dart';
 import 'package:ttmastiff/ui/admin/courses/widgets/batch_session_dialog.dart';
 import 'package:ttmastiff/data/models/course_model.dart';
+import '../../screens/widgets/class_category.dart';
 
 // Models
 import '../../../../data/models/session_model.dart';
@@ -829,8 +830,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
     final double durationPercent = (sessionEnd - sessionStart) / totalHours;
     final double blockHeight = durationPercent * totalHeight;
 
-    final isPersonal = session.category == 'personal';
-    final themeColor = isPersonal ? Colors.orange : Colors.blue;
+    final themeColor = ClassCategory.colorOf(session.category);
     final bgColor = themeColor.withValues(alpha: 0.15);
     final borderColor = themeColor.withValues(alpha: 0.4);
 
