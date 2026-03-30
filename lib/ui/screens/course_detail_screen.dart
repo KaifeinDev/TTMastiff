@@ -175,9 +175,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           _selectedSessionIds.clear();
         });
         await _loadData();
-        if (context.mounted) {
-          Navigator.pop(context);
-        }
+        if (!mounted) return;
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {

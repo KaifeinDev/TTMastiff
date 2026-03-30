@@ -195,7 +195,10 @@ final appRouter = GoRouter(
     // --- Admin 後台區域 ---
     ShellRoute(
       builder: (context, state, child) {
-        return AdminScaffold(child: child, isAdmin: authManager.isAdmin);
+        return AdminScaffold(
+          isAdmin: authManager.isAdmin,
+          child: child,
+        );
       },
       routes: [
         GoRoute(
