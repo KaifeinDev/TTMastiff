@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:ttmastiff/data/services/auth_manager.dart';
@@ -35,10 +34,23 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await initializeDateFormatting('zh_TW', null);
-    await dotenv.load(fileName: ".env");
+    // CI／正式站：merge main 後由 GitHub Actions 以 --dart-define 注入（勿把金鑰放進 pubspec assets）。
+    // 本機：複製 env.example 為 .env，然後 flutter run --dart-define-from-file=.env
+    const supabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+    const supabaseAnonKey =
+        String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+    if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+      throw Exception(
+        '缺少 SUPABASE_URL 或 SUPABASE_ANON_KEY。\n'
+        '本機請在專案根目錄建立 .env（可複製 env.example），並使用：\n'
+        'flutter run -d chrome --dart-define-from-file=.env\n'
+        '或：flutter build web --dart-define-from-file=.env',
+      );
+    }
+
     await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL']!,
-      anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
     );
     if (kDebugMode) {
       debugPrint('[main] Supabase initialized');
