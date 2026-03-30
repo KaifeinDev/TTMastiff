@@ -219,6 +219,7 @@ class CourseRepository {
         .from('courses')
         .select('*')
         .eq('is_published', true) // 關鍵：只抓 true 的
+        .filter('category', 'neq', 'rental') // 排除 rental 類型課程
         .order('created_at', ascending: false);
 
     return (data as List).map((e) => CourseModel.fromJson(e)).toList();

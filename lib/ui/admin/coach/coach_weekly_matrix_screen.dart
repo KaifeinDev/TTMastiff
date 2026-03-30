@@ -263,13 +263,32 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
     DateTime date,
     double tapY,
     double totalHeight,
+    List<SessionModel> coachSessions,
   ) async {
     // 1. 計算點擊的時間 (反推)
     final double totalHours = _endHour - _startHour;
     final double percent = tapY / totalHeight;
     final double rawHour = _startHour + (percent * totalHours);
 
-    // 2. 時間磁吸處理 (自動對齊最近的 30 分鐘)
+    // 2. 先計算「原始」點擊時間點（不做磁吸），用來判斷是否其實點在既有課程區塊上
+    final int rawHourFloor = rawHour.floor();
+    final int rawMinute = ((rawHour - rawHourFloor) * 60).round();
+    final DateTime tappedRawDateTime = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      rawHourFloor,
+      rawMinute,
+    );
+
+    // 3. 如果點擊落在既有 session 範圍內，直接略過（讓子元件 InkWell 只負責編輯）
+    final bool tappedOnExistingSession = coachSessions.any((s) {
+      return !tappedRawDateTime.isBefore(s.startTime) &&
+          tappedRawDateTime.isBefore(s.endTime);
+    });
+    if (tappedOnExistingSession) return;
+
+    // 4. 時間磁吸處理 (自動對齊最近的 30 分鐘)
     int hour = rawHour.floor();
     int minute = ((rawHour - hour) * 60).round();
 
@@ -748,8 +767,8 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
             // 🔥 1. 設定點擊行為：opaque 確保點擊空白處也能觸發
             behavior: HitTestBehavior.opaque,
 
-            // 🔥 2. 捕捉點擊位置
-            onLongPressStart: (details) {
+            // 🔥 2. 捕捉點擊位置（點一下就開新增課程清單）
+            onTapUp: (details) {
               HapticFeedback.mediumImpact();
               // details.localPosition.dy 就是點擊的 Y 軸位置
               _handleEmptySlotTap(
@@ -758,6 +777,7 @@ class _CoachWeeklyMatrixScreenState extends State<CoachWeeklyMatrixScreen> {
                 date,
                 details.localPosition.dy,
                 constraints.maxHeight,
+                coachSessions,
               );
             },
             child: Stack(
