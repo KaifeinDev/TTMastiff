@@ -33,6 +33,15 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
 
   bool _isSubmitting = false;
 
+  String _formatStudentNames(List<StudentModel> students) {
+    if (students.isEmpty) return '';
+    if (students.length <= 5) {
+      return students.map((s) => s.name).join('、');
+    }
+    final first = students.take(5).map((s) => s.name).join('、');
+    return '$first 等 ${students.length} 人';
+  }
+
   // 開啟搜尋視窗
   Future<void> _openSearchDialog() async {
     final existingIds = _targetStudents.map((s) => s.id).toSet();
@@ -70,9 +79,57 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
     setState(() => _isSubmitting = true);
 
     try {
+      // Phase 1：批次報名點數不足的「前端攔截」
+      // BookingRepository 端如果餘額不足會直接 throw，導致整批失敗；
+      // 這裡先計算每位學員「需要的扣點」(單堂扣點 * 選擇場次數)，只送餘額足夠者進後端。
+      final int sessionCount = _selectedSessionIds.length;
+      final int perStudentCost = widget.pricePerSession * sessionCount;
+
+      // 逐一扣預算：同一個 parentId 可能有多位學生，因此要用 remainingCredits 逐筆分配。
+      final Set<String> parentIds =
+          _targetStudents.map((s) => s.parentId).toSet();
+      final creditsEntries = await Future.wait(
+        parentIds.map(
+          (parentId) async => MapEntry(
+            parentId,
+            await creditRepository.getCurrentCredit(parentId),
+          ),
+        ),
+      );
+      final Map<String, int> remainingCredits = Map.fromEntries(creditsEntries);
+
+      final List<StudentModel> eligibleStudents = [];
+      final List<StudentModel> insufficientStudents = [];
+
+      for (final student in _targetStudents) {
+        final remaining = remainingCredits[student.parentId] ?? 0;
+        if (remaining >= perStudentCost) {
+          eligibleStudents.add(student);
+          remainingCredits[student.parentId] = remaining - perStudentCost;
+        } else {
+          insufficientStudents.add(student);
+        }
+      }
+
+      if (eligibleStudents.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red.shade700,
+              content: Text(
+                '餘額不足，無法完成批次報名。\n略過：${_formatStudentNames(insufficientStudents)}',
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       final result = await bookingRepository.createBatchBooking(
         sessionIds: _selectedSessionIds.toList(),
-        studentIds: _targetStudents.map((s) => s.id).toList(), // 🔥 取出 ID
+        // 只送餘額足夠的學員去後端扣點
+        studentIds: eligibleStudents.map((s) => s.id).toList(),
         priceSnapshot: widget.pricePerSession,
       );
 
@@ -91,10 +148,18 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
           if (skippedCount > 0) {
             message += '\n(另有 $skippedCount 堂因重複而略過)';
           }
+
+          if (insufficientStudents.isNotEmpty) {
+            message += '\n(另有 ${insufficientStudents.length} 位餘額不足：${_formatStudentNames(insufficientStudents)} 已略過)';
+          }
         } else {
           // B. 全部都是重複，沒有任何變動 (灰色)
           snackBarColor = Colors.grey.shade700;
           message = '沒有新增任何報名\n(所有選擇的項目皆已報名過)';
+
+          if (insufficientStudents.isNotEmpty) {
+            message += '\n(另有 ${insufficientStudents.length} 位餘額不足：${_formatStudentNames(insufficientStudents)} 已略過)';
+          }
         }
 
         ScaffoldMessenger.of(context).showSnackBar(

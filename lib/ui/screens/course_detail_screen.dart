@@ -36,6 +36,15 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   final Set<String> _selectedStudentIds = {};
   final Set<String> _selectedSessionIds = {};
 
+  String _formatStudentNames(List<StudentModel> students) {
+    if (students.isEmpty) return '';
+    if (students.length <= 5) {
+      return students.map((s) => s.name).join('、');
+    }
+    final first = students.take(5).map((s) => s.name).join('、');
+    return '$first 等 ${students.length} 人';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -117,11 +126,65 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     setState(() => _isBooking = true);
 
     try {
-      // 這裡呼叫 Repository 進行批量寫入
-      // 注意：實際實作 BookingRepository 時，建議要能處理不同 Session 不同價格的情況
+      // Phase 1：批次報名點數不足的前端攔截
+      final int sessionCount = _selectedSessionIds.length;
+      final int perStudentCost = _course!.price * sessionCount;
+
+      final List<StudentModel> selectedStudents = _myStudents
+          .where((s) => _selectedStudentIds.contains(s.id))
+          .toList();
+
+      final Set<String> parentIds =
+          selectedStudents.map((s) => s.parentId).toSet();
+
+      final creditsEntries = await Future.wait(
+        parentIds.map(
+          (parentId) async => MapEntry(
+            parentId,
+            await creditRepository.getCurrentCredit(parentId),
+          ),
+        ),
+      );
+
+      final Map<String, int> remainingCredits =
+          Map.fromEntries(creditsEntries);
+
+      final List<StudentModel> eligibleStudents = [];
+      final List<StudentModel> insufficientStudents = [];
+
+      // 逐位分配預算：同一個 parentId 可能對應多位學生
+      for (final student in selectedStudents) {
+        final remaining = remainingCredits[student.parentId] ?? 0;
+        if (remaining >= perStudentCost) {
+          eligibleStudents.add(student);
+          remainingCredits[student.parentId] = remaining - perStudentCost;
+        } else {
+          insufficientStudents.add(student);
+        }
+      }
+
+      if (eligibleStudents.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red.shade700,
+              content: Text(
+                '餘額不足，無法完成批次報名。\n略過：${_formatStudentNames(insufficientStudents)}',
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      final List<String> eligibleStudentIds =
+          eligibleStudents.map((s) => s.id).toList();
+
+      // 呼叫 Repository 進行批量寫入（僅針對餘額足夠者）
       final result = await bookingRepository.createBatchBooking(
         sessionIds: _selectedSessionIds.toList(),
-        studentIds: _selectedStudentIds.toList(),
+        studentIds: eligibleStudentIds,
         // 這裡傳入課程原價作為快照，或是後端會再驗證一次價格
         priceSnapshot: _course!.price,
       );
@@ -141,10 +204,20 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           if (skippedCount > 0) {
             message += '\n(另有 $skippedCount 堂因重複而略過)';
           }
+
+          if (insufficientStudents.isNotEmpty) {
+            message +=
+                '\n(另有 ${insufficientStudents.length} 位餘額不足：${_formatStudentNames(insufficientStudents)} 已略過)';
+          }
         } else {
           // B. 全部都是重複，沒有任何變動 (灰色)
           snackBarColor = Colors.grey.shade700;
           message = '沒有新增任何報名\n(所有選擇的項目皆已報名過)';
+
+          if (insufficientStudents.isNotEmpty) {
+            message +=
+                '\n(另有 ${insufficientStudents.length} 位餘額不足：${_formatStudentNames(insufficientStudents)} 已略過)';
+          }
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,8 +229,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         );
         // 清空選擇 & 刷新資料
         setState(() {
-          _selectedStudentIds.clear();
-          _selectedSessionIds.clear();
+          if (insufficientStudents.isEmpty) {
+            _selectedStudentIds.clear();
+            _selectedSessionIds.clear();
+          } else {
+            // 只移除已成功可扣款的學生；餘額不足的學生保留供後續儲值後重試
+            _selectedStudentIds.removeAll(eligibleStudentIds);
+          }
         });
         _loadData();
         // Navigator.pop(context); // 回到上一頁
