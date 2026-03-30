@@ -23,8 +23,8 @@ import '../ui/admin/admin_scaffold.dart';
 import 'ui/admin/dashboard/dashboard_screen.dart';
 import 'ui/admin/students/user_list_screen.dart';
 import 'ui/admin/salary_management/salary_management_screen.dart';
-import 'ui/admin/salary_management/staff_list_screen.dart';
-import 'ui/admin/salary_management/salary_analytics_screen.dart';
+import 'ui/admin/salary_management/hidden_page/staff_list_screen.dart';
+import 'ui/admin/salary_management/hidden_page/salary_analytics_screen.dart';
 import 'ui/admin/coach/coach_weekly_matrix_screen.dart';
 
 // --- 3. 新增的課程管理頁面 (請確認檔案已建立) ---
@@ -66,6 +66,13 @@ final appRouter = GoRouter(
     // 規則 2: 已登入 -> 根據身分分流
     if (isLoggedIn && isLoggingIn || isSplash) {
       return isAdmin || isCoach ? '/admin/dashboard' : '/homepage';
+    }
+
+    // 規則 2-1: admin-only 頁面（避免非 admin 仍可直接輸入網址存取）
+    final isAdminOnlyPage = location == '/admin/activities' ||
+        location == '/admin/transactions';
+    if (isAdminOnlyPage && !isAdmin) {
+      return isCoach ? '/admin/dashboard' : '/homepage';
     }
 
     // 規則 3: 一般用戶闖入後台 -> 踢回 /homepage
@@ -182,7 +189,7 @@ final appRouter = GoRouter(
     // --- Admin 後台區域 ---
     ShellRoute(
       builder: (context, state, child) {
-        return AdminScaffold(child: child);
+        return AdminScaffold(child: child, isAdmin: authManager.isAdmin);
       },
       routes: [
         GoRoute(

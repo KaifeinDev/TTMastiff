@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ttmastiff/core/utils/util.dart';
 import 'package:intl/intl.dart';
-import '../../../data/models/staff_detail_model.dart';
-import '../../../data/models/work_shift_model.dart';
-import '../../../data/services/salary_repository.dart';
+import '../../../../data/models/staff_detail_model.dart';
+import '../../../../data/models/work_shift_model.dart';
+import '../../../../data/services/salary_repository.dart';
 
 class StaffDetailScreen extends StatefulWidget {
   final Map<String, dynamic>
-  profile; // 傳入 profile 物件 (包含 id, full_name, avatar_url)
+      profile; // 傳入 profile 物件 (包含 id, full_name, avatar_url)
 
   const StaffDetailScreen({super.key, required this.profile});
 
@@ -44,7 +44,8 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
     try {
       // 1. 載入詳細設定
       final detail = await _repository.getStaffDetail(widget.profile['id']);
-      _detail = detail ?? StaffDetailModel(id: widget.profile['id']); // 若無則給預設值
+      _detail =
+          detail ?? StaffDetailModel(id: widget.profile['id']); // 預設值
 
       // 填入表單
       _coachRateCtrl.text = _detail!.coachHourlyRate.toString();
@@ -192,12 +193,10 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
               IconButton(
                 icon: const Icon(Icons.chevron_left),
                 onPressed: () {
-                  setState(
-                    () => _selectedMonth = DateTime(
-                      _selectedMonth.year,
-                      _selectedMonth.month - 1,
-                    ),
-                  );
+                  setState(() => _selectedMonth = DateTime(
+                        _selectedMonth.year,
+                        _selectedMonth.month - 1,
+                      ));
                   _loadShifts();
                 },
               ),
@@ -211,12 +210,10 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
               IconButton(
                 icon: const Icon(Icons.chevron_right),
                 onPressed: () {
-                  setState(
-                    () => _selectedMonth = DateTime(
-                      _selectedMonth.year,
-                      _selectedMonth.month + 1,
-                    ),
-                  );
+                  setState(() => _selectedMonth = DateTime(
+                        _selectedMonth.year,
+                        _selectedMonth.month + 1,
+                      ));
                   _loadShifts();
                 },
               ),
@@ -277,8 +274,7 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
   // 新增/編輯排班 Dialog
   Future<void> _showShiftDialog({WorkShiftModel? shift}) async {
     // 預設時間：如果是新增，預設為選定月份的1號早上9點
-    DateTime start =
-        shift?.startTime ??
+    DateTime start = shift?.startTime ??
         DateTime(
           _selectedMonth.year,
           _selectedMonth.month,
@@ -390,3 +386,4 @@ class _StaffDetailScreenState extends State<StaffDetailScreen>
     );
   }
 }
+
