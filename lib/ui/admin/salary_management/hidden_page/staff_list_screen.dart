@@ -36,7 +36,7 @@ class StaffListScreen extends StatelessWidget {
                   subtitle: const Text('點擊管理排班與薪資設定'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
-                    // 🔥 點擊後跳轉到您剛剛做的 StaffDetailScreen
+                    // 點擊後跳轉到 StaffDetailScreen
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -53,3 +53,4 @@ class StaffListScreen extends StatelessWidget {
     );
   }
 }
+

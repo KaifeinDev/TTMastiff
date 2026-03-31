@@ -17,6 +17,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   AuthManager get _auth => widget.authManager ?? authManager;
 
+  final _formKey = GlobalKey<FormState>();
+
   // 初始化 AuthRepository
   // 控制輸入框
   final _emailController = TextEditingController();
@@ -25,6 +27,8 @@ class _LoginScreenState extends State<LoginScreen> {
   // UI 狀態
   bool _isLoading = false;
   bool _obscurePassword = true; // 控制密碼是否隱藏
+  String? _emailErrorText;
+  String? _passwordErrorText;
 
   // 釋放記憶體
   @override
@@ -41,12 +45,13 @@ class _LoginScreenState extends State<LoginScreen> {
     // final email = "admin@admin.com";
     // final password = "test123";
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('請輸入 Email 和密碼')));
-      return;
-    }
+    setState(() {
+      _emailErrorText = null;
+      _passwordErrorText = null;
+    });
+
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
 
     setState(() {
       _isLoading = true;
@@ -65,7 +70,32 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      showErrorSnackBar(context, e);
+      final formatted = formatErrorMessage(e);
+
+      // 盡量把常見登入錯誤映射成你要的文字
+      final lower = formatted.toLowerCase();
+      final bool isCredentialError = lower.contains('invalid') &&
+          (lower.contains('credential') ||
+              lower.contains('credentials') ||
+              lower.contains('login') ||
+              lower.contains('password') ||
+              lower.contains('email'));
+      setState(() {
+        if (isCredentialError) {
+          _emailErrorText = '帳號或密碼錯誤';
+          _passwordErrorText = '帳號或密碼錯誤';
+        } else {
+          // 非憑證錯誤：先顯示在密碼欄位下（避免兩欄都顯示重複訊息）
+          _passwordErrorText = formatted;
+          _emailErrorText = null;
+        }
+      });
+
+      // 觸發 validator 讓錯誤字串出現在輸入框下方
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _formKey.currentState?.validate();
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -103,42 +133,73 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Email 輸入框
-                  TextField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 密碼輸入框
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    onSubmitted: (value) {
-                      _handleLogin();
-                    },
-                    decoration: InputDecoration(
-                      labelText: '密碼',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.lock),
-                      // 顯示/隱藏密碼的眼睛按鈕
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        // Email 輸入框
+                        TextFormField(
+                          controller: _emailController,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.email),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          validator: (val) {
+                            if (_emailErrorText != null) {
+                              return _emailErrorText;
+                            }
+                            if (val == null || val.trim().isEmpty) {
+                              return '請輸入 Email';
+                            }
+                            if (!val.contains('@')) {
+                              return '請輸入有效的 Email';
+                            }
+                            return null;
+                          },
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
+                        const SizedBox(height: 16),
+
+                        // 密碼輸入框
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          onFieldSubmitted: (_) => _handleLogin(),
+                          decoration: InputDecoration(
+                            labelText: '密碼',
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.lock),
+                            // 顯示/隱藏密碼的眼睛按鈕
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
+                          ),
+                          validator: (val) {
+                            if (_passwordErrorText != null) {
+                              return _passwordErrorText;
+                            }
+                            if (val == null || val.isEmpty) {
+                              return '請輸入密碼';
+                            }
+                            // 對齊註冊：至少 8 碼
+                            if (val.length < 6) {
+                              return '密碼長度至少需 6 碼';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 24),
