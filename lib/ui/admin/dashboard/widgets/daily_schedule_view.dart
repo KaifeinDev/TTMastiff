@@ -841,7 +841,9 @@ class _DailyScheduleViewState extends State<DailyScheduleView> {
       // 條件 1: 沒有分配桌子 (這是最嚴重的，因為會導致在表格上消失)
       final noTable = s.tables.isEmpty;
       // 條件 2: 沒有分配教練 (選用，視你的需求決定這算不算異常)
-      final noCoach = s.coachIds.isEmpty;
+      // rental 課：就算沒分配教練也不顯示在待排定清單。
+      final isRental = s.category == 'rental';
+      final noCoach = s.coachIds.isEmpty && !isRental;
 
       return noTable || noCoach;
     }).toList();

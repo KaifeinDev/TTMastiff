@@ -3,7 +3,12 @@ import 'package:go_router/go_router.dart';
 
 class AdminScaffold extends StatefulWidget {
   final Widget child;
-  const AdminScaffold({super.key, required this.child});
+  final bool isAdmin;
+  const AdminScaffold({
+    super.key,
+    required this.child,
+    required this.isAdmin,
+  });
 
   @override
   State<AdminScaffold> createState() => _AdminScaffoldState();
@@ -82,13 +87,14 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           textColor: textColor,
           iconColor: iconColor,
         ),
-        _AdminMenuItem(
-          icon: Icons.receipt_long,
-          title: '帳務管理',
-          route: '/admin/transactions',
-          textColor: textColor,
-          iconColor: iconColor,
-        ),
+        if (widget.isAdmin)
+          _AdminMenuItem(
+            icon: Icons.receipt_long,
+            title: '帳務管理',
+            route: '/admin/transactions',
+            textColor: textColor,
+            iconColor: iconColor,
+          ),
         _AdminMenuItem(
           icon: Icons.table_restaurant,
           title: '桌次管理',
@@ -103,27 +109,14 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           textColor: textColor,
           iconColor: iconColor,
         ),
-        _AdminMenuItem(
-          icon: Icons.manage_accounts, // 或 Icons.people_alt
-          title: '人員管理',
-          route: '/admin/staff_list', // 連到列表頁
-          textColor: textColor,
-          iconColor: iconColor,
-        ),
-        _AdminMenuItem(
-          icon: Icons.analytics_outlined, // 或 Icons.insert_chart
-          title: '薪資分析',
-          route: '/admin/salary_analytics',
-          textColor: textColor,
-          iconColor: iconColor,
-        ),
-        _AdminMenuItem(
-          icon: Icons.event,
-          title: '活動管理',
-          route: '/admin/activities',
-          textColor: textColor,
-          iconColor: iconColor,
-        ),
+        if (widget.isAdmin)
+          _AdminMenuItem(
+            icon: Icons.event,
+            title: '活動管理',
+            route: '/admin/activities',
+            textColor: textColor,
+            iconColor: iconColor,
+          ),
         _AdminMenuItem(
           icon: Icons.calendar_view_week_rounded, // 或 Icons.grid_on_rounded
           title: '教練排班', // 或 '排班矩陣'

@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:ttmastiff/main.dart';
 
 import '../../../data/models/student_model.dart';
-import '../../../data/models/course_model.dart';
-import '../../../data/models/session_model.dart';
 import '../../../data/models/booking_model.dart';
 import '../../../core/utils/util.dart';
 
@@ -17,23 +14,16 @@ class UserListScreen extends StatefulWidget {
 }
 
 class _UserListScreenState extends State<UserListScreen> {
-  // 篩選狀態
-  List<CourseModel> _courses = [];
-  CourseModel? _selectedCourse;
-  List<SessionModel> _sessions = [];
-  SessionModel? _selectedSession;
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
 
   // 學員列表（包含完整資訊）
   List<Map<String, dynamic>> _studentDataList = []; // 存儲完整的學員數據
   bool _isLoading = false;
-  bool _isLoadingFilter = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCourses();
   }
 
   @override
@@ -41,57 +31,6 @@ class _UserListScreenState extends State<UserListScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadCourses() async {
-    try {
-      final courses = await courseRepository.getCourses();
-      if (mounted) {
-        setState(() {
-          _courses = courses;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        showErrorSnackBar(context, e, prefix: '載入課程失敗：');
-      }
-    }
-  }
-
-  Future<void> _loadSessions(String courseId) async {
-    setState(() {
-      _isLoadingFilter = true;
-      _selectedSession = null;
-      _sessions = [];
-    });
-
-    try {
-      // 查詢該課程的所有場次
-      final sessions = await sessionRepository.getSessionsByCourse(courseId);
-      if (mounted) {
-        setState(() {
-          _sessions = sessions;
-          _isLoadingFilter = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingFilter = false);
-        showErrorSnackBar(context, e, prefix: '載入場次失敗：');
-      }
-    }
-  }
-
-  Future<void> _onCourseChanged(CourseModel? course) async {
-    setState(() {
-      _selectedCourse = course;
-      _selectedSession = null;
-      _sessions = [];
-    });
-
-    if (course != null) {
-      await _loadSessions(course.id);
-    }
   }
 
   Future<void> _searchStudents() async {
@@ -103,8 +42,8 @@ class _UserListScreenState extends State<UserListScreen> {
     try {
       // 查詢時就包含完整資訊（包括報名課程）
       final results = await studentRepository.fetchStudentsByFilter(
-        courseId: _selectedCourse?.id,
-        sessionId: _selectedSession?.id,
+        courseId: null,
+        sessionId: null,
         name: _nameController.text.trim().isEmpty
             ? null
             : _nameController.text.trim(),
@@ -155,76 +94,6 @@ class _UserListScreenState extends State<UserListScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 課程選擇
-                DropdownButtonFormField<CourseModel>(
-                  initialValue: _selectedCourse,
-                  isExpanded: true, // 讓下拉選單可以展開，避免溢出
-                  decoration: const InputDecoration(
-                    labelText: '選擇課程',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.book),
-                  ),
-                  items: [
-                    const DropdownMenuItem<CourseModel>(
-                      value: null,
-                      child: Text('全部課程'),
-                    ),
-                    ..._courses.map((course) {
-                      return DropdownMenuItem<CourseModel>(
-                        value: course,
-                        child: Text(
-                          course.title,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      );
-                    }),
-                  ],
-                  onChanged: _onCourseChanged,
-                ),
-                const SizedBox(height: 16),
-
-                // 場次選擇
-                if (_selectedCourse != null)
-                  DropdownButtonFormField<SessionModel>(
-                    initialValue: _selectedSession,
-                    decoration: InputDecoration(
-                      labelText: '選擇場次',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.calendar_today),
-                      suffixIcon: _isLoadingFilter
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : null,
-                    ),
-                    items: [
-                      const DropdownMenuItem<SessionModel>(
-                        value: null,
-                        child: Text('全部場次'),
-                      ),
-                      ..._sessions.map((session) {
-                        final dateFormat = DateFormat(
-                          'MM/dd (E) HH:mm',
-                          'zh_TW',
-                        );
-                        return DropdownMenuItem<SessionModel>(
-                          value: session,
-                          child: Text(
-                            '${dateFormat.format(session.startTime)} - ${DateFormat('HH:mm').format(session.endTime)}',
-                          ),
-                        );
-                      }),
-                    ],
-                    onChanged: (session) {
-                      setState(() => _selectedSession = session);
-                    },
-                  ),
-
-                const SizedBox(height: 16),
-
                 // 名字搜尋
                 TextField(
                   controller: _nameController,
@@ -234,7 +103,8 @@ class _UserListScreenState extends State<UserListScreen> {
                     prefixIcon: Icon(Icons.person),
                     hintText: '輸入姓名進行模糊搜尋',
                   ),
-                  textInputAction: TextInputAction.next,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _searchStudents(),
                 ),
                 const SizedBox(height: 16),
 
@@ -248,7 +118,8 @@ class _UserListScreenState extends State<UserListScreen> {
                     prefixIcon: Icon(Icons.phone),
                     hintText: '輸入電話進行模糊搜尋',
                   ),
-                  textInputAction: TextInputAction.done,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _searchStudents(),
                 ),
                 const SizedBox(height: 16),
 
@@ -292,7 +163,7 @@ class _UserListScreenState extends State<UserListScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          '目前還沒有學員報名這堂課！',
+                          '目前還沒有符合條件的學員！',
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 16,
