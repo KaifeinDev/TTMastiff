@@ -206,7 +206,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       if (mounted) {
         String message =
             '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
-        Color dialogTextColor;
+        Color dialogTextColor = Colors.black87;
         String dialogTitle = '報名作業完成';
 
         if (successCount > 0) {
@@ -230,7 +230,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           }
         } else {
           // B. 沒有任何成功新增：全部都是重複 / 衝堂 / 或被餘額檢查略過
-          snackBarColor = Colors.grey.shade700;
+          dialogTextColor = Colors.grey.shade800;
           message = '沒有新增任何報名';
 
           if (alreadyBookedStudents.isNotEmpty) {
