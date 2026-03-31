@@ -27,6 +27,7 @@ class BatchEnrollDialog extends StatefulWidget {
 class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
   // 🔥 改成：已選擇的學生列表 (手動加入)
   final List<StudentModel> _targetStudents = [];
+  final Map<String, int> _creditByParentId = {};
 
   // 選取的場次 ID
   final Set<String> _selectedSessionIds = {};
@@ -57,6 +58,7 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
       setState(() {
         _targetStudents.add(selectedStudent);
       });
+      await _refreshCreditsForTargets();
     }
   }
 
@@ -64,6 +66,31 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
   void _removeStudent(StudentModel student) {
     setState(() {
       _targetStudents.removeWhere((s) => s.id == student.id);
+      final stillUsed = _targetStudents.any((s) => s.parentId == student.parentId);
+      if (!stillUsed) {
+        _creditByParentId.remove(student.parentId);
+      }
+    });
+  }
+
+  Future<void> _refreshCreditsForTargets() async {
+    final parentIds = _targetStudents.map((s) => s.parentId).toSet();
+    if (parentIds.isEmpty) return;
+
+    final creditsEntries = await Future.wait(
+      parentIds.map(
+        (parentId) async => MapEntry(
+          parentId,
+          await creditRepository.getCurrentCredit(parentId),
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _creditByParentId
+        ..clear()
+        ..addAll(Map<String, int>.fromEntries(creditsEntries));
     });
   }
 
@@ -210,11 +237,6 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final totalCost =
-        _selectedSessionIds.length *
-        _targetStudents.length *
-        widget.pricePerSession;
-
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -424,7 +446,9 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                             student.name.substring(0, 1),
                                           ),
                                         ),
-                                        title: Text(student.name),
+                                        title: Text(
+                                          '${student.name} (剩餘點數: ${_creditByParentId[student.parentId] ?? 0})',
+                                        ),
                                         trailing: IconButton(
                                           icon: const Icon(
                                             Icons.remove_circle_outline,
@@ -451,23 +475,9 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '共 ${_targetStudents.length} 人 x ${_selectedSessionIds.length} 堂',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '總計扣點: $totalCost',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ],
+                Text(
+                  '共 ${_targetStudents.length} 人 x ${_selectedSessionIds.length} 堂',
+                  style: TextStyle(color: Colors.grey.shade600),
                 ),
                 const SizedBox(width: 24),
                 OutlinedButton(

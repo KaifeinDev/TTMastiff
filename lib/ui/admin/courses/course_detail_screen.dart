@@ -283,12 +283,14 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
             const SizedBox(width: 8),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _openBatchGenerator,
-          tooltip: '批量排課', // 滑鼠靠上去會顯示這個文字
-          backgroundColor: Colors.blue.shade50, // 建議用顯眼的顏色
-          child: const Icon(Icons.add),
-        ),
+        floatingActionButton: !_isAdmin
+            ? null
+            : FloatingActionButton(
+                onPressed: _openBatchGenerator,
+                tooltip: '批量排課', // 滑鼠靠上去會顯示這個文字
+                backgroundColor: Colors.blue.shade50, // 建議用顯眼的顏色
+                child: const Icon(Icons.add),
+              ),
         body: Column(
           children: [
             // 1. 頂部資訊儀表板 (新增的)
