@@ -169,7 +169,12 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   }
 
   Future<void> _showAddStudentDialog() async {
-    final existingIds = _roster.map((booking) => booking.studentId).toSet();
+    // 只將「仍為 confirmed 狀態」的學生視為已加入；
+    // 已取消 (cancelled) 的舊單應該允許再次被選進來報名。
+    final existingIds = _roster
+        .where((booking) => booking.status == 'confirmed')
+        .map((booking) => booking.studentId)
+        .toSet();
     final StudentModel? selectedStudent = await showDialog<StudentModel>(
       context: context,
       builder: (context) =>
