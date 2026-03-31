@@ -188,9 +188,20 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         // 這裡傳入課程原價作為快照，或是後端會再驗證一次價格
         priceSnapshot: _course!.price,
       );
-      final successCount = result['success'] ?? 0;
-      final skippedCount = result['skipped'] ?? 0;
-      final totalCost = result['totalCost'] ?? 0;
+      final successCount = (result['success'] ?? 0) as int;
+      final totalCost = (result['totalCost'] ?? 0) as int;
+      final alreadyBookedIds =
+          (result['alreadyBooked'] as List<dynamic>? ?? []).cast<String>();
+      final conflictedIds =
+          (result['conflicted'] as List<dynamic>? ?? []).cast<String>();
+
+      List<StudentModel> studentsFromIds(Iterable<String> ids) {
+        final idSet = ids.toSet();
+        return selectedStudents.where((s) => idSet.contains(s.id)).toList();
+      }
+
+      final alreadyBookedStudents = studentsFromIds(alreadyBookedIds);
+      final conflictedStudents = studentsFromIds(conflictedIds);
 
       if (mounted) {
         String message = '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
@@ -201,22 +212,35 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           snackBarColor = Colors.green;
           message = '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
 
-          if (skippedCount > 0) {
-            message += '\n(另有 $skippedCount 堂因重複而略過)';
+          if (alreadyBookedStudents.isNotEmpty) {
+            message +=
+                '\n已報名：${_formatStudentNames(alreadyBookedStudents)}';
+          }
+          if (conflictedStudents.isNotEmpty) {
+            message +=
+                '\n同時段已有課程：${_formatStudentNames(conflictedStudents)}';
           }
 
           if (insufficientStudents.isNotEmpty) {
             message +=
-                '\n(另有 ${insufficientStudents.length} 位餘額不足：${_formatStudentNames(insufficientStudents)} 已略過)';
+                '\n餘額不足：${_formatStudentNames(insufficientStudents)}';
           }
         } else {
-          // B. 全部都是重複，沒有任何變動 (灰色)
+          // B. 沒有任何成功新增：全部都是重複 / 衝堂 / 或被餘額檢查略過
           snackBarColor = Colors.grey.shade700;
-          message = '沒有新增任何報名\n(所有選擇的項目皆已報名過)';
+          message = '沒有新增任何報名';
 
+          if (alreadyBookedStudents.isNotEmpty) {
+            message +=
+                '\n已報名：${_formatStudentNames(alreadyBookedStudents)}';
+          }
+          if (conflictedStudents.isNotEmpty) {
+            message +=
+                '\n同時段已有課程：${_formatStudentNames(conflictedStudents)}';
+          }
           if (insufficientStudents.isNotEmpty) {
             message +=
-                '\n(另有 ${insufficientStudents.length} 位餘額不足：${_formatStudentNames(insufficientStudents)} 已略過)';
+                '\n餘額不足：${_formatStudentNames(insufficientStudents)}';
           }
         }
 
