@@ -34,6 +34,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   List<BookingModel> _roster = [];
   bool _isLoadingRoster = false;
   bool get _isAdmin => authManager.isAdmin;
+  bool get _isStaff => authManager.isAdmin || authManager.isCoach;
 
   // Tab 2: 場次設定變數
   // final _locationController = TextEditingController();
@@ -50,6 +51,8 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   List<TableModel> _tables = [];
   List<String> _selectedTableIds = [];
   bool _isLoadingTables = true;
+  final Set<String> _busyTableIds = {};
+  final Set<String> _busyCoachIds = {};
 
   @override
   void initState() {
@@ -69,6 +72,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     _fetchCoaches();
     _fetchRoster();
     _loadTables();
+    _refreshAvailability();
   }
 
   @override
@@ -105,6 +109,30 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     } catch (e, st) {
       logError(e, st);
       if (mounted) setState(() => _isLoadingTables = false);
+    }
+  }
+
+  Future<void> _refreshAvailability() async {
+    setState(() {
+      _busyTableIds.clear();
+      _busyCoachIds.clear();
+    });
+
+    try {
+      final result = await sessionRepository.getResourceBusySummary(
+        startTime: _startDateTime,
+        endTime: _endDateTime,
+        excludeSessionId: widget.session.id,
+      );
+
+      _busyTableIds.addAll(result.busyTableIds);
+      _busyCoachIds.addAll(result.busyCoachIds);
+    } catch (e, st) {
+      logError(e, st);
+    } finally {
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -169,7 +197,12 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   }
 
   Future<void> _showAddStudentDialog() async {
-    final existingIds = _roster.map((booking) => booking.studentId).toSet();
+    // 只將「仍為 confirmed 狀態」的學生視為已加入；
+    // 已取消 (cancelled) 的舊單應該允許再次被選進來報名。
+    final existingIds = _roster
+        .where((booking) => booking.status == 'confirmed')
+        .map((booking) => booking.studentId)
+        .toSet();
     final StudentModel? selectedStudent = await showDialog<StudentModel>(
       context: context,
       builder: (context) =>
@@ -185,6 +218,20 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     setState(() => _isLoadingRoster = true);
 
     try {
+      // 先做顯示層的衝堂檢查，讓管理員得到明確的錯誤訊息。
+      final hasConflict = await bookingRepository.hasTimeConflictForStudent(
+        studentId: student.id,
+        sessionId: widget.session.id,
+      );
+      if (hasConflict) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('加入失敗：該學員同時段已有其他課程')));
+        }
+        return;
+      }
+
       // 🔥 重點：直接呼叫 repository 的批次報名，但只傳入一筆資料
       // 這樣我們就不用重寫「檢查名額、扣點數、寫入DB」的複雜邏輯
       final result = await bookingRepository.createBatchBooking(
@@ -206,7 +253,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           // 報名成功後，刷新名單
           _fetchRoster();
         } else {
-          // 可能是重複報名或被略過
+          // 可能是重複報名或被略過（例如已報名過或餘額不足）
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('加入失敗：該學員可能已報名或餘額不足')));
@@ -305,6 +352,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
         _endDateTime = newDateTime;
       }
     });
+    await _refreshAvailability();
   }
 
   Future<void> _submitSettings() async {
@@ -444,7 +492,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   Widget _buildRosterView() {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: _isExpired || !_isAdmin
+      floatingActionButton: _isExpired || !_isStaff
           ? null
           : FloatingActionButton.extended(
               onPressed: _showAddStudentDialog,
@@ -554,21 +602,27 @@ class _SessionEditDialogState extends State<SessionEditDialog>
       builder: (ctx) {
         return SimpleDialog(
           title: const Text('選擇要加入的教練'),
-          children: availableCoaches.map((coach) {
+          children: availableCoaches.map<Widget>((coach) {
+            final coachId = coach['id'] as String;
+            final bool isBusy = _busyCoachIds.contains(coachId);
             return SimpleDialogOption(
+              onPressed: isBusy
+                  ? null
+                  : () {
+                      // 3. 點選後加入清單並更新 UI
+                      setState(() {
+                        _selectedCoachIds.add(coachId);
+                        _recalcCapacity(); // 連動人數
+                      });
+                      Navigator.pop(ctx); // 關閉對話框
+                    },
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
               child: Text(
-                coach['full_name'] ?? '未命名',
+                isBusy
+                    ? '${coach['full_name'] ?? '未命名'} (已佔用)'
+                    : coach['full_name'] ?? '未命名',
                 style: const TextStyle(fontSize: 16),
               ),
-              onPressed: () {
-                // 3. 點選後加入清單並更新 UI
-                setState(() {
-                  _selectedCoachIds.add(coach['id']);
-                  _recalcCapacity(); // 連動人數
-                });
-                Navigator.pop(ctx); // 關閉對話框
-              },
             );
           }).toList(),
         );
@@ -632,54 +686,59 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                     runSpacing: 8.0, // 垂直間距 (與教練區塊一致)
                     children: displayTables.map((table) {
                       final isSelected = _selectedTableIds.contains(table.id);
-                      final isDisabled = _isExpired || !_isAdmin;
+                      final isBusy = _busyTableIds.contains(table.id);
+                      final isDisabled = _isExpired || !_isAdmin || isBusy;
 
-                      return FilterChip(
-                        // 🔥 1. 樣式設定 (與教練完全一致)
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      return Tooltip(
+                        message: isBusy ? '此時段已有其他排程使用' : '',
+                        child: FilterChip(
+                          // 🔥 1. 樣式設定 (與教練完全一致)
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
 
-                        label: Text(
-                          table.name,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isSelected
-                                ? Colors.blue.shade900
-                                : Colors.black87,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                          label: Text(
+                            isBusy ? '${table.name} (已佔用)' : table.name,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isSelected
+                                  ? Colors.blue.shade900
+                                  : Colors.black87,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
                           ),
-                        ),
 
-                        // 🔥 2. 顏色設定
-                        selected: isSelected,
-                        selectedColor: Colors.blue.shade50,
-                        backgroundColor: Colors.white,
-                        disabledColor: Colors.grey.shade100,
-                        checkmarkColor: Colors.blue.shade700,
+                          // 🔥 2. 顏色設定
+                          selected: isSelected,
+                          selectedColor: Colors.blue.shade50,
+                          backgroundColor: Colors.white,
+                          disabledColor: Colors.grey.shade100,
+                          checkmarkColor: Colors.blue.shade700,
 
-                        // 🔥 3. 形狀設定 (StadiumBorder)
-                        shape: StadiumBorder(
-                          side: BorderSide(
-                            color: isSelected
-                                ? Colors.blue.shade200
-                                : Colors.grey.shade300,
+                          // 🔥 3. 形狀設定 (StadiumBorder)
+                          shape: StadiumBorder(
+                            side: BorderSide(
+                              color: isSelected
+                                  ? Colors.blue.shade200
+                                  : Colors.grey.shade300,
+                            ),
                           ),
-                        ),
 
-                        // 🔥 4. 互動邏輯
-                        onSelected: isDisabled
-                            ? null
-                            : (bool selected) {
-                                setState(() {
-                                  if (selected) {
-                                    _selectedTableIds.add(table.id);
-                                  } else {
-                                    _selectedTableIds.remove(table.id);
-                                  }
-                                });
-                              },
+                          // 🔥 4. 互動邏輯
+                          onSelected: isDisabled
+                              ? null
+                              : (bool selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedTableIds.add(table.id);
+                                    } else {
+                                      _selectedTableIds.remove(table.id);
+                                    }
+                                  });
+                                },
+                        ),
                       );
                     }).toList(),
                   ),
@@ -710,6 +769,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                       (c) => c['id'] == id,
                       orElse: () => {'full_name': '未知'},
                     );
+                    final isBusy = _busyCoachIds.contains(id);
 
                     return InputChip(
                       // 🔥 1. 統一密度設定
@@ -728,7 +788,9 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                         ),
                       ),
                       label: Text(
-                        coach['full_name'],
+                        isBusy
+                            ? '${coach['full_name']} (已佔用)'
+                            : coach['full_name'],
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.blue.shade900,

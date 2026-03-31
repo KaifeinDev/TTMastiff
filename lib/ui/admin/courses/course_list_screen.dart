@@ -8,14 +8,9 @@ import 'widgets/course_edit_dialog.dart';
 
 // 🔥 引入 CourseModel
 import '../../../../data/models/course_model.dart';
-import '../../screens/widgets/class_category.dart';
 
 class CourseListScreen extends StatefulWidget {
-  const CourseListScreen({
-    super.key,
-    this.courseRepository,
-    this.authManager,
-  });
+  const CourseListScreen({super.key, this.courseRepository, this.authManager});
 
   final CourseRepository? courseRepository;
   final AuthManager? authManager;
@@ -31,10 +26,8 @@ class _CourseListScreenState extends State<CourseListScreen>
   List<CourseModel> _archivedCourses = []; // 已封存
 
   bool _isLoading = true;
-  CourseRepository get _repo =>
-      widget.courseRepository ?? courseRepository;
-  bool get _isAdmin =>
-      (widget.authManager ?? authManager).isAdmin;
+  CourseRepository get _repo => widget.courseRepository ?? courseRepository;
+  bool get _isAdmin => (widget.authManager ?? authManager).isAdmin;
   late TabController _tabController;
 
   @override
@@ -105,10 +98,7 @@ class _CourseListScreenState extends State<CourseListScreen>
     setState(() => _isLoading = true);
 
     try {
-      await _repo.toggleCoursePublishStatus(
-        course.id,
-        isCurrentlyPublished,
-      );
+      await _repo.toggleCoursePublishStatus(course.id, isCurrentlyPublished);
 
       if (mounted) {
         ScaffoldMessenger.of(
@@ -231,11 +221,13 @@ class _CourseListScreenState extends State<CourseListScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCourseDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('新增課程'),
-      ),
+      floatingActionButton: !_isAdmin
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showCourseDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('新增課程'),
+            ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
@@ -326,13 +318,37 @@ class _CourseListScreenState extends State<CourseListScreen>
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              ClassCategory(
-                                category: course.category,
-                                isArchived: isArchived,
-                                borderRadius: 4,
+                              Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isArchived
+                                      ? Colors.grey.shade300
+                                      : (course.category == 'group'
+                                            ? Colors.orange.shade100
+                                            : course.category == 'personal'
+                                            ? Colors.blue.shade100
+                                            : Colors.green.shade100),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  course.category == 'group'
+                                      ? '團體課'
+                                      : course.category == 'personal'
+                                      ? '個人課'
+                                      : '租桌',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isArchived
+                                        ? Colors.grey.shade600
+                                        : (course.category == 'group'
+                                              ? Colors.orange.shade900
+                                              : course.category == 'personal'
+                                              ? Colors.blue.shade900
+                                              : Colors.green.shade900),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),

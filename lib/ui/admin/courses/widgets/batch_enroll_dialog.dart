@@ -27,11 +27,21 @@ class BatchEnrollDialog extends StatefulWidget {
 class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
   // 🔥 改成：已選擇的學生列表 (手動加入)
   final List<StudentModel> _targetStudents = [];
+  final Map<String, int> _creditByParentId = {};
 
   // 選取的場次 ID
   final Set<String> _selectedSessionIds = {};
 
   bool _isSubmitting = false;
+
+  String _formatStudentNames(List<StudentModel> students) {
+    if (students.isEmpty) return '';
+    if (students.length <= 5) {
+      return students.map((s) => s.name).join('、');
+    }
+    final first = students.take(5).map((s) => s.name).join('、');
+    return '$first 等 ${students.length} 人';
+  }
 
   // 開啟搜尋視窗
   Future<void> _openSearchDialog() async {
@@ -48,6 +58,7 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
       setState(() {
         _targetStudents.add(selectedStudent);
       });
+      await _refreshCreditsForTargets();
     }
   }
 
@@ -55,6 +66,31 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
   void _removeStudent(StudentModel student) {
     setState(() {
       _targetStudents.removeWhere((s) => s.id == student.id);
+      final stillUsed = _targetStudents.any((s) => s.parentId == student.parentId);
+      if (!stillUsed) {
+        _creditByParentId.remove(student.parentId);
+      }
+    });
+  }
+
+  Future<void> _refreshCreditsForTargets() async {
+    final parentIds = _targetStudents.map((s) => s.parentId).toSet();
+    if (parentIds.isEmpty) return;
+
+    final creditsEntries = await Future.wait(
+      parentIds.map(
+        (parentId) async => MapEntry(
+          parentId,
+          await creditRepository.getCurrentCredit(parentId),
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _creditByParentId
+        ..clear()
+        ..addAll(Map<String, int>.fromEntries(creditsEntries));
     });
   }
 
@@ -70,15 +106,74 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
     setState(() => _isSubmitting = true);
 
     try {
+      // Phase 1：批次報名點數不足的「前端攔截」
+      // BookingRepository 端如果餘額不足會直接 throw，導致整批失敗；
+      // 這裡先計算每位學員「需要的扣點」(單堂扣點 * 選擇場次數)，只送餘額足夠者進後端。
+      final int sessionCount = _selectedSessionIds.length;
+      final int perStudentCost = widget.pricePerSession * sessionCount;
+
+      // 逐一扣預算：同一個 parentId 可能有多位學生，因此要用 remainingCredits 逐筆分配。
+      final Set<String> parentIds =
+          _targetStudents.map((s) => s.parentId).toSet();
+      final creditsEntries = await Future.wait(
+        parentIds.map(
+          (parentId) async => MapEntry(
+            parentId,
+            await creditRepository.getCurrentCredit(parentId),
+          ),
+        ),
+      );
+      final Map<String, int> remainingCredits = Map.fromEntries(creditsEntries);
+
+      final List<StudentModel> eligibleStudents = [];
+      final List<StudentModel> insufficientStudents = [];
+
+      for (final student in _targetStudents) {
+        final remaining = remainingCredits[student.parentId] ?? 0;
+        if (remaining >= perStudentCost) {
+          eligibleStudents.add(student);
+          remainingCredits[student.parentId] = remaining - perStudentCost;
+        } else {
+          insufficientStudents.add(student);
+        }
+      }
+
+      if (eligibleStudents.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red.shade700,
+              content: Text(
+                '餘額不足，無法完成批次報名。\n略過：${_formatStudentNames(insufficientStudents)}',
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       final result = await bookingRepository.createBatchBooking(
         sessionIds: _selectedSessionIds.toList(),
-        studentIds: _targetStudents.map((s) => s.id).toList(), // 🔥 取出 ID
+        // 只送餘額足夠的學員去後端扣點
+        studentIds: eligibleStudents.map((s) => s.id).toList(),
         priceSnapshot: widget.pricePerSession,
       );
 
-      final successCount = result['success'] ?? 0;
-      final skippedCount = result['skipped'] ?? 0;
-      final totalCost = result['totalCost'] ?? 0;
+      final successCount = (result['success'] ?? 0) as int;
+      final totalCost = (result['totalCost'] ?? 0) as int;
+      final alreadyBookedIds =
+          (result['alreadyBooked'] as List<dynamic>? ?? []).cast<String>();
+      final conflictedIds =
+          (result['conflicted'] as List<dynamic>? ?? []).cast<String>();
+
+      List<StudentModel> studentsFromIds(Iterable<String> ids) {
+        final idSet = ids.toSet();
+        return _targetStudents.where((s) => idSet.contains(s.id)).toList();
+      }
+
+      final alreadyBookedStudents = studentsFromIds(alreadyBookedIds);
+      final conflictedStudents = studentsFromIds(conflictedIds);
 
       if (mounted) {
         String message;
@@ -88,13 +183,35 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
           snackBarColor = Colors.green;
           message = '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
 
-          if (skippedCount > 0) {
-            message += '\n(另有 $skippedCount 堂因重複而略過)';
+          if (alreadyBookedStudents.isNotEmpty) {
+            message +=
+                '\n已報名：${_formatStudentNames(alreadyBookedStudents)}';
+          }
+          if (conflictedStudents.isNotEmpty) {
+            message +=
+                '\n同時段已有課程：${_formatStudentNames(conflictedStudents)}';
+          }
+
+          if (insufficientStudents.isNotEmpty) {
+            message += '\n(另有 ${insufficientStudents.length} 位餘額不足：${_formatStudentNames(insufficientStudents)} 已略過)';
           }
         } else {
-          // B. 全部都是重複，沒有任何變動 (灰色)
+          // B. 沒有任何成功新增：全部都是重複 / 衝堂
           snackBarColor = Colors.grey.shade700;
-          message = '沒有新增任何報名\n(所有選擇的項目皆已報名過)';
+          message = '沒有新增任何報名';
+
+          if (alreadyBookedStudents.isNotEmpty) {
+            message +=
+                '\n已報名：${_formatStudentNames(alreadyBookedStudents)}';
+          }
+          if (conflictedStudents.isNotEmpty) {
+            message +=
+                '\n同時段已有課程：${_formatStudentNames(conflictedStudents)}';
+          }
+
+          if (insufficientStudents.isNotEmpty) {
+            message += '\n(另有 ${insufficientStudents.length} 位餘額不足：${_formatStudentNames(insufficientStudents)} 已略過)';
+          }
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -120,11 +237,6 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final totalCost =
-        _selectedSessionIds.length *
-        _targetStudents.length *
-        widget.pricePerSession;
-
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -334,7 +446,9 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
                                             student.name.substring(0, 1),
                                           ),
                                         ),
-                                        title: Text(student.name),
+                                        title: Text(
+                                          '${student.name} (剩餘點數: ${_creditByParentId[student.parentId] ?? 0})',
+                                        ),
                                         trailing: IconButton(
                                           icon: const Icon(
                                             Icons.remove_circle_outline,
@@ -361,23 +475,9 @@ class _BatchEnrollDialogState extends State<BatchEnrollDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '共 ${_targetStudents.length} 人 x ${_selectedSessionIds.length} 堂',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '總計扣點: $totalCost',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ],
+                Text(
+                  '共 ${_targetStudents.length} 人 x ${_selectedSessionIds.length} 堂',
+                  style: TextStyle(color: Colors.grey.shade600),
                 ),
                 const SizedBox(width: 24),
                 OutlinedButton(

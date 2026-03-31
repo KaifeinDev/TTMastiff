@@ -15,7 +15,6 @@ import '../../../../data/models/session_model.dart';
 import 'widgets/batch_session_dialog.dart';
 import 'widgets/session_edit_dialog.dart';
 import 'widgets/batch_enroll_dialog.dart';
-import '../../screens/widgets/class_category.dart';
 
 class AdminCourseDetailScreen extends StatefulWidget {
   final String courseId;
@@ -52,10 +51,8 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
       widget.courseRepository ?? courseRepository;
   SessionRepository get _sessionRepo =>
       widget.sessionRepository ?? sessionRepository;
-  CoachRepository get _coachRepo =>
-      widget.coachRepository ?? coachRepository;
-  bool get _isAdmin =>
-      (widget.authManager ?? authManager).isAdmin;
+  CoachRepository get _coachRepo => widget.coachRepository ?? coachRepository;
+  bool get _isAdmin => (widget.authManager ?? authManager).isAdmin;
 
   bool _isLoading = true;
 
@@ -85,9 +82,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
       }
 
       // 2. 抓取 Sessions (Repo 現在回傳 List<SessionModel>)
-      final sessions = await _sessionRepo.getSessionsByCourse(
-        widget.courseId,
-      );
+      final sessions = await _sessionRepo.getSessionsByCourse(widget.courseId);
 
       final coachesList = await _coachRepo.getCoaches();
       final coachMap = {
@@ -288,12 +283,14 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
             const SizedBox(width: 8),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _openBatchGenerator,
-          tooltip: '批量排課', // 滑鼠靠上去會顯示這個文字
-          backgroundColor: Colors.blue.shade50, // 建議用顯眼的顏色
-          child: const Icon(Icons.add),
-        ),
+        floatingActionButton: !_isAdmin
+            ? null
+            : FloatingActionButton(
+                onPressed: _openBatchGenerator,
+                tooltip: '批量排課', // 滑鼠靠上去會顯示這個文字
+                backgroundColor: Colors.blue.shade50, // 建議用顯眼的顏色
+                child: const Icon(Icons.add),
+              ),
         body: Column(
           children: [
             // 1. 頂部資訊儀表板 (新增的)
@@ -337,6 +334,9 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
     final coachNames = s.coachIds.map((id) => _coachMap[id] ?? '未知').join(', ');
     final hasCoach = s.coachIds.isNotEmpty;
     final hasStudents = s.studentNames.isNotEmpty;
+    final int baseCoursePrice = _courseData.price;
+    final int sessionPrice = s.displayPrice;
+    final bool isSessionPriceAdjusted = sessionPrice != baseCoursePrice;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -478,6 +478,42 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                                 color: Colors.black87,
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.sell_outlined,
+                              size: 18,
+                              color: Colors.black54,
+                            ),
+                            const SizedBox(width: 8),
+                            if (isSessionPriceAdjusted) ...[
+                              Text(
+                                '\$$sessionPrice',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '(課程價: \$$baseCoursePrice)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                            ] else
+                              Text(
+                                '\$$sessionPrice',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
                           ],
                         ),
                       ],
@@ -723,17 +759,40 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
             children: [
               Row(
                 children: [
-                  ClassCategory(
-                    category: _courseData.category,
+                  Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 2,
                     ),
-                    borderRadius: 4,
-                    showBorder: true,
-                    textStyle: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                    decoration: BoxDecoration(
+                      color: _courseData.category == 'group'
+                          ? Colors.orange.shade50
+                          : _courseData.category == 'personal'
+                          ? Colors.blue.shade50
+                          : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: _courseData.category == 'group'
+                            ? Colors.orange.shade200
+                            : _courseData.category == 'personal'
+                            ? Colors.blue.shade200
+                            : Colors.green.shade200,
+                      ),
+                    ),
+                    child: Text(
+                      _courseData.category == 'group'
+                          ? '團體班'
+                          : _courseData.category == 'personal'
+                          ? '個人課'
+                          : '租桌',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _courseData.category == 'group'
+                            ? Colors.orange.shade800
+                            : _courseData.category == 'personal'
+                            ? Colors.blue.shade900
+                            : Colors.green.shade900,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),

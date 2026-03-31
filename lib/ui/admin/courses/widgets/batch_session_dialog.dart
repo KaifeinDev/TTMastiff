@@ -15,7 +15,7 @@ class BatchSessionDialog extends StatefulWidget {
   final TimeOfDay defaultStartTime;
   final TimeOfDay defaultEndTime;
   final String category; // 'group', 'personal', 'rental'
-  final int defaultPrice; // 如果是 rental，這裡代表「時薪」
+  final int defaultPrice; // 如果是 rental，這裡代表「價格」
 
   const BatchSessionDialog({
     super.key,
@@ -33,6 +33,7 @@ class BatchSessionDialog extends StatefulWidget {
 class _BatchSessionDialogState extends State<BatchSessionDialog> {
   DateTimeRange? _dateRange;
   final Set<int> _selectedWeekdays = {};
+  final Set<int> _availableWeekdays = {};
 
   // 本地維護的起訖時間
   late TimeOfDay _startTime;
@@ -46,12 +47,15 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
   Map<String, dynamic>? _selectedRenter;
   final TextEditingController _guestNameController = TextEditingController();
   final TextEditingController _guestPhoneController = TextEditingController();
+  String? _guestPhoneError;
   String _paymentMethod = 'credit'; // 'credit' or 'cash'
 
   // 桌次與容量
   List<TableModel> _tables = [];
   final List<String> _selectedTableIds = [];
   bool _isLoadingTables = true;
+  final Set<String> _busyTableIds = {};
+  final Set<String> _busyCoachIds = {};
   final TextEditingController _capacityController = TextEditingController();
 
   // 手動調整最終價格
@@ -124,6 +128,13 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
     });
   }
 
+  String? _validateGuestPhone(String value) {
+    if (value.isEmpty) return null; // 選填
+    if (!RegExp(r'^\d+$').hasMatch(value)) return '電話只能輸入數字';
+    if (value.length > 10) return '電話最多 10 碼';
+    return null;
+  }
+
   Future<void> _pickTime(bool isStart) async {
     final picked = await showTimePicker(
       context: context,
@@ -138,6 +149,8 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
         }
         _calculateAndSetPrice();
       });
+      // 時間變更後，重新評估資源占用狀態
+      await _refreshAvailability();
     }
   }
 
@@ -227,6 +240,90 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
     return count;
   }
 
+  void _updateAvailableWeekdays() {
+    _availableWeekdays.clear();
+    if (_dateRange == null) return;
+
+    DateTime day = _dateRange!.start;
+    final endDay = _dateRange!.end;
+    while (!day.isAfter(endDay)) {
+      _availableWeekdays.add(day.weekday);
+      day = day.add(const Duration(days: 1));
+    }
+
+    // 移除不在範圍內的已選 weekday，避免產生無效場次
+    _selectedWeekdays.removeWhere((w) => !_availableWeekdays.contains(w));
+  }
+
+  Future<void> _refreshAvailability() async {
+    if (_dateRange == null || _selectedWeekdays.isEmpty) {
+      setState(() {
+        _busyTableIds.clear();
+        _busyCoachIds.clear();
+      });
+      return;
+    }
+
+    final Set<String> nextBusyTables = {};
+    final Set<String> nextBusyCoaches = {};
+
+    try {
+      DateTime currentDay = _dateRange!.start;
+      final endDay = _dateRange!.end;
+
+      while (!currentDay.isAfter(endDay)) {
+        if (_selectedWeekdays.contains(currentDay.weekday)) {
+          final start = DateTime(
+            currentDay.year,
+            currentDay.month,
+            currentDay.day,
+            _startTime.hour,
+            _startTime.minute,
+          );
+          final end = DateTime(
+            currentDay.year,
+            currentDay.month,
+            currentDay.day,
+            _endTime.hour,
+            _endTime.minute,
+          );
+          final finalEnd = end.isBefore(start)
+              ? end.add(const Duration(days: 1))
+              : end;
+
+          final result = await sessionRepository.getResourceBusySummary(
+            startTime: start,
+            endTime: finalEnd,
+          );
+
+          nextBusyTables.addAll(result.busyTableIds);
+          nextBusyCoaches.addAll(result.busyCoachIds);
+        }
+        currentDay = currentDay.add(const Duration(days: 1));
+      }
+    } catch (e) {
+      if (mounted) {
+        showErrorDialog(context, e, title: '載入資源占用狀態失敗');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busyTableIds
+            ..clear()
+            ..addAll(nextBusyTables);
+          _busyCoachIds
+            ..clear()
+            ..addAll(nextBusyCoaches);
+
+          // 清掉已被別的排程佔用的桌次與教練，避免仍然勾選衝突選項
+          _selectedTableIds.removeWhere(_busyTableIds.contains);
+          _selectedCoachIds.removeWhere(_busyCoachIds.contains);
+          _updateCapacity();
+        });
+      }
+    }
+  }
+
   Future<void> _generate() async {
     if (_dateRange == null || _selectedWeekdays.isEmpty) {
       ScaffoldMessenger.of(
@@ -251,6 +348,14 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('現場散客請輸入姓名')));
+        return;
+      }
+      final phoneError = _validateGuestPhone(_guestPhoneController.text.trim());
+      if (phoneError != null) {
+        setState(() => _guestPhoneError = phoneError);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(phoneError)));
         return;
       }
     }
@@ -427,7 +532,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
               labelText: _isRental ? '本次總費用 (可手動修改)' : '單堂費用',
               prefixText: '\$ ',
               suffixText: _isRental
-                  ? '(時薪: \$${widget.defaultPrice}/hr)'
+                  ? '(價格: \$${widget.defaultPrice}/每桌)'
                   : null,
               border: const OutlineInputBorder(),
               filled: true,
@@ -528,12 +633,24 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     Expanded(
                       child: TextField(
                         controller: _guestPhoneController,
-                        decoration: const InputDecoration(
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _guestPhoneError = _validateGuestPhone(value);
+                          });
+                        },
+                        decoration: InputDecoration(
                           labelText: '電話 (選填)',
                           isDense: true,
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           fillColor: Colors.white,
                           filled: true,
+                          counterText: '',
+                          errorText: _guestPhoneError,
                         ),
                       ),
                     ),
@@ -652,20 +769,25 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
       context: context,
       builder: (ctx) => SimpleDialog(
         title: const Text('選擇要加入的教練'),
-        children: availableCoaches.map((coach) {
+        children: availableCoaches.map<Widget>((coach) {
+          final bool isBusy = _busyCoachIds.contains(coach['id']);
           return SimpleDialogOption(
+            onPressed: isBusy
+                ? null
+                : () {
+                    setState(() {
+                      _selectedCoachIds.add(coach['id']);
+                      _updateCapacity();
+                    });
+                    Navigator.pop(ctx);
+                  },
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
             child: Text(
-              coach['full_name'] ?? '未命名',
+              isBusy
+                  ? '${coach['full_name'] ?? '未命名'} (已安排)'
+                  : coach['full_name'] ?? '未命名',
               style: const TextStyle(fontSize: 16),
             ),
-            onPressed: () {
-              setState(() {
-                _selectedCoachIds.add(coach['id']);
-                _updateCapacity();
-              });
-              Navigator.pop(ctx);
-            },
           );
         }).toList(),
       ),
@@ -706,7 +828,13 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(const Duration(days: 365)),
                   );
-                  if (range != null) setState(() => _dateRange = range);
+                  if (range != null) {
+                    setState(() {
+                      _dateRange = range;
+                      _updateAvailableWeekdays();
+                    });
+                    await _refreshAvailability();
+                  }
                 },
               ),
               const SizedBox(height: 16),
@@ -724,11 +852,19 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     FilterChip(
                       label: Text(_weekdayName(i)),
                       selected: _selectedWeekdays.contains(i),
-                      onSelected: (val) => setState(
-                        () => val
-                            ? _selectedWeekdays.add(i)
-                            : _selectedWeekdays.remove(i),
-                      ),
+                      onSelected: _availableWeekdays.contains(i)
+                          ? (val) async {
+                              setState(() {
+                                if (val) {
+                                  _selectedWeekdays.add(i);
+                                } else {
+                                  _selectedWeekdays.remove(i);
+                                }
+                              });
+                              await _refreshAvailability();
+                            }
+                          : null,
+                      disabledColor: Colors.grey.shade200,
                     ),
                 ],
               ),
@@ -758,13 +894,28 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                       child: Wrap(
                         spacing: 8.0,
                         children: _tables.map((table) {
-                          return FilterChip(
-                            label: Text(table.name),
-                            selected: _selectedTableIds.contains(table.id),
-                            onSelected: (val) => setState(
-                              () => val
-                                  ? _selectedTableIds.add(table.id)
-                                  : _selectedTableIds.remove(table.id),
+                          final bool isBusy = _busyTableIds.contains(table.id);
+                          final bool isSelected = _selectedTableIds.contains(
+                            table.id,
+                          );
+                          return Tooltip(
+                            message: isBusy ? '此時段已有其他排程使用' : '',
+                            child: FilterChip(
+                              label: Text(
+                                isBusy ? '${table.name} (已安排)' : table.name,
+                              ),
+                              selected: isSelected,
+                              onSelected: isBusy
+                                  ? null
+                                  : (val) {
+                                      setState(() {
+                                        if (val) {
+                                          _selectedTableIds.add(table.id);
+                                        } else {
+                                          _selectedTableIds.remove(table.id);
+                                        }
+                                      });
+                                    },
                             ),
                           );
                         }).toList(),

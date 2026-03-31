@@ -13,9 +13,59 @@ class BookingRepository {
   static final RefreshSignal bookingRefreshSignal = RefreshSignal();
   BookingRepository(this._supabase, this._creditRepo, this._transactionRepo);
 
+  /// 檢查同一學生在目標場次時間區間內，是否已經有其他「confirmed」課程（衝堂）。
+  Future<bool> _hasTimeConflict({
+    required String studentId,
+    required String sessionId,
+    String? startIso,
+    String? endIso,
+  }) async {
+    String effectiveStartIso = startIso ?? '';
+    String effectiveEndIso = endIso ?? '';
+
+    // 若呼叫端沒有提供時間區間，再回查 session 取得
+    if (effectiveStartIso.isEmpty || effectiveEndIso.isEmpty) {
+      final session = await _supabase
+          .from('sessions')
+          .select('start_time, end_time')
+          .eq('id', sessionId)
+          .maybeSingle();
+      if (session == null) return false;
+
+      final startRaw = session['start_time'];
+      final endRaw = session['end_time'];
+      if (startRaw == null || endRaw == null) return false;
+
+      effectiveStartIso = startRaw.toString();
+      effectiveEndIso = endRaw.toString();
+    }
+
+    // 查詢同一學生在此時間範圍內，是否有其他 confirmed booking
+    final List<dynamic> rows = await _supabase
+        .from('bookings')
+        .select('id, session_id, sessions!inner(start_time, end_time)')
+        .eq('student_id', studentId)
+        .eq('status', 'confirmed')
+        .neq('session_id', sessionId)
+        // 時間重疊條件：已存在的課程 start_time < 目標 end_time 且 end_time > 目標 start_time
+        .lt('sessions.start_time', effectiveEndIso)
+        .gt('sessions.end_time', effectiveStartIso)
+        .limit(1);
+
+    return rows.isNotEmpty;
+  }
+
+  /// 提供給 UI / 其他層使用的公開衝堂檢查介面。
+  Future<bool> hasTimeConflictForStudent({
+    required String studentId,
+    required String sessionId,
+  }) {
+    return _hasTimeConflict(studentId: studentId, sessionId: sessionId);
+  }
+
   ///// 批量建立預約 (支援多位學生 x 多個場次)
   /// 邏輯：建立預約 -> 嘗試扣款 -> 若扣款失敗則回滾(刪除預約)
-  Future<Map<String, int>> createBatchBooking({
+  Future<Map<String, dynamic>> createBatchBooking({
     required List<String> sessionIds,
     required List<String> studentIds,
     required int priceSnapshot,
@@ -28,7 +78,7 @@ class BookingRepository {
     // 1. 查詢課程資訊 (包含 max_capacity)
     final List<dynamic> sessionsData = await _supabase
         .from('sessions')
-        .select('id, max_capacity, start_time, courses(title)')
+        .select('id, max_capacity, start_time, end_time, courses(title)')
         .filter('id', 'in', sessionIds);
 
     final List<dynamic> studentsData = await _supabase
@@ -57,6 +107,8 @@ class BookingRepository {
     int successCount = 0;
     int skippedCount = 0;
     int totalDeducted = 0;
+    final Set<String> alreadyBookedStudentIds = {};
+    final Set<String> conflictedStudentIds = {};
 
     // 2. 雙重迴圈處理
     for (final studentId in studentIds) {
@@ -76,6 +128,9 @@ class BookingRepository {
         final String courseName = sessionData['courses']['title'] ?? '課程';
         final int maxCapacity = sessionData['max_capacity'] ?? 0;
         final DateTime startTime = DateTime.parse(sessionData['start_time']);
+        final DateTime? endTime = sessionData['end_time'] != null
+            ? DateTime.parse(sessionData['end_time'])
+            : null;
         final String sessionTimeStr = DateFormat(
           'MM/dd HH:mm',
         ).format(startTime.toLocal());
@@ -94,7 +149,27 @@ class BookingRepository {
           );
         }
 
-        // 🔥 [檢查 2] 是否已存在紀錄
+        // 🔥 [檢查 2] 衝堂檢查：同一學生在此時間區間內是否已有其他 confirmed 課程
+        if (endTime != null) {
+          final hasConflict = await _hasTimeConflict(
+            studentId: studentId,
+            sessionId: sessionId,
+            startIso: startTime.toIso8601String(),
+            endIso: endTime.toIso8601String(),
+          );
+          if (hasConflict) {
+            skippedCount++;
+            conflictedStudentIds.add(studentId);
+            logError(
+              Exception(
+                '批量報名：學生 $studentName ($studentId) 與 "$courseName" ($sessionTimeStr) 衝堂，已略過',
+              ),
+            );
+            continue;
+          }
+        }
+
+        // 🔥 [檢查 3] 是否已存在紀錄
         final existing = await _supabase
             .from('bookings')
             .select()
@@ -108,8 +183,9 @@ class BookingRepository {
           final String bookingId = existing['id'];
 
           if (currentStatus == 'confirmed') {
-            // A-1. 已經報名成功 -> 略過（正常流程，不印 log）
+            // A-1. 已經報名成功 -> 略過
             skippedCount++;
+            alreadyBookedStudentIds.add(studentId);
             continue;
           } else if (currentStatus == 'cancelled') {
             // A-2. 曾經報名但取消 -> 復活訂單 (Revive)
@@ -197,11 +273,13 @@ class BookingRepository {
     // 3. 通知 UI 刷新
     bookingRefreshSignal.notify();
 
-    // 4. 回傳統計數據
+    // 4. 回傳統計數據與略過原因
     return {
       'success': successCount,
       'skipped': skippedCount,
       'totalCost': totalDeducted,
+      'alreadyBooked': alreadyBookedStudentIds.toList(),
+      'conflicted': conflictedStudentIds.toList(),
     };
   }
 
@@ -499,7 +577,7 @@ class BookingRepository {
     // 1. 查詢課程資訊 (為了拿到 課程名稱 和 最大容量)
     final sessionData = await _supabase
         .from('sessions')
-        .select('id, max_capacity, start_time,courses(title)')
+        .select('id, max_capacity, start_time, end_time, courses(title)')
         .eq('id', sessionId)
         .single();
 
@@ -578,6 +656,19 @@ class BookingRepository {
         }
       }
     } else {
+      // 4. 衝堂檢查：同一學生在此時間區間內是否已有其他 confirmed 課程
+      if (sessionData['end_time'] != null) {
+        final hasConflict = await _hasTimeConflict(
+          studentId: studentId,
+          sessionId: sessionId,
+          startIso: sessionData['start_time'].toString(),
+          endIso: sessionData['end_time'].toString(),
+        );
+        if (hasConflict) {
+          throw Exception('該學員同時段已有其他課程');
+        }
+      }
+
       // [情況 B] 全新報名 (Insert)
 
       // B-1. 建立預約

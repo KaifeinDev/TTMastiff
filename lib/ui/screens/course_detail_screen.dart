@@ -36,6 +36,15 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   final Set<String> _selectedStudentIds = {};
   final Set<String> _selectedSessionIds = {};
 
+  String _formatStudentNames(List<StudentModel> students) {
+    if (students.isEmpty) return '';
+    if (students.length <= 5) {
+      return students.map((s) => s.name).join('、');
+    }
+    final first = students.take(5).map((s) => s.name).join('、');
+    return '$first 等 ${students.length} 人';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -117,22 +126,87 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     setState(() => _isBooking = true);
 
     try {
-      // 這裡呼叫 Repository 進行批量寫入
-      // 注意：實際實作 BookingRepository 時，建議要能處理不同 Session 不同價格的情況
+      // Phase 1：批次報名點數不足的前端攔截
+      final int sessionCount = _selectedSessionIds.length;
+      final int perStudentCost = _course!.price * sessionCount;
+
+      final List<StudentModel> selectedStudents = _myStudents
+          .where((s) => _selectedStudentIds.contains(s.id))
+          .toList();
+
+      final Set<String> parentIds =
+          selectedStudents.map((s) => s.parentId).toSet();
+
+      final creditsEntries = await Future.wait(
+        parentIds.map(
+          (parentId) async => MapEntry(
+            parentId,
+            await creditRepository.getCurrentCredit(parentId),
+          ),
+        ),
+      );
+
+      final Map<String, int> remainingCredits =
+          Map.fromEntries(creditsEntries);
+
+      final List<StudentModel> eligibleStudents = [];
+      final List<StudentModel> insufficientStudents = [];
+
+      // 逐位分配預算：同一個 parentId 可能對應多位學生
+      for (final student in selectedStudents) {
+        final remaining = remainingCredits[student.parentId] ?? 0;
+        if (remaining >= perStudentCost) {
+          eligibleStudents.add(student);
+          remainingCredits[student.parentId] = remaining - perStudentCost;
+        } else {
+          insufficientStudents.add(student);
+        }
+      }
+
+      if (eligibleStudents.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red.shade700,
+              content: Text(
+                '餘額不足，無法完成批次報名。\n略過：${_formatStudentNames(insufficientStudents)}',
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      final List<String> eligibleStudentIds =
+          eligibleStudents.map((s) => s.id).toList();
+
+      // 呼叫 Repository 進行批量寫入（僅針對餘額足夠者）
       final result = await bookingRepository.createBatchBooking(
         sessionIds: _selectedSessionIds.toList(),
-        studentIds: _selectedStudentIds.toList(),
+        studentIds: eligibleStudentIds,
         // 這裡傳入課程原價作為快照，或是後端會再驗證一次價格
         priceSnapshot: _course!.price,
       );
-      final successCount = result['success'] ?? 0;
-      final skippedCount = result['skipped'] ?? 0;
-      final totalCost = result['totalCost'] ?? 0;
+      final successCount = (result['success'] ?? 0) as int;
+      final totalCost = (result['totalCost'] ?? 0) as int;
+      final alreadyBookedIds =
+          (result['alreadyBooked'] as List<dynamic>? ?? []).cast<String>();
+      final conflictedIds =
+          (result['conflicted'] as List<dynamic>? ?? []).cast<String>();
+
+      List<StudentModel> studentsFromIds(Iterable<String> ids) {
+        final idSet = ids.toSet();
+        return selectedStudents.where((s) => idSet.contains(s.id)).toList();
+      }
+
+      final alreadyBookedStudents = studentsFromIds(alreadyBookedIds);
+      final conflictedStudents = studentsFromIds(conflictedIds);
 
       if (mounted) {
         String message =
             '報名作業完成！\n成功: $successCount 堂，扣除 $totalCost 點';
-        Color dialogTextColor;
+        Color dialogTextColor = Colors.black87;
         String dialogTitle = '報名作業完成';
 
         if (successCount > 0) {
@@ -141,13 +215,36 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           message =
               '成功: $successCount 堂，扣除 $totalCost 點';
 
-          if (skippedCount > 0) {
-            message += '\n(另有 $skippedCount 堂因重複而略過)';
+          if (alreadyBookedStudents.isNotEmpty) {
+            message +=
+                '\n已報名：${_formatStudentNames(alreadyBookedStudents)}';
+          }
+          if (conflictedStudents.isNotEmpty) {
+            message +=
+                '\n同時段已有課程：${_formatStudentNames(conflictedStudents)}';
+          }
+
+          if (insufficientStudents.isNotEmpty) {
+            message +=
+                '\n餘額不足：${_formatStudentNames(insufficientStudents)}';
           }
         } else {
-          dialogTextColor = Colors.grey.shade700;
-          message = '沒有新增任何報名\n(所有選擇的項目皆已報名過)';
-          dialogTitle = '報名完成';
+          // B. 沒有任何成功新增：全部都是重複 / 衝堂 / 或被餘額檢查略過
+          dialogTextColor = Colors.grey.shade800;
+          message = '沒有新增任何報名';
+
+          if (alreadyBookedStudents.isNotEmpty) {
+            message +=
+                '\n已報名：${_formatStudentNames(alreadyBookedStudents)}';
+          }
+          if (conflictedStudents.isNotEmpty) {
+            message +=
+                '\n同時段已有課程：${_formatStudentNames(conflictedStudents)}';
+          }
+          if (insufficientStudents.isNotEmpty) {
+            message +=
+                '\n餘額不足：${_formatStudentNames(insufficientStudents)}';
+          }
         }
 
         await showDialog<void>(
@@ -171,8 +268,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         if (!mounted) return;
         // 清空選擇 & 刷新資料，並回到上一頁
         setState(() {
-          _selectedStudentIds.clear();
-          _selectedSessionIds.clear();
+          if (insufficientStudents.isEmpty) {
+            _selectedStudentIds.clear();
+            _selectedSessionIds.clear();
+          } else {
+            // 只移除已成功可扣款的學生；餘額不足的學生保留供後續儲值後重試
+            _selectedStudentIds.removeAll(eligibleStudentIds);
+          }
         });
         await _loadData();
         if (!mounted) return;
