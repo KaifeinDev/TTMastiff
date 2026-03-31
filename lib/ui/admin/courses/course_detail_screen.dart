@@ -15,7 +15,6 @@ import '../../../../data/models/session_model.dart';
 import 'widgets/batch_session_dialog.dart';
 import 'widgets/session_edit_dialog.dart';
 import 'widgets/batch_enroll_dialog.dart';
-import '../../screens/widgets/class_category.dart';
 
 class AdminCourseDetailScreen extends StatefulWidget {
   final String courseId;
@@ -760,8 +759,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
             children: [
               Row(
                 children: [
-                  ClassCategory(
-                    category: _courseData.category,
+                  Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 2,

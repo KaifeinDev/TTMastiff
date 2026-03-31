@@ -772,13 +772,6 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
         children: availableCoaches.map<Widget>((coach) {
           final bool isBusy = _busyCoachIds.contains(coach['id']);
           return SimpleDialogOption(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-            child: Text(
-              isBusy
-                  ? '${coach['full_name'] ?? '未命名'} (已安排)'
-                  : coach['full_name'] ?? '未命名',
-              style: const TextStyle(fontSize: 16),
-            ),
             onPressed: isBusy
                 ? null
                 : () {
@@ -788,6 +781,13 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     });
                     Navigator.pop(ctx);
                   },
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+            child: Text(
+              isBusy
+                  ? '${coach['full_name'] ?? '未命名'} (已安排)'
+                  : coach['full_name'] ?? '未命名',
+              style: const TextStyle(fontSize: 16),
+            ),
           );
         }).toList(),
       ),

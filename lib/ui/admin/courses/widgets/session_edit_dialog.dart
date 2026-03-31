@@ -606,13 +606,6 @@ class _SessionEditDialogState extends State<SessionEditDialog>
             final coachId = coach['id'] as String;
             final bool isBusy = _busyCoachIds.contains(coachId);
             return SimpleDialogOption(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-              child: Text(
-                isBusy
-                    ? '${coach['full_name'] ?? '未命名'} (已佔用)'
-                    : coach['full_name'] ?? '未命名',
-                style: const TextStyle(fontSize: 16),
-              ),
               onPressed: isBusy
                   ? null
                   : () {
@@ -623,6 +616,13 @@ class _SessionEditDialogState extends State<SessionEditDialog>
                       });
                       Navigator.pop(ctx); // 關閉對話框
                     },
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              child: Text(
+                isBusy
+                    ? '${coach['full_name'] ?? '未命名'} (已佔用)'
+                    : coach['full_name'] ?? '未命名',
+                style: const TextStyle(fontSize: 16),
+              ),
             );
           }).toList(),
         );
