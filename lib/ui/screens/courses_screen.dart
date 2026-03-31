@@ -8,6 +8,7 @@ import '../../core/utils/util.dart';
 import '../../data/services/course_repository.dart';
 import '../../data/models/course_model.dart';
 import 'widgets/level_icon.dart';
+import 'widgets/class_category.dart';
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({
@@ -384,26 +385,12 @@ class _CourseCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 類型標籤
-                      Container(
+                      ClassCategory(
+                        category: course.category,
+                        borderRadius: 6,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: course.category == 'personal'
-                              ? Colors.purple.shade50
-                              : Color.fromARGB(30, 255, 122, 50),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          course.category == 'personal' ? '一對一' : '團體班',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: course.category == 'personal'
-                                ? Colors.purple
-                                : Colors.orange,
-                            fontWeight: FontWeight.bold,
-                          ),
                         ),
                       ),
                       const Spacer(),

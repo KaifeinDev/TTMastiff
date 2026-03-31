@@ -26,6 +26,7 @@ class StudentRepository {
   Future<void> addStudent({
     required String name,
     required DateTime birthDate,
+    required String gender,
     String? medicalNote,
   }) async {
     final userId = _supabase.auth.currentUser?.id;
@@ -43,6 +44,7 @@ class StudentRepository {
       'parent_id': userId,
       'name': name,
       'birth_date': birthDate.toIso8601String(),
+      'gender': gender,
       'medical_note': medicalNote,
       'avatar_url': avatarUrl,
       'is_primary': false,
@@ -71,7 +73,8 @@ class StudentRepository {
     await _supabase.from('students').update({'points': points}).eq('id', id);
   }
 
-  /// 根據課程和場次篩選學員（管理員用）
+  /// 管理員用：依 name / phone 篩選學員
+  /// （保留 courseId / sessionId 參數向後相容，但目前不再用於篩選）
   Future<List<Map<String, dynamic>>> fetchStudentsByFilter({
     String? courseId,
     String? sessionId,
@@ -98,50 +101,13 @@ class StudentRepository {
 
       List<Map<String, dynamic>> studentsData = [];
 
-      if (sessionId != null) {
-        final bookingsData = await _supabase
-            .from('bookings')
-            .select('students(*)')
-            .eq('session_id', sessionId)
-            .eq('status', 'confirmed');
-
-        for (var booking in bookingsData as List) {
-          if (booking['students'] != null) {
-            studentsData.add(booking['students'] as Map<String, dynamic>);
-          }
-        }
-      } else if (courseId != null) {
-        final sessionsResponse = await _supabase
-            .from('sessions')
-            .select('id')
-            .eq('course_id', courseId);
-
-        final sessionIds = (sessionsResponse as List)
-            .map((s) => s['id'] as String)
-            .toList();
-
-        if (sessionIds.isEmpty) {
-          return [];
-        }
-
-        final bookingsData = await _supabase
-            .from('bookings')
-            .select('students(*)')
-            .filter('session_id', 'in', sessionIds)
-            .eq('status', 'confirmed');
-
-        for (var booking in bookingsData as List) {
-          if (booking['students'] != null) {
-            studentsData.add(booking['students'] as Map<String, dynamic>);
-          }
-        }
-      } else {
-        final response = await _supabase
-            .from('students')
-            .select('*')
-            .order('created_at', ascending: true);
-        studentsData = List<Map<String, dynamic>>.from(response as List);
-      }
+      // 這邊刻意不再使用 courseId / sessionId 做篩選，
+      // 讓篩選條件只由 name / phone 決定。
+      final response = await _supabase
+          .from('students')
+          .select('*')
+          .order('created_at', ascending: true);
+      studentsData = List<Map<String, dynamic>>.from(response as List);
 
       final Map<String, StudentModel> uniqueStudents = {};
       final nameFilter = name?.trim().toLowerCase();

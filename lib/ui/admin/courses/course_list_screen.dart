@@ -8,6 +8,7 @@ import 'widgets/course_edit_dialog.dart';
 
 // 🔥 引入 CourseModel
 import '../../../../data/models/course_model.dart';
+import '../../screens/widgets/class_category.dart';
 
 class CourseListScreen extends StatefulWidget {
   const CourseListScreen({super.key, this.courseRepository, this.authManager});
@@ -318,7 +319,10 @@ class _CourseListScreenState extends State<CourseListScreen>
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              Container(
+                              ClassCategory(
+                                category: course.category,
+                                isArchived: isArchived,
+                                borderRadius: 4,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 2,
