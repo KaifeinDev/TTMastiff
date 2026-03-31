@@ -334,6 +334,9 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
     final coachNames = s.coachIds.map((id) => _coachMap[id] ?? '未知').join(', ');
     final hasCoach = s.coachIds.isNotEmpty;
     final hasStudents = s.studentNames.isNotEmpty;
+    final int baseCoursePrice = _courseData.price;
+    final int sessionPrice = s.displayPrice;
+    final bool isSessionPriceAdjusted = sessionPrice != baseCoursePrice;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -475,6 +478,42 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                                 color: Colors.black87,
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.sell_outlined,
+                              size: 18,
+                              color: Colors.black54,
+                            ),
+                            const SizedBox(width: 8),
+                            if (isSessionPriceAdjusted) ...[
+                              Text(
+                                '\$$sessionPrice',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '(課程價: \$$baseCoursePrice)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                            ] else
+                              Text(
+                                '\$$sessionPrice',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
                           ],
                         ),
                       ],
