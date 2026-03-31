@@ -15,7 +15,7 @@ class BatchSessionDialog extends StatefulWidget {
   final TimeOfDay defaultStartTime;
   final TimeOfDay defaultEndTime;
   final String category; // 'group', 'personal', 'rental'
-  final int defaultPrice; // 如果是 rental，這裡代表「時薪」
+  final int defaultPrice; // 如果是 rental，這裡代表「價格」
 
   const BatchSessionDialog({
     super.key,
@@ -47,6 +47,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
   Map<String, dynamic>? _selectedRenter;
   final TextEditingController _guestNameController = TextEditingController();
   final TextEditingController _guestPhoneController = TextEditingController();
+  String? _guestPhoneError;
   String _paymentMethod = 'credit'; // 'credit' or 'cash'
 
   // 桌次與容量
@@ -125,6 +126,13 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
     setState(() {
       _finalPriceController.text = totalPrice.toString();
     });
+  }
+
+  String? _validateGuestPhone(String value) {
+    if (value.isEmpty) return null; // 選填
+    if (!RegExp(r'^\d+$').hasMatch(value)) return '電話只能輸入數字';
+    if (value.length > 10) return '電話最多 10 碼';
+    return null;
   }
 
   Future<void> _pickTime(bool isStart) async {
@@ -342,6 +350,14 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
         ).showSnackBar(const SnackBar(content: Text('現場散客請輸入姓名')));
         return;
       }
+      final phoneError = _validateGuestPhone(_guestPhoneController.text.trim());
+      if (phoneError != null) {
+        setState(() => _guestPhoneError = phoneError);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(phoneError)));
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -516,7 +532,7 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
               labelText: _isRental ? '本次總費用 (可手動修改)' : '單堂費用',
               prefixText: '\$ ',
               suffixText: _isRental
-                  ? '(價格: \$${widget.defaultPrice}/hr)'
+                  ? '(價格: \$${widget.defaultPrice}/每桌)'
                   : null,
               border: const OutlineInputBorder(),
               filled: true,
@@ -617,12 +633,24 @@ class _BatchSessionDialogState extends State<BatchSessionDialog> {
                     Expanded(
                       child: TextField(
                         controller: _guestPhoneController,
-                        decoration: const InputDecoration(
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _guestPhoneError = _validateGuestPhone(value);
+                          });
+                        },
+                        decoration: InputDecoration(
                           labelText: '電話 (選填)',
                           isDense: true,
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           fillColor: Colors.white,
                           filled: true,
+                          counterText: '',
+                          errorText: _guestPhoneError,
                         ),
                       ),
                     ),

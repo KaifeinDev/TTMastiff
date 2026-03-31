@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ttmastiff/main.dart';
 import '../../../../core/utils/util.dart';
 import '../../../../data/models/student_model.dart';
 
@@ -16,6 +17,7 @@ class StudentSearchDialog extends StatefulWidget {
 class _StudentSearchDialogState extends State<StudentSearchDialog> {
   final TextEditingController _searchController = TextEditingController();
   List<StudentModel> _searchResults = [];
+  Map<String, int> _creditByParentId = {};
   bool _isLoading = false;
 
   @override
@@ -51,9 +53,21 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
           .map((e) => StudentModel.fromJson(e))
           .toList();
 
+      final parentIds = results.map((s) => s.parentId).toSet();
+      final creditsEntries = await Future.wait(
+        parentIds.map(
+          (parentId) async => MapEntry(
+            parentId,
+            await creditRepository.getCurrentCredit(parentId),
+          ),
+        ),
+      );
+      final creditsMap = Map<String, int>.fromEntries(creditsEntries);
+
       if (mounted) {
         setState(() {
           _searchResults = results;
+          _creditByParentId = creditsMap;
         });
       }
     } catch (e) {
@@ -126,7 +140,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                             ),
                           ),
                           title: Text(
-                            student.name,
+                            '${student.name} (剩餘點數: ${_creditByParentId[student.parentId] ?? 0})',
                             style: isGuestName
                                 ? const TextStyle(
                                     fontWeight: FontWeight.bold,

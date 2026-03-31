@@ -34,6 +34,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   List<BookingModel> _roster = [];
   bool _isLoadingRoster = false;
   bool get _isAdmin => authManager.isAdmin;
+  bool get _isStaff => authManager.isAdmin || authManager.isCoach;
 
   // Tab 2: 場次設定變數
   // final _locationController = TextEditingController();
@@ -491,7 +492,7 @@ class _SessionEditDialogState extends State<SessionEditDialog>
   Widget _buildRosterView() {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: _isExpired || !_isAdmin
+      floatingActionButton: _isExpired || !_isStaff
           ? null
           : FloatingActionButton.extended(
               onPressed: _showAddStudentDialog,

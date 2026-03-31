@@ -10,11 +10,7 @@ import 'widgets/course_edit_dialog.dart';
 import '../../../../data/models/course_model.dart';
 
 class CourseListScreen extends StatefulWidget {
-  const CourseListScreen({
-    super.key,
-    this.courseRepository,
-    this.authManager,
-  });
+  const CourseListScreen({super.key, this.courseRepository, this.authManager});
 
   final CourseRepository? courseRepository;
   final AuthManager? authManager;
@@ -30,10 +26,8 @@ class _CourseListScreenState extends State<CourseListScreen>
   List<CourseModel> _archivedCourses = []; // 已封存
 
   bool _isLoading = true;
-  CourseRepository get _repo =>
-      widget.courseRepository ?? courseRepository;
-  bool get _isAdmin =>
-      (widget.authManager ?? authManager).isAdmin;
+  CourseRepository get _repo => widget.courseRepository ?? courseRepository;
+  bool get _isAdmin => (widget.authManager ?? authManager).isAdmin;
   late TabController _tabController;
 
   @override
@@ -104,10 +98,7 @@ class _CourseListScreenState extends State<CourseListScreen>
     setState(() => _isLoading = true);
 
     try {
-      await _repo.toggleCoursePublishStatus(
-        course.id,
-        isCurrentlyPublished,
-      );
+      await _repo.toggleCoursePublishStatus(course.id, isCurrentlyPublished);
 
       if (mounted) {
         ScaffoldMessenger.of(
@@ -230,11 +221,13 @@ class _CourseListScreenState extends State<CourseListScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCourseDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('新增課程'),
-      ),
+      floatingActionButton: !_isAdmin
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showCourseDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('新增課程'),
+            ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
