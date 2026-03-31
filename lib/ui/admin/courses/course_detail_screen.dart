@@ -51,10 +51,8 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
       widget.courseRepository ?? courseRepository;
   SessionRepository get _sessionRepo =>
       widget.sessionRepository ?? sessionRepository;
-  CoachRepository get _coachRepo =>
-      widget.coachRepository ?? coachRepository;
-  bool get _isAdmin =>
-      (widget.authManager ?? authManager).isAdmin;
+  CoachRepository get _coachRepo => widget.coachRepository ?? coachRepository;
+  bool get _isAdmin => (widget.authManager ?? authManager).isAdmin;
 
   bool _isLoading = true;
 
@@ -84,9 +82,7 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
       }
 
       // 2. 抓取 Sessions (Repo 現在回傳 List<SessionModel>)
-      final sessions = await _sessionRepo.getSessionsByCourse(
-        widget.courseId,
-      );
+      final sessions = await _sessionRepo.getSessionsByCourse(widget.courseId);
 
       final coachesList = await _coachRepo.getCoaches();
       final coachMap = {
@@ -730,21 +726,31 @@ class _AdminCourseDetailScreenState extends State<AdminCourseDetailScreen> {
                     decoration: BoxDecoration(
                       color: _courseData.category == 'group'
                           ? Colors.orange.shade50
-                          : Colors.purple.shade50,
+                          : _courseData.category == 'personal'
+                          ? Colors.blue.shade50
+                          : Colors.green.shade50,
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
                         color: _courseData.category == 'group'
                             ? Colors.orange.shade200
-                            : Colors.purple.shade200,
+                            : _courseData.category == 'personal'
+                            ? Colors.blue.shade200
+                            : Colors.green.shade200,
                       ),
                     ),
                     child: Text(
-                      _courseData.category == 'group' ? '團體班' : '個人班',
+                      _courseData.category == 'group'
+                          ? '團體班'
+                          : _courseData.category == 'personal'
+                          ? '個人課'
+                          : '租桌',
                       style: TextStyle(
                         fontSize: 11,
                         color: _courseData.category == 'group'
                             ? Colors.orange.shade800
-                            : Colors.purple.shade800,
+                            : _courseData.category == 'personal'
+                            ? Colors.blue.shade900
+                            : Colors.green.shade900,
                       ),
                     ),
                   ),
