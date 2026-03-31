@@ -190,6 +190,20 @@ class _SessionEditDialogState extends State<SessionEditDialog>
     setState(() => _isLoadingRoster = true);
 
     try {
+      // 先做顯示層的衝堂檢查，讓管理員得到明確的錯誤訊息。
+      final hasConflict = await bookingRepository.hasTimeConflictForStudent(
+        studentId: student.id,
+        sessionId: widget.session.id,
+      );
+      if (hasConflict) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('加入失敗：該學員同時段已有其他課程')),
+          );
+        }
+        return;
+      }
+
       // 🔥 重點：直接呼叫 repository 的批次報名，但只傳入一筆資料
       // 這樣我們就不用重寫「檢查名額、扣點數、寫入DB」的複雜邏輯
       final result = await bookingRepository.createBatchBooking(
@@ -211,10 +225,14 @@ class _SessionEditDialogState extends State<SessionEditDialog>
           // 報名成功後，刷新名單
           _fetchRoster();
         } else {
-          // 可能是重複報名或被略過
+          // 可能是重複報名或被略過（例如已報名過或餘額不足）
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('加入失敗：該學員可能已報名或餘額不足')));
+          ).showSnackBar(
+            const SnackBar(
+              content: Text('加入失敗：該學員可能已報名或餘額不足'),
+            ),
+          );
         }
       }
     } catch (e) {
