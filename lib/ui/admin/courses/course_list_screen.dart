@@ -331,24 +331,30 @@ class _CourseListScreenState extends State<CourseListScreen>
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: course.category == 'group'
-                                      ? (isArchived
-                                            ? Colors.grey.shade300
-                                            : Colors.orange.shade100)
-                                      : (isArchived
-                                            ? Colors.grey.shade300
-                                            : Colors.blue.shade100),
+                                  color: isArchived
+                                      ? Colors.grey.shade300
+                                      : (course.category == 'group'
+                                            ? Colors.orange.shade100
+                                            : course.category == 'personal'
+                                            ? Colors.blue.shade100
+                                            : Colors.green.shade100),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  course.category == 'group' ? '團體課' : '個人課',
+                                  course.category == 'group'
+                                      ? '團體課'
+                                      : course.category == 'personal'
+                                      ? '個人課'
+                                      : '租桌',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: isArchived
                                         ? Colors.grey.shade600
                                         : (course.category == 'group'
                                               ? Colors.orange.shade900
-                                              : Colors.blue.shade900),
+                                              : course.category == 'personal'
+                                              ? Colors.blue.shade900
+                                              : Colors.green.shade900),
                                   ),
                                 ),
                               ),

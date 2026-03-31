@@ -13,6 +13,17 @@ enum ConflictType {
   courseDuplicate, // 同課程同時間重複 (選用)
 }
 
+/// 簡易的資源占用結果，提供給 UI 判斷哪些桌次/教練在指定時間區段「有被任何場次使用」。
+class ResourceBusyResult {
+  final Set<String> busyTableIds;
+  final Set<String> busyCoachIds;
+
+  const ResourceBusyResult({
+    required this.busyTableIds,
+    required this.busyCoachIds,
+  });
+}
+
 class ConflictResult {
   final ConflictType type;
   final String? message; // 顯示給使用者的詳細訊息
@@ -490,6 +501,9 @@ class SessionRepository {
     required String courseId,
     String? excludeSessionId,
   }) async {
+    final startUtcIso = startTime.toUtc().toIso8601String();
+    final endUtcIso = endTime.toUtc().toIso8601String();
+
     // 1. 查詢時間重疊的 Session
     final response = await _supabase
         .from('sessions')
@@ -498,8 +512,8 @@ class SessionRepository {
           course_id, table_ids, coach_ids,
           courses(title)
         ''')
-        .lt('start_time', endTime.toIso8601String())
-        .gt('end_time', startTime.toIso8601String());
+        .lt('start_time', endUtcIso)
+        .gt('end_time', startUtcIso);
 
     final List<dynamic> existingSessions = response;
 
@@ -583,6 +597,49 @@ class SessionRepository {
     }
 
     return ConflictResult(type: ConflictType.none);
+  }
+
+  /// 回傳在指定時間區段內「有被任何場次使用到」的桌次與教練 ID。
+  ///
+  /// - 給 UI 用來標記「已佔用」的資源，但**不會**拋出錯誤。
+  /// - `excludeSessionId` 用在編輯單一場次時，避免把自己算進占用清單裡。
+  Future<ResourceBusyResult> getResourceBusySummary({
+    required DateTime startTime,
+    required DateTime endTime,
+    String? excludeSessionId,
+  }) async {
+    final startUtcIso = startTime.toUtc().toIso8601String();
+    final endUtcIso = endTime.toUtc().toIso8601String();
+
+    final response = await _supabase
+        .from('sessions')
+        .select('id, table_ids, coach_ids')
+        .lt('start_time', endUtcIso)
+        .gt('end_time', startUtcIso);
+
+    final List<dynamic> rows = response;
+
+    final Set<String> busyTables = {};
+    final Set<String> busyCoaches = {};
+
+    for (final row in rows) {
+      if (excludeSessionId != null && row['id'] == excludeSessionId) {
+        continue;
+      }
+
+      final List<String> existingTableIds =
+          List<String>.from(row['table_ids'] ?? []);
+      final List<String> existingCoachIds =
+          List<String>.from(row['coach_ids'] ?? []);
+
+      busyTables.addAll(existingTableIds);
+      busyCoaches.addAll(existingCoachIds);
+    }
+
+    return ResourceBusyResult(
+      busyTableIds: busyTables,
+      busyCoachIds: busyCoaches,
+    );
   }
 
   /// 一次抓取一段時間範圍內的課程 (用於週曆視圖)

@@ -215,6 +215,7 @@ class SessionModel {
 
   /// UI 顯示用的標籤文字
   String get categoryText {
+    if (category == 'rental') return '租桌';
     if (category == 'personal') return '一對一';
     return '團體課';
   }
