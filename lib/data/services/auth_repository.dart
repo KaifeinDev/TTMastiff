@@ -119,18 +119,29 @@ class AuthRepository {
     await _supabase.auth.signOut();
   }
 
-  // 忘記密碼：寄送重設密碼信
-  Future<void> sendPasswordResetEmail(
-    String email, {
-    String? redirectTo,
+  // 忘記密碼：寄送 6 碼 OTP 到 Email
+  Future<void> sendPasswordResetOtp(String email) async {
+    try {
+      // 使用 recovery 流程寄送重設密碼驗證碼（由 Reset Password template 控制內容）
+      await _supabase.auth.resetPasswordForEmail(email);
+    } catch (e) {
+      throw Exception('寄送驗證碼失敗: $e');
+    }
+  }
+
+  // 驗證 Email OTP（成功後會建立 session，才能更新密碼）
+  Future<void> verifyPasswordResetOtp({
+    required String email,
+    required String otp,
   }) async {
     try {
-      await _supabase.auth.resetPasswordForEmail(
-        email,
-        redirectTo: redirectTo,
+      await _supabase.auth.verifyOTP(
+        email: email,
+        token: otp,
+        type: OtpType.recovery,
       );
     } catch (e) {
-      throw Exception('寄送重設密碼信失敗: $e');
+      throw Exception('驗證碼錯誤或已失效: $e');
     }
   }
 

@@ -111,12 +111,16 @@ class AuthManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 忘記密碼
-  Future<void> sendPasswordResetEmail(
-    String email, {
-    String? redirectTo,
+  // 忘記密碼：寄送 OTP
+  Future<void> sendPasswordResetOtp(String email) {
+    return _authRepository.sendPasswordResetOtp(email);
+  }
+
+  Future<void> verifyPasswordResetOtp({
+    required String email,
+    required String otp,
   }) {
-    return _authRepository.sendPasswordResetEmail(email, redirectTo: redirectTo);
+    return _authRepository.verifyPasswordResetOtp(email: email, otp: otp);
   }
 
   Future<void> updatePassword(String newPassword) {

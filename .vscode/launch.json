@@ -11,10 +11,11 @@
             "name": "Flutter-Web",
             "request": "launch",
             "type": "dart",
+            "deviceId": "chrome",
             "args": [
                 "--dart-define-from-file=.env",
-                "-d",
-                "chrome"
+                "--web-port",
+                "3000"
             ]
         },
         {

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ttmastiff/main.dart';
+import 'dart:async';
+import 'package:flutter/services.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key});
+  final String? initialEmail;
+
+  const ResetPasswordScreen({super.key, this.initialEmail});
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -12,109 +15,116 @@ class ResetPasswordScreen extends StatefulWidget {
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _passwordController = TextEditingController();
-  final _confirmController = TextEditingController();
+  final _otpController = TextEditingController();
 
-  bool _isSubmitting = false;
-  bool _obscurePassword = true;
-  bool _obscureConfirm = true;
-  bool _isCheckingRecoveryState = true;
-  bool _isRecoveryValid = false;
+  bool _isVerifying = false;
+  bool _isResending = false;
+  int _resendCountdown = 0;
+  Timer? _resendTimer;
+  late final String _email;
 
   @override
   void initState() {
     super.initState();
-    _checkRecoverySession();
+    _email = widget.initialEmail?.trim() ?? '';
   }
 
   @override
   void dispose() {
-    _passwordController.dispose();
-    _confirmController.dispose();
+    _resendTimer?.cancel();
+    _otpController.dispose();
     super.dispose();
   }
 
-  Future<void> _checkRecoverySession() async {
-    // Supabase 密碼重設連結會建立暫時 session；
-    // 若不存在，代表使用者不是從有效重設連結進來。
-    final currentSession = Supabase.instance.client.auth.currentSession;
-    final isValid = currentSession != null;
-    if (!mounted) return;
-    setState(() {
-      _isRecoveryValid = isValid;
-      _isCheckingRecoveryState = false;
+  void _startResendCountdown() {
+    _resendTimer?.cancel();
+    setState(() => _resendCountdown = 60);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCountdown <= 1) {
+        timer.cancel();
+        setState(() => _resendCountdown = 0);
+      } else {
+        setState(() => _resendCountdown -= 1);
+      }
     });
   }
 
-  Future<void> _submit() async {
-    if (!_isRecoveryValid) {
+  Future<void> _resendOtp() async {
+    if (_email.isEmpty || !_email.contains('@')) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('重設連結已失效，請重新申請')));
+      ).showSnackBar(const SnackBar(content: Text('請先輸入有效的 Email')));
       return;
     }
+    if (_resendCountdown > 0 || _isResending) return;
 
-    final valid = _formKey.currentState?.validate() ?? false;
-    if (!valid) return;
-
-    setState(() => _isSubmitting = true);
+    setState(() => _isResending = true);
     try {
-      await authManager.updatePassword(_passwordController.text.trim());
+      await authManager.sendPasswordResetOtp(_email);
       if (!mounted) return;
+      _startResendCountdown();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('密碼更新成功，請重新登入')));
-      await authManager.signOut();
-      if (!mounted) return;
-      context.go('/login');
+      ).showSnackBar(const SnackBar(content: Text('已重新寄送驗證碼')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('更新失敗：$e')));
+      ).showSnackBar(SnackBar(content: Text('重寄失敗：$e')));
     } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) setState(() => _isResending = false);
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    final valid = _formKey.currentState?.validate() ?? false;
+    if (!valid) return;
+
+    setState(() => _isVerifying = true);
+    try {
+      await authManager.verifyPasswordResetOtp(
+        email: _email,
+        otp: _otpController.text.trim(),
+      );
+      if (!mounted) return;
+      context.push('/reset-password/new');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('驗證失敗：$e')));
+    } finally {
+      if (mounted) setState(() => _isVerifying = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isCheckingRecoveryState) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    if (!_isRecoveryValid) {
+    if (_email.isEmpty || !_email.contains('@')) {
       return Scaffold(
         appBar: AppBar(title: const Text('重設密碼')),
         body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.link_off, size: 40, color: Colors.redAccent),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '重設連結已失效或不存在，請回登入頁重新申請忘記密碼。',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () => context.go('/login'),
-                    child: const Text('回登入頁'),
-                  ),
-                ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('缺少有效 Email，請從登入頁重新操作。'),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => context.go('/login'),
+                child: const Text('回登入頁'),
               ),
-            ),
+            ],
           ),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('重設密碼')),
+      appBar: AppBar(title: const Text('驗證 Email OTP')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -125,64 +135,56 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: '新密碼',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                      ),
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: '帳號 Email',
+                      border: OutlineInputBorder(),
                     ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return '請輸入新密碼';
-                      if (v.length < 6) return '密碼長度至少需 6 碼';
-                      return null;
-                    },
+                    child: Text(_email),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
-                    controller: _confirmController,
-                    obscureText: _obscureConfirm,
-                    decoration: InputDecoration(
-                      labelText: '確認新密碼',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        onPressed: () =>
-                            setState(() => _obscureConfirm = !_obscureConfirm),
-                        icon: Icon(
-                          _obscureConfirm
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                      ),
+                    controller: _otpController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: '6 碼驗證碼',
+                      border: OutlineInputBorder(),
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty) return '請再次輸入新密碼';
-                      if (v != _passwordController.text) return '兩次密碼不一致';
+                      if (v == null || v.trim().isEmpty) return '請輸入驗證碼';
+                      if (v.trim().length != 6) return '驗證碼需為 6 碼';
                       return null;
                     },
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed:
+                          (_resendCountdown > 0 || _isResending) ? null : _resendOtp,
+                      child: Text(
+                        _resendCountdown > 0
+                            ? '重寄驗證碼 (${_resendCountdown}s)'
+                            : (_isResending ? '寄送中...' : '重寄驗證碼'),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: _isSubmitting ? null : _submit,
-                      child: _isSubmitting
+                      onPressed: _isVerifying ? null : _verifyOtp,
+                      child: _isVerifying
                           ? const SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('更新密碼'),
+                          : const Text('驗證 OTP'),
                     ),
                   ),
                 ],

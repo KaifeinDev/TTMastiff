@@ -7,6 +7,7 @@ import 'package:ttmastiff/main.dart';
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/register_screen.dart';
 import 'ui/screens/reset_password_screen.dart';
+import 'ui/screens/reset_password_set_new_screen.dart';
 import 'ui/screens/homepage_screen.dart';
 import 'ui/screens/courses_screen.dart';
 import 'ui/screens/course_detail_screen.dart'; // 這是前台的課程詳情
@@ -53,14 +54,16 @@ final appRouter = GoRouter(
     final location = state.matchedLocation;
     final isAuthFlowPage = location == '/login' ||
         location == '/register' ||
-        location == '/reset-password';
+        location == '/reset-password' ||
+        location == '/reset-password/new';
 
     // 如果 auth 正在初始化/刷新 token，但使用者目前已在登入/註冊頁
     // 就不要跳 splash，否則 login 頁會被重建，validator 的錯誤訊息會消失。
     if (authManager.isLoading) {
       final isAuthPage = location == '/login' ||
           location == '/register' ||
-          location == '/reset-password';
+          location == '/reset-password' ||
+          location == '/reset-password/new';
       if (!isAuthPage) {
         return '/splash';
       }
@@ -110,7 +113,12 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/reset-password',
-      builder: (context, state) => const ResetPasswordScreen(),
+      builder: (context, state) =>
+          ResetPasswordScreen(initialEmail: state.uri.queryParameters['email']),
+    ),
+    GoRoute(
+      path: '/reset-password/new',
+      builder: (context, state) => const ResetPasswordSetNewScreen(),
     ),
 
     // --- App 前台主區域 ---

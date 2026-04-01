@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/data/services/auth_manager.dart';
@@ -43,8 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-    // final email = "admin@admin.com";
-    // final password = "test123";
 
     setState(() {
       _emailErrorText = null;
@@ -150,14 +147,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted || email == null) return;
 
     try {
-      final redirectTo = kIsWeb
-          ? '${Uri.base.origin}/reset-password'
-          : null;
-      await _auth.sendPasswordResetEmail(email, redirectTo: redirectTo);
+      await _auth.sendPasswordResetOtp(email);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已寄送重設密碼信，請至信箱查看')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已寄送 6 碼驗證碼到信箱')));
+      context.push('/reset-password?email=${Uri.encodeComponent(email)}');
     } catch (e) {
       if (!mounted) return;
       showErrorSnackBar(context, e, prefix: '寄送失敗：');
@@ -261,7 +256,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: _isLoading ? null : _handleForgotPassword,
+                            onPressed: _isLoading
+                                ? null
+                                : _handleForgotPassword,
                             child: const Text('忘記密碼？'),
                           ),
                         ),
