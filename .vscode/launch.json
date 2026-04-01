@@ -12,6 +12,7 @@
             "request": "launch",
             "type": "dart",
             "args": [
+                "--dart-define-from-file=.env",
                 "-d",
                 "chrome"
             ]
@@ -20,7 +21,10 @@
             "name": "Flutter-iOS",
             "request": "launch",
             "type": "dart",
-            "deviceId": "AEDB3A8E-BE5C-4458-AAEA-8A9E2CADDF09"
+            "deviceId": "ios",
+            "args": [
+                "--dart-define-from-file=.env"
+            ]
         }
     ],
     "compounds": [

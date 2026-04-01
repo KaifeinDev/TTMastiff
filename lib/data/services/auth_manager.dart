@@ -110,4 +110,16 @@ class AuthManager extends ChangeNotifier {
     await _authRepository.signOut();
     notifyListeners();
   }
+
+  // 忘記密碼
+  Future<void> sendPasswordResetEmail(
+    String email, {
+    String? redirectTo,
+  }) {
+    return _authRepository.sendPasswordResetEmail(email, redirectTo: redirectTo);
+  }
+
+  Future<void> updatePassword(String newPassword) {
+    return _authRepository.updatePassword(newPassword);
+  }
 }

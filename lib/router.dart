@@ -6,6 +6,7 @@ import 'package:ttmastiff/main.dart';
 // --- 1. 一般頁面 ---
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/register_screen.dart';
+import 'ui/screens/reset_password_screen.dart';
 import 'ui/screens/homepage_screen.dart';
 import 'ui/screens/courses_screen.dart';
 import 'ui/screens/course_detail_screen.dart'; // 這是前台的課程詳情
@@ -50,12 +51,16 @@ final appRouter = GoRouter(
   // 路由守衛 (Redirect Logic) - 保持不變
   redirect: (context, state) {
     final location = state.matchedLocation;
-    final isLoggingIn = location == '/login' || location == '/register';
+    final isAuthFlowPage = location == '/login' ||
+        location == '/register' ||
+        location == '/reset-password';
 
     // 如果 auth 正在初始化/刷新 token，但使用者目前已在登入/註冊頁
     // 就不要跳 splash，否則 login 頁會被重建，validator 的錯誤訊息會消失。
     if (authManager.isLoading) {
-      final isAuthPage = location == '/login' || location == '/register';
+      final isAuthPage = location == '/login' ||
+          location == '/register' ||
+          location == '/reset-password';
       if (!isAuthPage) {
         return '/splash';
       }
@@ -67,10 +72,11 @@ final appRouter = GoRouter(
 
     if (isSplash && !isLoggedIn) return '/login';
     // 規則 1: 未登入 -> 踢回 /login
-    if (!isLoggedIn && !isLoggingIn) return '/login';
+    if (!isLoggedIn && !isAuthFlowPage) return '/login';
 
     // 規則 2: 已登入 -> 根據身分分流
-    if (isLoggedIn && isLoggingIn || isSplash) {
+    if (isLoggedIn && (location == '/login' || location == '/register') ||
+        isSplash) {
       return isAdmin || isCoach ? '/admin/dashboard' : '/homepage';
     }
 
@@ -101,6 +107,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
+    ),
+    GoRoute(
+      path: '/reset-password',
+      builder: (context, state) => const ResetPasswordScreen(),
     ),
 
     // --- App 前台主區域 ---
