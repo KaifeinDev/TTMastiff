@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/data/services/auth_manager.dart';
@@ -70,25 +71,10 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      final formatted = formatErrorMessage(e);
-
-      // 盡量把常見登入錯誤映射成你要的文字
-      final lower = formatted.toLowerCase();
-      final bool isCredentialError = lower.contains('invalid') &&
-          (lower.contains('credential') ||
-              lower.contains('credentials') ||
-              lower.contains('login') ||
-              lower.contains('password') ||
-              lower.contains('email'));
       setState(() {
-        if (isCredentialError) {
-          _emailErrorText = '帳號或密碼錯誤';
-          _passwordErrorText = '帳號或密碼錯誤';
-        } else {
-          // 非憑證錯誤：先顯示在密碼欄位下（避免兩欄都顯示重複訊息）
-          _passwordErrorText = formatted;
-          _emailErrorText = null;
-        }
+        // 統一顯示單一錯誤訊息，避免暴露是帳號或密碼錯誤
+        _emailErrorText = null;
+        _passwordErrorText = '帳號或密碼錯誤';
       });
 
       // 觸發 validator 讓錯誤字串出現在輸入框下方
@@ -102,6 +88,79 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final inputController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+    String? dialogErrorText;
+
+    final String? email = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('忘記密碼'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('請輸入要接收重設連結的 Email'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: inputController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      border: const OutlineInputBorder(),
+                      errorText: dialogErrorText,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final value = inputController.text.trim();
+                    if (value.isEmpty || !value.contains('@')) {
+                      setStateDialog(() {
+                        dialogErrorText = '請輸入有效的 Email';
+                      });
+                      return;
+                    }
+                    Navigator.pop(dialogContext, value);
+                  },
+                  child: const Text('送出重設連結'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    inputController.dispose();
+
+    if (!mounted || email == null) return;
+
+    try {
+      final redirectTo = kIsWeb
+          ? '${Uri.base.origin}/reset-password'
+          : null;
+      await _auth.sendPasswordResetEmail(email, redirectTo: redirectTo);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已寄送重設密碼信，請至信箱查看')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackBar(context, e, prefix: '寄送失敗：');
     }
   }
 
@@ -198,6 +257,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             }
                             return null;
                           },
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _isLoading ? null : _handleForgotPassword,
+                            child: const Text('忘記密碼？'),
+                          ),
                         ),
                       ],
                     ),

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:ttmastiff/data/services/auth_manager.dart';
@@ -59,31 +58,16 @@ class _AppRootState extends State<AppRoot> {
   Future<void> _bootstrap() async {
     try {
       // 優先讀取 --dart-define（CI/CD、正式環境）
-      String supabaseUrl = const String.fromEnvironment('SUPABASE_URL');
-      String supabaseAnonKey = const String.fromEnvironment(
+      final supabaseUrl = const String.fromEnvironment('SUPABASE_URL');
+      final supabaseAnonKey = const String.fromEnvironment(
         'SUPABASE_ANON_KEY',
       );
 
-      // 若未提供 dart-define，回退到本機 env 檔（開發用）
-      if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-        try {
-          await dotenv.load(fileName: 'env.prod');
-        } catch (_) {
-          // 本機可沒有 env.prod，繼續嘗試其他 fallback
-        }
-      }
       if (supabaseUrl.isEmpty) {
-        supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+        throw Exception('Missing SUPABASE_URL in dart-define');
       }
       if (supabaseAnonKey.isEmpty) {
-        supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
-      }
-
-      if (supabaseUrl.isEmpty) {
-        throw Exception('Missing SUPABASE_URL in .env');
-      }
-      if (supabaseAnonKey.isEmpty) {
-        throw Exception('Missing SUPABASE_ANON_KEY in .env');
+        throw Exception('Missing SUPABASE_ANON_KEY in dart-define');
       }
 
       await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
@@ -111,9 +95,7 @@ class _AppRootState extends State<AppRoot> {
 
       await authManager.init();
       if (kDebugMode) {
-        debugPrint(
-          '[main] AuthManager ready (admin=${authManager.isAdmin})',
-        );
+        debugPrint('[main] AuthManager ready (admin=${authManager.isAdmin})');
       }
 
       if (!mounted) return;
@@ -165,9 +147,7 @@ class _AppRootState extends State<AppRoot> {
 
     if (!_ready) {
       // 初始化期間，先顯示 Splash 畫面（Logo + 轉圈）。
-      return const MaterialApp(
-        home: SplashScreen(),
-      );
+      return const MaterialApp(home: SplashScreen());
     }
 
     return const MyApp();

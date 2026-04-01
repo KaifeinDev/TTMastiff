@@ -119,6 +119,30 @@ class AuthRepository {
     await _supabase.auth.signOut();
   }
 
+  // 忘記密碼：寄送重設密碼信
+  Future<void> sendPasswordResetEmail(
+    String email, {
+    String? redirectTo,
+  }) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: redirectTo,
+      );
+    } catch (e) {
+      throw Exception('寄送重設密碼信失敗: $e');
+    }
+  }
+
+  // 使用者透過 reset link 進來後，更新新密碼
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _supabase.auth.updateUser(UserAttributes(password: newPassword));
+    } catch (e) {
+      throw Exception('更新密碼失敗: $e');
+    }
+  }
+
   // 取得使用者的角色權限
   Future<String> fetchUserRole(String userId) async {
     try {
