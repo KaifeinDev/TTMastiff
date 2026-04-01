@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ttmastiff/core/utils/util.dart';
 import 'package:ttmastiff/data/services/auth_manager.dart';
 import 'package:ttmastiff/main.dart';
 
@@ -89,9 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleForgotPassword() async {
-    final inputController = TextEditingController(
-      text: _emailController.text.trim(),
-    );
+    String inputEmail = _emailController.text.trim();
     String? dialogErrorText;
 
     final String? email = await showDialog<String>(
@@ -105,10 +102,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('請輸入要接收重設連結的 Email'),
+                  const Text('請輸入要接收驗證碼的 Email'),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: inputController,
+                  TextFormField(
+                    initialValue: inputEmail,
+                    onChanged: (v) => inputEmail = v.trim(),
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: 'Email',
@@ -125,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 FilledButton(
                   onPressed: () {
-                    final value = inputController.text.trim();
+                    final value = inputEmail.trim();
                     if (value.isEmpty || !value.contains('@')) {
                       setStateDialog(() {
                         dialogErrorText = '請輸入有效的 Email';
@@ -134,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     }
                     Navigator.pop(dialogContext, value);
                   },
-                  child: const Text('送出重設連結'),
+                  child: const Text('重設密碼'),
                 ),
               ],
             );
@@ -142,21 +140,14 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       },
     );
-    inputController.dispose();
 
     if (!mounted || email == null) return;
 
-    try {
-      await _auth.sendPasswordResetOtp(email);
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('已寄送 6 碼驗證碼到信箱')));
-      context.push('/reset-password?email=${Uri.encodeComponent(email)}');
-    } catch (e) {
-      if (!mounted) return;
-      showErrorSnackBar(context, e, prefix: '寄送失敗：');
-    }
+    if (!mounted) return;
+    // 先導頁提升體感速度；OTP 頁面會在 initState 自動送出驗證碼。
+    context.push(
+      '/reset-password?email=${Uri.encodeComponent(email)}&autoSend=1',
+    );
   }
 
   @override

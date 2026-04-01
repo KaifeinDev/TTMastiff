@@ -113,8 +113,10 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/reset-password',
-      builder: (context, state) =>
-          ResetPasswordScreen(initialEmail: state.uri.queryParameters['email']),
+      builder: (context, state) => ResetPasswordScreen(
+        initialEmail: state.uri.queryParameters['email'],
+        autoSendOnOpen: state.uri.queryParameters['autoSend'] == '1',
+      ),
     ),
     GoRoute(
       path: '/reset-password/new',

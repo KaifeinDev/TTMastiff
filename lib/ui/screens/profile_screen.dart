@@ -149,6 +149,164 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _showChangePasswordDialog() async {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    bool submitting = false;
+    String? errorText;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            Future<void> submit() async {
+              final messenger = ScaffoldMessenger.of(this.context);
+              final currentPassword = currentPasswordController.text.trim();
+              final newPassword = newPasswordController.text.trim();
+              final confirmPassword = confirmPasswordController.text.trim();
+
+              if (currentPassword.isEmpty) {
+                setStateDialog(() => errorText = '請輸入目前密碼');
+                return;
+              }
+              if (newPassword.length < 6) {
+                setStateDialog(() => errorText = '新密碼長度至少需 6 碼');
+                return;
+              }
+              if (newPassword != confirmPassword) {
+                setStateDialog(() => errorText = '兩次新密碼不一致');
+                return;
+              }
+
+              final email = _userEmail?.trim();
+              if (email == null || email.isEmpty) {
+                setStateDialog(() => errorText = '無法取得帳號 Email，請重新登入後再試');
+                return;
+              }
+
+              setStateDialog(() {
+                submitting = true;
+                errorText = null;
+              });
+
+              try {
+                // 已登入狀態下改密碼：先用舊密碼再驗證一次，再直接更新新密碼。
+                await authManager.signIn(
+                  email: email,
+                  password: currentPassword,
+                );
+                await authManager.updatePassword(newPassword);
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
+                messenger.showSnackBar(const SnackBar(content: Text('密碼更新成功')));
+              } catch (e) {
+                setStateDialog(() => errorText = '更新失敗，請確認目前密碼是否正確');
+              } finally {
+                if (dialogContext.mounted) {
+                  setStateDialog(() => submitting = false);
+                }
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('修改登入密碼'),
+              content: SizedBox(
+                width: 380,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: currentPasswordController,
+                      obscureText: obscureCurrent,
+                      decoration: InputDecoration(
+                        labelText: '目前密碼',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          onPressed: () =>
+                              setStateDialog(() => obscureCurrent = !obscureCurrent),
+                          icon: Icon(
+                            obscureCurrent ? Icons.visibility : Icons.visibility_off,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: newPasswordController,
+                      obscureText: obscureNew,
+                      decoration: InputDecoration(
+                        labelText: '新密碼',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          onPressed: () =>
+                              setStateDialog(() => obscureNew = !obscureNew),
+                          icon: Icon(
+                            obscureNew ? Icons.visibility : Icons.visibility_off,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirmPasswordController,
+                      obscureText: obscureConfirm,
+                      decoration: InputDecoration(
+                        labelText: '確認新密碼',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          onPressed: () =>
+                              setStateDialog(() => obscureConfirm = !obscureConfirm),
+                          icon: Icon(
+                            obscureConfirm ? Icons.visibility : Icons.visibility_off,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (errorText != null) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          errorText!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: submitting ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: submitting ? null : submit,
+                  child: submitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('更新密碼'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    currentPasswordController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
+  }
+
   void _showAddStudentDialog() {
     // 1. 檢查上限
     if (_students.length >= 4) {
@@ -652,6 +810,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
 
                         const SizedBox(height: 10),
+                        Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.lock_reset),
+                            title: const Text('修改登入密碼'),
+                            subtitle: const Text('已登入狀態可直接修改，不需 Email 驗證碼'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: _showChangePasswordDialog,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                         if (isAdmin || isCoach) ...[
                           Card(
                             shadowColor: Colors.blueGrey.shade50,
