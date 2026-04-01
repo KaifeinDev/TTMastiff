@@ -58,14 +58,31 @@ class _AppRootState extends State<AppRoot> {
 
   Future<void> _bootstrap() async {
     try {
-      await dotenv.load(fileName: "env.prod");
-      final supabaseUrl = dotenv.env['SUPABASE_URL'];
-      final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+      // 優先讀取 --dart-define（CI/CD、正式環境）
+      String supabaseUrl = const String.fromEnvironment('SUPABASE_URL');
+      String supabaseAnonKey = const String.fromEnvironment(
+        'SUPABASE_ANON_KEY',
+      );
 
-      if (supabaseUrl == null || supabaseUrl.isEmpty) {
+      // 若未提供 dart-define，回退到本機 env 檔（開發用）
+      if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+        try {
+          await dotenv.load(fileName: 'env.prod');
+        } catch (_) {
+          // 本機可沒有 env.prod，繼續嘗試其他 fallback
+        }
+      }
+      if (supabaseUrl.isEmpty) {
+        supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+      }
+      if (supabaseAnonKey.isEmpty) {
+        supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+      }
+
+      if (supabaseUrl.isEmpty) {
         throw Exception('Missing SUPABASE_URL in .env');
       }
-      if (supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
+      if (supabaseAnonKey.isEmpty) {
         throw Exception('Missing SUPABASE_ANON_KEY in .env');
       }
 
